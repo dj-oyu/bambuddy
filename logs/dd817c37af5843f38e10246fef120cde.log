@@ -1,0 +1,200 @@
+2026-05-07 02:41:45,501 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:42:15,033 INFO [backend.app.api.routes.cloud] get_filament_info called with 2 IDs: ['GFL99', 'GFU99']
+2026-05-07 02:42:15,518 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:42:15,521 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:42:23,249 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:42:24,797 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:42:38,765 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:42:38,825 INFO [backend.app.services.bambu_ftp] FTP list_files failed for /model: 550 
+2026-05-07 02:42:45,544 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:42:45,550 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:43:15,572 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:43:15,575 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:43:45,590 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:43:45,594 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:44:15,624 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:44:15,630 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:44:38,524 INFO [backend.app.main] Recorded 1 AMS sensor history entries
+2026-05-07 02:44:41,636 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:44:43,232 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:44:45,659 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:44:45,665 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:45:05,414 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:45:05,437 INFO [backend.app.services.bambu_ftp] FTP list_files failed for /model: 550 
+2026-05-07 02:45:07,936 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:45:15,687 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:45:15,691 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:45:42,894 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:45:45,708 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:45:45,712 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:46:15,727 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:46:15,730 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:46:45,748 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:46:45,752 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:47:15,772 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:47:15,775 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:47:45,790 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:47:45,793 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:48:15,814 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:48:15,820 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:48:22,417 INFO [backend.app.api.routes.cloud] get_filament_info called with 2 IDs: ['GFL99', 'GFU99']
+2026-05-07 02:48:45,840 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:48:45,845 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:49:15,860 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:49:15,863 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:49:38,541 INFO [backend.app.main] Recorded 1 AMS sensor history entries
+2026-05-07 02:49:45,880 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:49:45,884 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:50:15,905 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:50:15,910 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:50:45,941 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:50:45,949 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:51:15,976 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:51:15,981 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:51:46,002 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:51:46,006 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:52:16,027 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:52:16,032 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:52:46,049 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:52:46,053 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:53:16,068 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:53:16,076 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:53:46,093 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:53:46,097 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=True
+2026-05-07 02:54:05,702 INFO [backend.app.services.bambu_mqtt] [[SERIAL]] PRINT COMPLETE detected - state: FINISH, status: completed, file: gridfinity-5x5-5clips.gcode.3mf, subtask: gridfinity-5x5-5clips, was_running: True, timelapse_during_print: True
+2026-05-07 02:54:05,704 INFO [backend.app.main] [CALLBACK] on_print_complete started for printer 1
+2026-05-07 02:54:05,706 INFO [backend.app.main] [TIMING] WebSocket send_print_complete: 0.002s elapsed
+2026-05-07 02:54:05,707 INFO [backend.app.main] Print complete - filename: gridfinity-5x5-5clips.gcode.3mf, subtask: gridfinity-5x5-5clips, status: completed
+2026-05-07 02:54:05,708 INFO [backend.app.main] Looking for archive in _active_prints, keys to try: [(1, 'gridfinity-5x5-5clips.3mf'), (1, 'gridfinity-5x5-5clips.gcode.3mf'), (1, 'gridfinity-5x5-5clips'), (1, 'gridfinity-5x5-5clips.gcode.3mf'), (1, 'gridfinity-5x5-5clips.gcode.3mf')]...
+2026-05-07 02:54:05,709 INFO [backend.app.main] Current _active_prints: [(1, 'gridfinity-5x5-5clips.gcode.3mf'), (1, 'gridfinity-5x5-5clips.3mf')]
+2026-05-07 02:54:05,710 INFO [backend.app.main] Found archive 4 with key (1, 'gridfinity-5x5-5clips.3mf')
+2026-05-07 02:54:07,229 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:07,285 WARNING [backend.app.services.bambu_ftp] Failed to delete /gridfinity-5x5-5clips.3mf: 550 
+2026-05-07 02:54:10,448 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:10,477 WARNING [backend.app.services.bambu_ftp] Failed to delete /gridfinity-5x5-5clips.3mf: 550 
+2026-05-07 02:54:13,379 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:13,410 WARNING [backend.app.services.bambu_ftp] Failed to delete /gridfinity-5x5-5clips.3mf: 550 
+2026-05-07 02:54:13,436 WARNING [backend.app.main] SD card cleanup failed after 3 attempts for /gridfinity-5x5-5clips.3mf (file may linger on SD card)
+2026-05-07 02:54:14,356 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:14,384 WARNING [backend.app.services.bambu_ftp] Failed to delete /gridfinity-5x5-5clips.gcode: 550 
+2026-05-07 02:54:16,116 INFO [backend.app.services.print_scheduler] Queue check: found 1 pending items: [(1, 1, 4, None)]
+2026-05-07 02:54:16,128 INFO [backend.app.services.print_scheduler] Starting queue item 1
+2026-05-07 02:54:16,145 INFO [backend.app.services.print_scheduler] Queue item 1: FTP upload starting - printer=[PRINTER] ([PRINTER]), ip=[IP], file=gridfinity-5x5-5clips.3mf, local_path=/app/data/archive/1/20260507_012343_gridfinity-5x5-5clips.gcode/gridfinity-5x5-5clips.gcode.3mf, retry_enabled=True, retry_count=3, timeout=30.0
+2026-05-07 02:54:16,948 WARNING [backend.app.services.bambu_ftp] FTP connection failed to [IP]: [Errno 104] Connection reset by peer (type: ConnectionResetError)
+2026-05-07 02:54:16,986 INFO [backend.app.services.bambu_ftp] FTP connecting to [IP] for upload (model=[PRINTER], mode=prot_p, socket_timeout=30.0s)...
+2026-05-07 02:54:17,923 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:17,924 INFO [backend.app.services.bambu_ftp] FTP connected to [IP]
+2026-05-07 02:54:17,924 INFO [backend.app.services.bambu_ftp] FTP uploading /app/data/archive/1/20260507_012343_gridfinity-5x5-5clips.gcode/gridfinity-5x5-5clips.gcode.3mf (363118 bytes) to /gridfinity-5x5-5clips.3mf
+2026-05-07 02:54:18,094 INFO [backend.app.services.bambu_ftp] FTP data channel ready in 0.2s (PASV + TLS handshake)
+2026-05-07 02:54:20,219 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:20,292 WARNING [backend.app.services.bambu_ftp] Failed to delete /gridfinity-5x5-5clips.gcode: 550 
+2026-05-07 02:54:20,317 WARNING [backend.app.main] SD card cleanup failed after 3 attempts for /gridfinity-5x5-5clips.gcode (file may linger on SD card)
+2026-05-07 02:54:20,318 INFO [backend.app.main] [TIMING] SD card cleanup: 14.614s elapsed
+2026-05-07 02:54:20,324 INFO [backend.app.main] [TIMING] Queue item update: 14.620s elapsed
+2026-05-07 02:54:20,342 INFO [backend.app.services.usage_tracker] [UsageTracker] on_print_complete: printer=1, archive=4, session=yes, ams_mapping=None
+2026-05-07 02:54:20,343 INFO [backend.app.services.usage_tracker] [UsageTracker] PRINT COMPLETE printer 1: mapping=None, tray_now=255, last_loaded_tray=1
+2026-05-07 02:54:20,348 INFO [backend.app.services.usage_tracker] [UsageTracker] 3MF: archive 4, filament_usage=[{'slot_id': 1, 'used_g': 29.43, 'type': 'PLA', 'color': '#161616'}]
+2026-05-07 02:54:20,352 INFO [backend.app.services.usage_tracker] [UsageTracker] 3MF: slot_to_tray=None (source: none)
+2026-05-07 02:54:20,353 INFO [backend.app.services.usage_tracker] [UsageTracker] 3MF: using tray_now_at_start=1 (single-filament fallback)
+2026-05-07 02:54:20,353 INFO [backend.app.services.usage_tracker] [UsageTracker] 3MF: slot_id=1 -> global_tray=1 -> AMS0-T1 (used_g=29.4, tray_now_override=1)
+2026-05-07 02:54:20,356 INFO [backend.app.services.usage_tracker] [UsageTracker] 3MF: no spool assignment at printer 1 AMS0-T1
+2026-05-07 02:54:20,361 INFO [backend.app.services.spoolman_tracking] [SPOOLMAN] No tracking data for print (printer=1, archive=4)
+2026-05-07 02:54:20,363 INFO [backend.app.main] [TIMING] Spoolman usage report: 14.659s elapsed
+2026-05-07 02:54:20,364 INFO [backend.app.main] [TIMING] Filament usage tracking: 14.660s elapsed
+2026-05-07 02:54:20,364 INFO [backend.app.main] [TIMING] Archive lookup: 14.661s elapsed
+2026-05-07 02:54:20,365 INFO [backend.app.main] [ARCHIVE] Updating archive 4 status...
+2026-05-07 02:54:20,375 INFO [backend.app.main] [ARCHIVE] Archive 4 status updated to completed, failure_reason=None
+2026-05-07 02:54:20,377 INFO [backend.app.main] [ARCHIVE] WebSocket notification sent for archive 4
+2026-05-07 02:54:20,378 INFO [backend.app.main] [TIMING] Archive status update: 14.674s elapsed
+2026-05-07 02:54:20,386 INFO [backend.app.main] [PRINT_LOG] Log entry written for archive 4
+2026-05-07 02:54:20,387 INFO [backend.app.main] [TIMING] Print log entry: 14.683s elapsed
+2026-05-07 02:54:20,388 INFO [backend.app.main] [TIMING] Background tasks scheduled (energy, photo): 14.684s elapsed
+2026-05-07 02:54:20,388 INFO [backend.app.main] [TIMING] All background tasks scheduled: 14.685s elapsed
+2026-05-07 02:54:20,389 INFO [backend.app.main] [TIMELAPSE] Timelapse was active during print, scheduling auto-scan for archive 4
+2026-05-07 02:54:20,389 INFO [backend.app.main] [TIMING] Timelapse scan scheduled: 14.685s elapsed
+2026-05-07 02:54:20,390 INFO [backend.app.main] [CALLBACK] on_print_complete finished for printer 1, archive 4
+2026-05-07 02:54:20,390 INFO [backend.app.main] [ENERGY-BG] Starting energy calculation for archive 4
+2026-05-07 02:54:20,392 INFO [backend.app.main] [PHOTO-BG] Starting finish photo capture for archive 4
+2026-05-07 02:54:20,395 INFO [backend.app.main] [AUTO-OFF-BG] Starting smart plug automation for printer 1
+2026-05-07 02:54:20,398 INFO [backend.app.main] [MAINT-BG] Starting maintenance check for printer 1
+2026-05-07 02:54:20,400 INFO [backend.app.main] [LAYER-TL] Stitching layer timelapse for printer 1
+2026-05-07 02:54:20,406 INFO [backend.app.main] [ENERGY-BG] No start kWh recorded for archive 4
+2026-05-07 02:54:20,410 INFO [backend.app.main] [AUTO-OFF-BG] Completed
+2026-05-07 02:54:20,415 INFO [backend.app.main] [TIMELAPSE] Using print-start baseline: 120 existing video files for archive 4
+2026-05-07 02:54:20,419 INFO [backend.app.main] [TIMELAPSE] Attempt 1/4: waiting 5s before scanning for archive 4
+2026-05-07 02:54:20,426 INFO [backend.app.main] [PHOTO-BG] Using buffered frame from active stream
+2026-05-07 02:54:20,430 INFO [backend.app.main] [PHOTO-BG] Saved buffered frame: finish_20260507_025420_ff3be1a4.jpg
+2026-05-07 02:54:20,441 INFO [backend.app.main] [PHOTO-BG] Saved: finish_20260507_025420_ff3be1a4.jpg
+2026-05-07 02:54:20,446 INFO [backend.app.main] [PHOTO-NOTIFY] Photo task returned: finish_20260507_025420_ff3be1a4.jpg
+2026-05-07 02:54:20,447 INFO [backend.app.main] [NOTIFY-BG] Starting notifications for printer 1, photo=finish_20260507_025420_ff3be1a4.jpg
+2026-05-07 02:54:20,478 INFO [backend.app.main] [NOTIFY-BG] Loaded finish photo bytes: 59250 bytes
+2026-05-07 02:54:20,479 INFO [backend.app.services.notification_service] on_print_complete called for printer 1 ([PRINTER]), status=completed
+2026-05-07 02:54:20,491 INFO [backend.app.services.notification_service] No notification providers configured for on_print_complete event on printer 1
+2026-05-07 02:54:20,492 INFO [backend.app.main] [NOTIFY-BG] Completed
+2026-05-07 02:54:20,493 INFO [backend.app.main] [MAINT-BG] Completed (no items need attention)
+2026-05-07 02:54:20,605 INFO [backend.app.services.bambu_ftp] FTP STOR confirmed for /gridfinity-5x5-5clips.3mf: 226
+2026-05-07 02:54:20,606 INFO [backend.app.services.bambu_ftp] FTP upload complete: /gridfinity-5x5-5clips.3mf (363118 bytes in 2.7s, 132 KB/s)
+2026-05-07 02:54:20,606 INFO [backend.app.services.bambu_ftp] FTP mode cached for [IP]: prot_p
+2026-05-07 02:54:20,631 INFO [backend.app.main] Registered expected print: printer=1, file=gridfinity-5x5-5clips.3mf, archive=4, ams_mapping=[1]
+2026-05-07 02:54:20,637 INFO [backend.app.services.print_scheduler] Queue item 1: Status set to 'printing', sending print command...
+2026-05-07 02:54:20,647 INFO [backend.app.services.printer_manager] PRINT COMMAND: printer=1, file=gridfinity-5x5-5clips.3mf, caller=print_scheduler.py:262:check_queue
+2026-05-07 02:54:20,648 INFO [backend.app.services.bambu_mqtt] [[SERIAL]] Sending print command: {"print": {"sequence_id": "20000", "command": "project_file", "param": "Metadata/plate_1.gcode", "url": "ftp://gridfinity-5x5-5clips.3mf", "file": "gridfinity-5x5-5clips.3mf", "md5": "", "bed_type": "auto", "timelapse": true, "bed_leveling": true, "auto_bed_leveling": 1, "flow_cali": false, "vibration_cali": true, "layer_inspect": true, "use_ams": true, "cfg": "0", "extrude_cali_flag": 0, "extrude_cali_manual_mode": 0, "nozzle_offset_cali": 2, "subtask_name": "gridfinity-5x5-5clips", "profile_id": "0", "project_id": "2146284579", "subtask_id": "2146284579", "task_id": "2146284579", "ams_mapping": [1], "ams_mapping2": [{"ams_id": 0, "slot_id": 1}]}}
+2026-05-07 02:54:20,650 INFO [backend.app.services.print_scheduler] Queue item 1: Print started successfully - gridfinity-5x5-5clips.gcode.3mf
+2026-05-07 02:54:20,663 INFO [backend.app.services.print_scheduler] Queue: printer 1 not available — connected=True, state=FINISH, awaiting_plate_clear=False
+2026-05-07 02:54:26,398 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:28,626 INFO [backend.app.main] [TIMELAPSE] Attempt 1: Found 121 video files in /timelapse
+2026-05-07 02:54:28,627 INFO [backend.app.main] [TIMELAPSE]   - video_2026-03-17_01-50-39.avi
+2026-05-07 02:54:28,628 INFO [backend.app.main] [TIMELAPSE]   - video_2026-03-17_02-17-55.avi
+2026-05-07 02:54:28,629 INFO [backend.app.main] [TIMELAPSE]   - video_2026-03-17_03-32-27.avi
+2026-05-07 02:54:28,630 INFO [backend.app.main] [TIMELAPSE]   - video_2026-03-17_04-54-14.avi
+2026-05-07 02:54:28,630 INFO [backend.app.main] [TIMELAPSE]   - video_2026-03-17_05-08-03.avi
+2026-05-07 02:54:28,632 INFO [backend.app.main] [TIMELAPSE] Attempt 1: New file detected: video_2026-05-07_07-46-54.avi (downloading for archive 4)
+2026-05-07 02:54:29,505 INFO [backend.app.services.bambu_ftp] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-07 02:54:29,588 INFO [backend.app.services.bambu_mqtt] [[SERIAL]] PRINT START detected - file: gridfinity-5x5-5clips.3mf, subtask: gridfinity-5x5-5clips, is_new: True, is_file_change: True
+2026-05-07 02:54:29,590 INFO [backend.app.main] [CALLBACK] on_print_start called for printer 1, data keys: ['filename', 'subtask_name', 'remaining_time', 'raw_data', 'ams_mapping']
+2026-05-07 02:54:29,596 INFO [backend.app.services.usage_tracker] [UsageTracker] Skipped trays with invalid remain% for printer 1: AMS0-T0(remain=-1), AMS0-T1(remain=-1), AMS0-T2(remain=-1), AMS0-T3(remain=-1)
+2026-05-07 02:54:29,597 INFO [backend.app.services.usage_tracker] [UsageTracker] PRINT START printer 1: mapping=None, tray_now=255, last_loaded_tray=1
+2026-05-07 02:54:29,597 INFO [backend.app.services.usage_tracker] [UsageTracker] PRINT START printer 1: mapping-related keys: {'ams_extruder_map': {'0': 0}}
+2026-05-07 02:54:29,597 INFO [backend.app.services.usage_tracker] [UsageTracker] PRINT START printer 1 AMS 0: T0(type=PLA, color=F72323FF, now=?, tar=?), T1(type=PLA, color=161616FF, now=?, tar=?), T2(type=PLA, color=161616FF, now=?, tar=?), T3(type=PLA, color=46A8F9FF, now=?, tar=?)
+2026-05-07 02:54:29,601 INFO [backend.app.services.usage_tracker] [UsageTracker] Captured start remain% for printer 1 (1 trays): {'255-0': 0}
+2026-05-07 02:54:29,622 INFO [backend.app.main] [PLATE CHECK] printer_id=1, plate_detection_enabled=False
+2026-05-07 02:54:29,623 INFO [backend.app.main] [CALLBACK] Print start detected - filename: gridfinity-5x5-5clips.3mf, subtask: gridfinity-5x5-5clips
+2026-05-07 02:54:29,624 INFO [backend.app.main] Using expected archive 4 for print (skipping duplicate)
+2026-05-07 02:54:29,644 INFO [backend.app.main] [CALLBACK] Injected ams_mapping into usage tracker session: [1]
+2026-05-07 02:54:29,652 INFO [backend.app.main] [ENERGY] No smart plug for printer 1 (archive 4)
+2026-05-07 02:54:29,665 INFO [backend.app.main] [SNAPSHOT] Using buffered frame for printer 1: 59989 bytes
+2026-05-07 02:54:29,666 INFO [backend.app.services.notification_service] on_print_start called for printer 1 ([PRINTER])
+2026-05-07 02:54:29,671 INFO [backend.app.services.notification_service] No notification providers configured for print_start event on printer 1
+2026-05-07 02:54:29,676 INFO [backend.app.main] Loaded 6 printable objects for printer 1
+2026-05-07 02:54:38,554 INFO [backend.app.main] Recorded 1 AMS sensor history entries
+2026-05-07 02:55:25,793 INFO [backend.app.main] [TIMELAPSE] Successfully attached timelapse to archive 4
+2026-05-07 02:55:27,794 INFO [backend.app.api.routes.cloud] get_filament_info called with 2 IDs: ['GFL99', 'GFU99']
+2026-05-07 02:55:55,375 INFO [backend.app.services.archive] Converted timelapse to MP4 for archive 4 (video_2026-05-07_07-46-54.avi → video_2026-05-07_07-46-54.mp4)
+2026-05-07 02:57:17,307 INFO [backend.app.api.routes.support] Log level changed to DEBUG
+2026-05-07 02:57:17,308 INFO [backend.app.api.routes.bug_report] Bug report: enabled debug logging
+2026-05-07 02:57:17,308 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Requesting status update (pushall)
+2026-05-07 02:57:17,471 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Received gcode_state: RUNNING, gcode_file: gridfinity-5x5-5clips.3mf, subtask_name: gridfinity-5x5-5clips
+2026-05-07 02:57:17,477 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '1', 'tray_now': '1', 'tray_pre': '1', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 4, 'insert_flag': True, 'power_on_flag': True}
+2026-05-07 02:57:17,478 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] tray_now updated: 1
+2026-05-07 02:57:17,478 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-05-07 02:57:17,479 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-05-07 02:57:17,479 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-05-07 02:57:17,480 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] ams_status: 768 (main=3, sub=0)
+2026-05-07 02:57:17,481 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Received command response: push_status
+2026-05-07 02:57:17,482 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] chamber_temper raw value: 5.0
+2026-05-07 02:57:17,482 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-05-07 02:57:17,483 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-05-07 02:57:17,484 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-05-07 02:57:17,484 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] HMS data received: []
+2026-05-07 02:57:17,485 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'enable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-05-07 02:57:17,485 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Timelapse detected during print (from ipcam)
+2026-05-07 02:57:17,486 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] wifi_signal received: -39dBm
+2026-05-07 02:57:17,487 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-05-07 02:57:17,488 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] gcode_state: RUNNING -> RUNNING, file: gridfinity-5x5-5clips.3mf, subtask: gridfinity-5x5-5clips
+2026-05-07 02:57:17,586 DEBUG [backend.app.api.routes.printers] API returning ams_mapping: [], ams_extruder_map: {'0': 0}
+2026-05-07 02:57:17,588 DEBUG [backend.app.api.routes.printers] Using tray_now directly as global ID: 1
+2026-05-07 02:57:19,522 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Received command response: push_status
+2026-05-07 02:57:20,609 DEBUG [backend.app.main] [[PRINTER]] Runtime tracking: added 30s, total=7380s (2.05h)
+2026-05-07 02:57:20,621 DEBUG [backend.app.main] Updated runtime for 1 printer(s)
+2026-05-07 02:57:21,551 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] Received command response: push_status
+2026-05-07 02:57:21,553 DEBUG [backend.app.services.bambu_mqtt] [[SERIAL]] wifi_signal received: -40dBm
