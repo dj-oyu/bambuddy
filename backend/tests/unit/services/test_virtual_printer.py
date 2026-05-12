@@ -318,6 +318,142 @@ class TestVirtualPrinterInstance:
         assert queue_item.manual_start is True
 
     @pytest.mark.asyncio
+    async def test_add_to_print_queue_uses_workflow_defaults_from_settings(self, tmp_path):
+        """#1235: VP queue-mode constructed PrintQueueItem without specifying
+        bed_levelling / flow_cali / vibration_cali / layer_inspect / timelapse,
+        so SQLAlchemy applied the column-level defaults and ignored the user's
+        workflow preferences entirely. Every print sent from the slicer to the
+        VP came through with the OPPOSITE of what the workflow page said,
+        forcing the user to edit each queue item by hand.
+        """
+        from backend.app.services.virtual_printer.manager import VirtualPrinterInstance
+
+        added_items = []
+        mock_db = AsyncMock()
+        mock_db.add = MagicMock(side_effect=added_items.append)
+        mock_db.commit = AsyncMock()
+        mock_session_factory = MagicMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_session_factory.return_value = mock_session_ctx
+
+        inst = VirtualPrinterInstance(
+            vp_id=22,
+            name="DefaultsTest",
+            mode="print_queue",
+            model="C12",
+            access_code="12345678",
+            serial_suffix="391800022",
+            auto_dispatch=True,
+            base_dir=tmp_path,
+            session_factory=mock_session_factory,
+        )
+
+        file_path = tmp_path / "test.3mf"
+        file_path.write_bytes(b"fake3mf")
+
+        # The reporter set every workflow default to the OPPOSITE of the model's
+        # column default. Pre-fix the column defaults won; with the fix the
+        # settings values must flow through to the queue item exactly as stored.
+        settings_map = {
+            "virtual_printer_archive_name_source": None,
+            "default_bed_levelling": "false",  # model default: True
+            "default_flow_cali": "true",  # model default: False
+            "default_vibration_cali": "false",  # model default: True
+            "default_layer_inspect": "true",  # model default: False
+            "default_timelapse": "true",  # model default: False
+        }
+
+        async def fake_get_setting(_db, key):
+            return settings_map.get(key)
+
+        mock_archive = MagicMock()
+        mock_archive.id = 1
+        mock_archive.print_name = "test"
+
+        with (
+            patch(
+                "backend.app.api.routes.settings.get_setting",
+                new=fake_get_setting,
+            ),
+            patch(
+                "backend.app.services.archive.ArchiveService.archive_print",
+                new_callable=AsyncMock,
+                return_value=mock_archive,
+            ),
+        ):
+            await inst._add_to_print_queue(file_path, "192.168.1.100")
+
+        assert len(added_items) == 1
+        queue_item = added_items[0]
+        assert queue_item.bed_levelling is False, "default_bed_levelling=false must flow through"
+        assert queue_item.flow_cali is True, "default_flow_cali=true must flow through"
+        assert queue_item.vibration_cali is False, "default_vibration_cali=false must flow through"
+        assert queue_item.layer_inspect is True, "default_layer_inspect=true must flow through"
+        assert queue_item.timelapse is True, "default_timelapse=true must flow through"
+
+    @pytest.mark.asyncio
+    async def test_add_to_print_queue_falls_back_to_schema_defaults_when_unset(self, tmp_path):
+        """#1235 fallback: when no workflow setting is in the DB, the queue
+        item should use the AppSettings (Pydantic) defaults — same values
+        the user sees in the workflow page on a fresh install.
+        """
+        from backend.app.services.virtual_printer.manager import VirtualPrinterInstance
+
+        added_items = []
+        mock_db = AsyncMock()
+        mock_db.add = MagicMock(side_effect=added_items.append)
+        mock_db.commit = AsyncMock()
+        mock_session_factory = MagicMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_session_factory.return_value = mock_session_ctx
+
+        inst = VirtualPrinterInstance(
+            vp_id=23,
+            name="FreshInstallDefaults",
+            mode="print_queue",
+            model="C12",
+            access_code="12345678",
+            serial_suffix="391800023",
+            auto_dispatch=True,
+            base_dir=tmp_path,
+            session_factory=mock_session_factory,
+        )
+
+        file_path = tmp_path / "test.3mf"
+        file_path.write_bytes(b"fake3mf")
+
+        mock_archive = MagicMock()
+        mock_archive.id = 1
+        mock_archive.print_name = "test"
+
+        with (
+            patch(
+                "backend.app.api.routes.settings.get_setting",
+                new_callable=AsyncMock,
+                return_value=None,  # No settings → fall back to schema defaults
+            ),
+            patch(
+                "backend.app.services.archive.ArchiveService.archive_print",
+                new_callable=AsyncMock,
+                return_value=mock_archive,
+            ),
+        ):
+            await inst._add_to_print_queue(file_path, "192.168.1.100")
+
+        assert len(added_items) == 1
+        queue_item = added_items[0]
+        # These must match the AppSettings (Pydantic) defaults in schemas/settings.py
+        assert queue_item.bed_levelling is True
+        assert queue_item.flow_cali is False
+        assert queue_item.vibration_cali is True
+        assert queue_item.layer_inspect is False
+        assert queue_item.timelapse is False
+
+    @pytest.mark.asyncio
     async def test_add_to_print_queue_populates_required_filament_types(self, tmp_path):
         """#1188: VP queue-mode used to create PrintQueueItems with no
         filament fields, so the scheduler fell through to model-only matching

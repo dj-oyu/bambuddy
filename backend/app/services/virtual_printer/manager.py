@@ -345,6 +345,20 @@ class VirtualPrinterInstance:
             async with self._session_factory() as db:
                 name_source = await get_setting(db, "virtual_printer_archive_name_source")
                 prefer_filename = name_source == "filename"
+
+                # Read workflow defaults from settings. Without this the
+                # PrintQueueItem below would fall back to the column-level
+                # defaults and ignore the user's workflow preferences (#1235).
+                # Fallbacks match AppSettings defaults in schemas/settings.py.
+                def _bool_setting(value: str | None, default: bool) -> bool:
+                    return value.lower() == "true" if value is not None else default
+
+                bed_levelling = _bool_setting(await get_setting(db, "default_bed_levelling"), True)
+                flow_cali = _bool_setting(await get_setting(db, "default_flow_cali"), False)
+                vibration_cali = _bool_setting(await get_setting(db, "default_vibration_cali"), True)
+                layer_inspect = _bool_setting(await get_setting(db, "default_layer_inspect"), False)
+                timelapse = _bool_setting(await get_setting(db, "default_timelapse"), False)
+
                 service = ArchiveService(db)
                 archive = await service.archive_print(
                     printer_id=None,
@@ -405,6 +419,11 @@ class VirtualPrinterInstance:
                         manual_start=not self.auto_dispatch,
                         required_filament_types=required_filament_types_json,
                         filament_overrides=filament_overrides_json,
+                        bed_levelling=bed_levelling,
+                        flow_cali=flow_cali,
+                        vibration_cali=vibration_cali,
+                        layer_inspect=layer_inspect,
+                        timelapse=timelapse,
                     )
                     db.add(queue_item)
                     await db.commit()
