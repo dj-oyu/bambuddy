@@ -1,0 +1,200 @@
+2026-05-13 12:06:08,448 INFO [uvicorn.access] [-] [IP]:42722 - "DELETE /api/v1/local-presets/61 HTTP/1.1" 200
+2026-05-13 12:06:09,793 INFO [uvicorn.access] [-] [IP]:42744 - "DELETE /api/v1/local-presets/39 HTTP/1.1" 200
+2026-05-13 12:06:12,282 INFO [uvicorn.access] [-] [IP]:49858 - "DELETE /api/v1/local-presets/84 HTTP/1.1" 200
+2026-05-13 12:06:13,911 INFO [uvicorn.access] [-] [IP]:49894 - "DELETE /api/v1/local-presets/40 HTTP/1.1" 200
+2026-05-13 12:06:15,608 INFO [uvicorn.access] [-] [IP]:49912 - "DELETE /api/v1/local-presets/62 HTTP/1.1" 200
+2026-05-13 12:06:18,018 INFO [uvicorn.access] [-] [IP]:49958 - "DELETE /api/v1/local-presets/85 HTTP/1.1" 200
+2026-05-13 12:06:19,317 INFO [uvicorn.access] [-] [IP]:49982 - "DELETE /api/v1/local-presets/41 HTTP/1.1" 200
+2026-05-13 12:06:20,713 INFO [uvicorn.access] [-] [IP]:49998 - "DELETE /api/v1/local-presets/63 HTTP/1.1" 200
+2026-05-13 12:06:23,803 INFO [uvicorn.access] [-] [IP]:40558 - "DELETE /api/v1/local-presets/86 HTTP/1.1" 200
+2026-05-13 12:06:25,443 INFO [uvicorn.access] [-] [IP]:40586 - "DELETE /api/v1/local-presets/42 HTTP/1.1" 200
+2026-05-13 12:06:27,140 INFO [uvicorn.access] [-] [IP]:40608 - "DELETE /api/v1/local-presets/64 HTTP/1.1" 200
+2026-05-13 12:06:35,882 INFO [uvicorn.access] [-] [IP]:33502 - "DELETE /api/v1/local-presets/87 HTTP/1.1" 200
+2026-05-13 12:06:37,850 INFO [uvicorn.access] [-] [IP]:33514 - "DELETE /api/v1/local-presets/43 HTTP/1.1" 200
+2026-05-13 12:06:39,631 INFO [uvicorn.access] [-] [IP]:33552 - "DELETE /api/v1/local-presets/65 HTTP/1.1" 200
+2026-05-13 12:06:47,554 INFO [uvicorn.access] [-] [IP]:37182 - "DELETE /api/v1/local-presets/100 HTTP/1.1" 200
+2026-05-13 12:06:49,193 INFO [uvicorn.access] [-] [IP]:37224 - "DELETE /api/v1/local-presets/33 HTTP/1.1" 200
+2026-05-13 12:06:50,897 INFO [uvicorn.access] [-] [IP]:37250 - "DELETE /api/v1/local-presets/55 HTTP/1.1" 200
+2026-05-13 12:06:53,249 INFO [uvicorn.access] [-] [IP]:33126 - "DELETE /api/v1/local-presets/101 HTTP/1.1" 200
+2026-05-13 12:06:55,230 INFO [uvicorn.access] [-] [IP]:33144 - "DELETE /api/v1/local-presets/34 HTTP/1.1" 200
+2026-05-13 12:06:56,871 INFO [uvicorn.access] [-] [IP]:33166 - "DELETE /api/v1/local-presets/56 HTTP/1.1" 200
+2026-05-13 12:06:58,668 INFO [uvicorn.access] [-] [IP]:33226 - "DELETE /api/v1/local-presets/102 HTTP/1.1" 200
+2026-05-13 12:07:00,404 INFO [uvicorn.access] [-] [IP]:33242 - "DELETE /api/v1/local-presets/35 HTTP/1.1" 200
+2026-05-13 12:07:02,010 INFO [uvicorn.access] [-] [IP]:52232 - "DELETE /api/v1/local-presets/57 HTTP/1.1" 200
+2026-05-13 12:07:57,530 INFO [uvicorn.access] [-] [IP]:53724 - "POST /api/v1/library/files/4/slice HTTP/1.1" 202
+2026-05-13 12:07:57,534 INFO [backend.app.api.routes.library] [c9e3598c] 3MF sanitiser: removed sentinel '-1' for keys ['raft_first_layer_expansion', 'tree_support_wall_count'] — slicer will use --load-settings defaults
+2026-05-13 12:07:57,649 WARNING [backend.app.api.routes.library] [c9e3598c] Slicer CLI rejected --load-settings for Lora_Antenna_3.3mf (Slicer CLI failed (500): Slicing failed with error from slicer: The input preset file is invalid and can not be parsed.: Slicer process failed (exit code 251)
+stderr: operator():file /tmp/slice-diGFg6/input/preset.json's from  unsupported
+stdout: [2026-05-13 02:07:57.608977] [0x00007f156336da40] [trace]   Initializing StaticPrintConfigs
+[2026-05-13 02:07:57.638280] [0x00007f156336da40] [error]   load_from_json: parse /tmp/slice-diGFg6/input/preset.json error, invalid json type for setting
+run found error, return -5, exi); retrying with embedded settings
+2026-05-13 12:08:51,349 INFO [backend.app.services.firmware_check] [e755d76f] Got Bambu Lab build ID: T3V8iVAkjHwVRd4TmOpG_
+2026-05-13 12:09:08,249 INFO [uvicorn.access] [-] [IP]:46798 - "DELETE /api/v1/library/files/26 HTTP/1.1" 200
+2026-05-13 12:09:11,202 INFO [uvicorn.access] [-] [IP]:46872 - "DELETE /api/v1/library/files/13 HTTP/1.1" 200
+2026-05-13 12:09:28,239 INFO [uvicorn.access] [-] [IP]:52610 - "POST /api/v1/library/files/4/slice HTTP/1.1" 202
+2026-05-13 12:09:28,244 INFO [backend.app.api.routes.library] [ef37b756] 3MF sanitiser: removed sentinel '-1' for keys ['raft_first_layer_expansion', 'tree_support_wall_count'] — slicer will use --load-settings defaults
+2026-05-13 12:09:28,364 WARNING [backend.app.api.routes.library] [ef37b756] Slicer CLI rejected --load-settings for Lora_Antenna_3.3mf (Slicer CLI failed (500): Slicing failed with error from slicer: The input preset file is invalid and can not be parsed.: Slicer process failed (exit code 251)
+stderr: operator():file /tmp/slice-EejDKX/input/printer.json's from System unsupported
+stdout: [2026-05-13 02:09:28.324204] [0x00007fd870173a40] [trace]   Initializing StaticPrintConfigs
+run found error, return -5, exit...); retrying with embedded settings
+2026-05-13 12:11:43,417 INFO [uvicorn.access] [-] [IP]:57996 - "DELETE /api/v1/library/files/27 HTTP/1.1" 200
+2026-05-13 12:12:06,213 INFO [uvicorn.access] [-] [IP]:43142 - "POST /api/v1/library/files/4/slice HTTP/1.1" 202
+2026-05-13 12:12:06,217 INFO [backend.app.api.routes.library] [9abb34ef] 3MF sanitiser: removed sentinel '-1' for keys ['raft_first_layer_expansion', 'tree_support_wall_count'] — slicer will use --load-settings defaults
+2026-05-13 12:12:06,329 WARNING [backend.app.api.routes.library] [9abb34ef] Slicer CLI rejected --load-settings for Lora_Antenna_3.3mf (Slicer CLI failed (500): Slicing failed with error from slicer: The input preset file is invalid and can not be parsed.: Slicer process failed (exit code 251)
+stderr: operator(): unknown config type  of file /tmp/slice-vD2HoX/input/filament_1.json in load-settings
+stdout: [2026-05-13 02:12:06.289979] [0x00007fe46c296a40] [trace]   Initializing StaticPrintConfigs
+run found error, return -5, exit...); retrying with embedded settings
+2026-05-13 12:13:21,996 INFO [uvicorn.access] [-] [IP]:51210 - "POST /api/v1/library/files/17/slice HTTP/1.1" 202
+2026-05-13 12:17:32,703 INFO [uvicorn.access] [-] [IP]:48304 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 401
+2026-05-13 12:17:33,806 INFO [uvicorn.access] [-] [IP]:48422 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 401
+2026-05-13 12:17:40,665 INFO [uvicorn.access] [-] [IP]:48484 - "POST /api/v1/auth/login HTTP/1.1" 200
+2026-05-13 12:17:40,890 INFO [uvicorn.access] [-] [IP]:48504 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 12:17:40,917 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 12:17:40,918 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 12:17:40,919 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 12:17:53,518 INFO [uvicorn.access] [-] [IP]:46042 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 12:17:53,620 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 12:17:53,620 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 12:17:53,622 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 12:17:53,667 INFO [uvicorn.access] [-] [IP]:46240 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 12:18:56,646 INFO [uvicorn.access] [-] [IP]:59016 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-13 12:19:03,617 INFO [uvicorn.access] [-] [IP]:41316 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-13 12:19:15,637 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 12:19:16,163 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 12:35:24,659 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 12:55:48,889 INFO [uvicorn.access] [-] [IP]:34602 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 12:55:49,029 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 12:55:49,029 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 12:55:49,032 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 12:55:49,108 INFO [uvicorn.access] [-] [IP]:34672 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 12:55:50,512 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:03:25,485 INFO [uvicorn.access] [-] [IP]:52012 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:03:25,565 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:03:25,565 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:03:25,566 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:03:25,635 INFO [uvicorn.access] [-] [IP]:52192 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:03:32,628 INFO [backend.app.services.homeassistant] [0518137c] Turned ON HA entity '3D Printer' (switch.3d_printer)
+2026-05-13 13:03:32,631 INFO [uvicorn.access] [-] [IP]:59928 - "POST /api/v1/smart-plugs/1/control HTTP/1.1" 200
+2026-05-13 13:03:58,692 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:03:59,041 INFO [uvicorn.access] [-] [IP]:34910 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:03:59,143 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:03:59,143 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:03:59,145 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:03:59,205 INFO [uvicorn.access] [-] [IP]:35082 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:04:04,314 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=A1, prot_c=False)
+2026-05-13 13:04:05,640 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=A1, prot_c=False)
+2026-05-13 13:04:19,131 INFO [uvicorn.access] [-] [IP]:48936 - "POST /api/v1/makerworld/resolve HTTP/1.1" 200
+2026-05-13 13:05:17,113 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:05:17,572 INFO [uvicorn.access] [-] [IP]:46436 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:05:17,684 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:05:17,684 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:05:17,685 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:05:17,824 INFO [uvicorn.access] [-] [IP]:46762 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:05:19,887 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:05:20,355 INFO [uvicorn.access] [-] [IP]:46826 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:05:20,456 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:05:20,456 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:05:20,461 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:05:20,578 INFO [uvicorn.access] [-] [IP]:47144 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:05:32,986 INFO [uvicorn.access] [-] [IP]:56880 - "POST /api/v1/makerworld/resolve HTTP/1.1" 200
+2026-05-13 13:06:13,294 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:06:16,290 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:06:16,290 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:06:16,291 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:06:17,312 INFO [uvicorn.access] [-] [IP]:57646 - "POST /api/v1/cloud/login HTTP/1.1" 200
+2026-05-13 13:06:25,774 INFO [uvicorn.access] [-] [IP]:52684 - "POST /api/v1/cloud/verify HTTP/1.1" 200
+2026-05-13 13:07:10,129 INFO [uvicorn.access] [-] [IP]:52658 - "POST /api/v1/makerworld/resolve HTTP/1.1" 400
+2026-05-13 13:07:16,062 INFO [uvicorn.access] [-] [IP]:57750 - "POST /api/v1/makerworld/resolve HTTP/1.1" 200
+2026-05-13 13:07:38,509 INFO [uvicorn.access] [-] [IP]:54324 - "POST /api/v1/makerworld/resolve HTTP/1.1" 400
+2026-05-13 13:07:43,597 INFO [uvicorn.access] [-] [IP]:46998 - "POST /api/v1/makerworld/resolve HTTP/1.1" 200
+2026-05-13 13:07:50,560 INFO [uvicorn.access] [-] [IP]:47010 - "POST /api/v1/makerworld/import HTTP/1.1" 200
+2026-05-13 13:09:03,407 INFO [uvicorn.access] [-] [IP]:42318 - "POST /api/v1/library/files/29/slice HTTP/1.1" 202
+2026-05-13 13:09:04,037 WARNING [backend.app.api.routes.library] [1c31ee6b] Slicer CLI rejected --load-settings for gopro male to camera screw 1/4.3mf (Slicer CLI failed (500): Slicing failed with error from slicer: The input preset file is invalid and can not be parsed.: Slicer process failed (exit code 251)
+stderr: operator():file /tmp/slice-d2k137/input/preset.json's from  unsupported
+stdout: [2026-05-13 03:09:03.991390] [0x00007f13aebc6a40] [trace]   Initializing StaticPrintConfigs
+[2026-05-13 03:09:04.025350] [0x00007f13aebc6a40] [error]   load_from_json: parse /tmp/slice-d2k137/input/preset.json error, invalid json type for setting
+run found error, return -5, exi); retrying with embedded settings
+2026-05-13 13:09:09,687 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:09:10,235 INFO [uvicorn.access] [-] [IP]:42390 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:09:10,364 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:09:10,365 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:09:10,368 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:09:10,425 INFO [uvicorn.access] [-] [IP]:42554 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:09:27,199 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:09:27,685 INFO [uvicorn.access] [-] [IP]:43412 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:09:27,788 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 13:09:27,788 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 13:09:27,790 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 13:09:27,854 INFO [uvicorn.access] [-] [IP]:43548 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 13:09:53,761 INFO [backend.app.services.firmware_check] [34bc4a4b] Got Bambu Lab build ID: T3V8iVAkjHwVRd4TmOpG_
+2026-05-13 13:09:57,151 INFO [backend.app.services.homeassistant] [410619cf] Toggled HA entity '3D Printer' (switch.3d_printer)
+2026-05-13 13:09:57,153 INFO [uvicorn.access] [-] [IP]:37698 - "POST /api/v1/smart-plugs/1/control HTTP/1.1" 200
+2026-05-13 13:10:16,461 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 13:10:37,860 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Keep alive timeout, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-13 13:10:37,861 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Keep alive timeout, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-13 15:45:41,688 INFO [uvicorn.access] [-] [IP]:42954 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 15:45:41,740 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 15:45:41,741 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 15:45:41,741 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 15:45:41,837 INFO [uvicorn.access] [-] [IP]:43128 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 15:45:42,694 INFO [backend.app.services.firmware_check] [b656eed4] Got Bambu Lab build ID: T3V8iVAkjHwVRd4TmOpG_
+2026-05-13 15:45:55,526 INFO [backend.app.services.homeassistant] [494eeb3c] Turned ON HA entity '3D Printer' (switch.3d_printer)
+2026-05-13 15:45:55,529 INFO [uvicorn.access] [-] [IP]:59338 - "POST /api/v1/smart-plugs/1/control HTTP/1.1" 200
+2026-05-13 15:45:59,835 INFO [backend.app.api.routes.smart_plugs] [bb027976] Updated smart plug '3D Printer'
+2026-05-13 15:45:59,835 INFO [uvicorn.access] [-] [IP]:59382 - "PATCH /api/v1/smart-plugs/1 HTTP/1.1" 200
+2026-05-13 15:46:00,488 INFO [backend.app.api.routes.smart_plugs] [053c36b8] Updated smart plug '3D Printer'
+2026-05-13 15:46:00,488 INFO [uvicorn.access] [-] [IP]:59402 - "PATCH /api/v1/smart-plugs/1 HTTP/1.1" 200
+2026-05-13 15:46:44,425 INFO [backend.app.services.bambu_mqtt] [042884eb] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-05-13 15:46:44,483 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=16, 0 profiles, expected=0.4
+2026-05-13 15:46:44,483 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-05-13 15:46:44,483 INFO [backend.app.services.bambu_mqtt] [042884eb] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-05-13 15:47:35,209 INFO [uvicorn.access] [-] [IP]:41364 - "DELETE /api/v1/library/files/28 HTTP/1.1" 200
+2026-05-13 15:48:13,713 INFO [uvicorn.access] [-] [IP]:53826 - "POST /api/v1/library/files/4/slice HTTP/1.1" 202
+2026-05-13 15:48:14,426 INFO [backend.app.api.routes.library] [91b4dc6b] 3MF sanitiser: removed sentinel '-1' for keys ['raft_first_layer_expansion', 'tree_support_wall_count'] — slicer will use --load-settings defaults
+2026-05-13 15:48:14,548 WARNING [backend.app.api.routes.library] [91b4dc6b] Slicer CLI rejected --load-settings for Lora_Antenna_3.3mf (Slicer CLI failed (500): Slicing failed with error from slicer: The input preset file is invalid and can not be parsed.: Slicer process failed (exit code 251)
+stderr: operator():file /tmp/slice-b4iT6L/input/filament_1.json's from  unsupported
+stdout: [2026-05-13 05:48:14.509968] [0x00007f9cdc0a4a40] [trace]   Initializing StaticPrintConfigs
+run found error, return -5, exit...); retrying with embedded settings
+2026-05-13 15:49:40,364 INFO [uvicorn.access] [-] [IP]:38088 - "POST /api/v1/makerworld/resolve HTTP/1.1" 200
+2026-05-13 15:50:01,352 INFO [uvicorn.access] [-] [IP]:38026 - "POST /api/v1/makerworld/import HTTP/1.1" 200
+2026-05-13 15:50:36,446 INFO [uvicorn.access] [-] [IP]:38712 - "DELETE /api/v1/library/files/32 HTTP/1.1" 200
+2026-05-13 15:50:50,100 INFO [uvicorn.access] [-] [IP]:46352 - "POST /api/v1/makerworld/import HTTP/1.1" 200
+2026-05-13 15:51:11,650 INFO [uvicorn.access] [-] [IP]:54576 - "DELETE /api/v1/library/files/33 HTTP/1.1" 200
+2026-05-13 15:51:49,139 INFO [backend.app.services.homeassistant] [299a1703] Turned OFF HA entity '3D Printer' (switch.3d_printer)
+2026-05-13 15:51:49,139 INFO [backend.app.services.printer_manager] [299a1703] Marking printer 1 as offline (smart plug power off)
+2026-05-13 15:51:49,142 INFO [uvicorn.access] [-] [IP]:47668 - "POST /api/v1/smart-plugs/1/control HTTP/1.1" 200
+2026-05-13 15:52:41,057 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Keep alive timeout, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-13 15:52:41,058 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Keep alive timeout, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-13 15:52:41,851 INFO [uvicorn.access] [-] [IP]:43326 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-13 15:52:54,996 INFO [uvicorn.access] [-] [IP]:47808 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-13 15:52:55,925 INFO [uvicorn.access] [-] [IP]:47836 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-13 15:53:42,945 INFO [uvicorn.access] [-] [IP]:38092 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-13 15:54:10,486 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-13 16:19:32,026 INFO [uvicorn.access] [-] [IP]:57166 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 16:19:32,369 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-13 16:19:32,369 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-13 16:19:32,370 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-13 16:19:32,452 INFO [uvicorn.access] [-] [IP]:57324 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-13 16:19:39,119 INFO [uvicorn.access] [-] [IP]:57664 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
+2026-05-13 16:19:56,758 INFO [uvicorn.access] [-] [IP]:60468 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
+2026-05-13 16:25:39,666 INFO [uvicorn.access] [-] [IP]:48980 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
+2026-05-13 16:26:14,142 INFO [uvicorn.access] [-] [IP]:33298 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
+2026-05-13 16:27:09,750 INFO [uvicorn.access] [-] [IP]:44444 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
+2026-05-13 16:27:43,417 INFO [uvicorn.access] [-] [IP]:44504 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
+2026-05-13 16:33:26,998 INFO [backend.app.api.routes.support] [b42d9570] Log level changed to DEBUG
+2026-05-13 16:33:26,998 INFO [backend.app.api.routes.bug_report] [b42d9570] Bug report: enabled debug logging
+2026-05-13 16:33:26,998 WARNING [backend.app.services.bambu_mqtt] [b42d9570] [[SERIAL]] request_status_update: not connected
+2026-05-13 16:33:26,999 INFO [uvicorn.access] [-] [IP]:43094 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-05-13 16:33:30,217 DEBUG [python_multipart.multipart] [e5852416] Calling on_part_begin with no data
+2026-05-13 16:33:30,217 DEBUG [python_multipart.multipart] [e5852416] Calling on_header_field with data[57:76]
+2026-05-13 16:33:30,217 DEBUG [python_multipart.multipart] [e5852416] Calling on_header_value with data[78:152]
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_header_end with no data
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_header_field with data[154:166]
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_header_value with data[168:192]
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_header_end with no data
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_headers_finished with no data
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_part_data with data[196:80161]
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_part_data with data[0:89989]
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_part_end with no data
+2026-05-13 16:33:30,218 DEBUG [python_multipart.multipart] [e5852416] Calling on_end with no data
+2026-05-13 16:33:30,232 INFO [uvicorn.access] [-] [IP]:43106 - "POST /api/v1/slicer/bundles HTTP/1.1" 400
