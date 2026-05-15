@@ -1,0 +1,200 @@
+2026-05-15 03:51:30,745 INFO [root] [-] Virtual printer manager synced from database
+2026-05-15 03:51:32,358 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] State is FINISH but completion NOT triggered: prev=None, was_running=False, already_triggered=False, has_callback=True
+2026-05-15 03:51:32,361 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-05-15 03:51:32,366 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Firmware version: 01.10.00.00
+2026-05-15 03:51:32,496 INFO [backend.app.main] [-] Weight sync: spool 8 weight_used 907.06 -> 960.0 (remain=4)
+2026-05-15 03:51:39,525 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Probing developer mode via ams_filament_setting (seq=5)
+2026-05-15 03:51:39,540 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Developer mode probe: ENABLED (result='success')
+2026-05-15 03:51:40,745 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 03:52:00,783 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 03:56:40,754 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:01:40,761 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:06:40,769 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:11:40,775 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:16:40,781 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:21:40,788 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:26:40,794 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:31:40,801 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:36:40,808 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:41:40,814 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:46:40,821 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:51:40,826 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 04:52:00,834 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 04:56:40,832 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:01:40,838 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:06:40,845 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:11:40,851 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:16:40,857 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:21:40,863 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:26:40,869 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:30:31,248 INFO [backend.app.services.local_backup] [-] Running scheduled local backup
+2026-05-15 05:30:31,847 INFO [backend.app.services.local_backup] [-] Pruned old backup: bambuddy-backup-20260511-140816.zip
+2026-05-15 05:30:31,848 INFO [backend.app.services.local_backup] [-] Local backup created: /app/data/backups/bambuddy-backup-20260515-053031.zip
+2026-05-15 05:31:40,881 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:36:40,887 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:41:40,893 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:46:40,899 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:51:40,906 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 05:52:00,881 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 05:56:40,912 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:01:40,918 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:06:40,924 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:11:40,929 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:16:40,937 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:21:40,942 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:26:40,948 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:31:40,954 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:36:40,960 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:41:40,967 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:46:40,973 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:51:40,979 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 06:52:00,929 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 06:56:40,984 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:01:40,989 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:06:40,995 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:11:41,001 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:16:41,006 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:21:41,012 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:26:41,018 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:31:41,025 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:36:41,031 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:41:41,037 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:46:41,042 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:51:41,047 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 07:52:00,975 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 07:56:41,053 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:01:41,058 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:06:41,063 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:11:41,069 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:16:41,075 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:21:41,081 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:26:41,087 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:31:41,092 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:36:41,098 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:41:41,104 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:46:41,110 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:51:41,117 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 08:52:01,020 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 08:56:41,122 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:01:41,129 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:06:41,133 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:11:41,140 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:16:41,147 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:21:41,152 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:26:41,158 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:31:41,166 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:36:41,174 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:40:58,891 INFO [uvicorn.access] [-] [IP]:47972 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 09:41:41,179 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:46:41,185 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:46:59,195 INFO [uvicorn.access] [-] [IP]:51538 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 09:46:59,339 INFO [uvicorn.access] [-] [IP]:51546 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 09:47:11,463 INFO [uvicorn.access] [-] [IP]:51832 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 401
+2026-05-15 09:50:13,085 INFO [backend.app.api.routes.cloud] [c8aebcf7] get_filament_info called with 3 IDs: ['GFA00', 'GFA01', 'GFSNL02']
+2026-05-15 09:50:13,697 WARNING [backend.app.api.routes.cloud] [c8aebcf7] Failed to get cloud preset GFSNL02 (API ID: GFSNL02): Failed to get setting detail: 400
+2026-05-15 09:50:13,703 INFO [uvicorn.access] [-] [IP]:54086 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-15 09:50:14,300 INFO [backend.app.services.firmware_check] [6936f5d6] Got Bambu Lab build ID: DGVvLxp_mb7yePrzlGQYu
+2026-05-15 09:50:22,904 INFO [backend.app.services.camera] [f13b481b] Found ffmpeg at: /usr/bin/ffmpeg
+2026-05-15 09:51:41,190 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:52:01,067 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 09:55:55,422 INFO [backend.app.services.mqtt_relay] [646e4bc4] MQTT relay disabled
+2026-05-15 09:55:55,425 INFO [uvicorn.access] [-] [IP]:57768 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-15 09:56:41,197 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 09:58:30,388 INFO [backend.app.api.routes.cloud] [86db021a] get_filament_info called with 3 IDs: ['GFA00', 'GFA01', 'GFSNL02']
+2026-05-15 09:58:30,999 WARNING [backend.app.api.routes.cloud] [86db021a] Failed to get cloud preset GFSNL02 (API ID: GFSNL02): Failed to get setting detail: 400
+2026-05-15 09:58:31,002 INFO [uvicorn.access] [-] [IP]:59270 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-15 09:58:57,085 INFO [uvicorn.access] [-] [IP]:59528 - "PUT /api/v1/printers/1/ams-labels/0 HTTP/1.1" 200
+2026-05-15 10:00:20,388 INFO [uvicorn.access] [-] [IP]:60402 - "POST /api/v1/library/folders HTTP/1.1" 200
+2026-05-15 10:01:01,226 INFO [uvicorn.access] [-] [IP]:60770 - "POST /api/v1/library/files?folder_id=2&generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-15 10:01:41,202 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:02:11,460 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:02:14,294 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:03:00,548 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:03:31,539 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:03:47,261 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:03:49,669 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:03:53,195 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:03:56,198 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:04:00,378 INFO [uvicorn.access] [-] [IP]:34290 - "POST /api/v1/printers/1/files/download-zip HTTP/1.1" 200
+2026-05-15 10:04:02,525 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=[PRINTER], prot_c=False)
+2026-05-15 10:06:41,209 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:07:40,435 INFO [backend.app.api.routes.cloud] [ca2aea2c] get_filament_info called with 3 IDs: ['GFA00', 'GFA01', 'GFSNL02']
+2026-05-15 10:07:40,976 WARNING [backend.app.api.routes.cloud] [ca2aea2c] Failed to get cloud preset GFSNL02 (API ID: GFSNL02): Failed to get setting detail: 400
+2026-05-15 10:07:40,979 INFO [uvicorn.access] [-] [IP]:36680 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-15 10:11:41,216 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:13:35,933 INFO [uvicorn.access] [-] [IP]:41090 - "PATCH /api/v1/archives/21 HTTP/1.1" 200
+2026-05-15 10:13:53,505 INFO [uvicorn.access] [-] [IP]:41370 - "PATCH /api/v1/archives/20 HTTP/1.1" 200
+2026-05-15 10:13:53,552 INFO [uvicorn.access] [-] [IP]:41374 - "PATCH /api/v1/archives/19 HTTP/1.1" 200
+2026-05-15 10:13:53,600 INFO [uvicorn.access] [-] [IP]:41378 - "PATCH /api/v1/archives/18 HTTP/1.1" 200
+2026-05-15 10:13:53,642 INFO [uvicorn.access] [-] [IP]:41382 - "PATCH /api/v1/archives/17 HTTP/1.1" 200
+2026-05-15 10:14:21,159 INFO [uvicorn.access] [-] [IP]:41806 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 10:16:41,223 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:20:17,485 INFO [uvicorn.access] [-] [IP]:45526 - "PATCH /api/v1/archives/21 HTTP/1.1" 200
+2026-05-15 10:21:41,229 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:22:17,951 INFO [backend.app.api.routes.cloud] [82a91e3c] get_filament_info called with 3 IDs: ['GFA00', 'GFA01', 'GFSNL02']
+2026-05-15 10:22:18,479 WARNING [backend.app.api.routes.cloud] [82a91e3c] Failed to get cloud preset GFSNL02 (API ID: GFSNL02): Failed to get setting detail: 400
+2026-05-15 10:22:18,481 INFO [uvicorn.access] [-] [IP]:46760 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-15 10:26:41,235 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:31:41,240 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:36:41,246 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:41:41,251 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:46:41,258 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:47:12,650 INFO [uvicorn.access] [-] [IP]:33642 - "POST /api/v1/api-keys/ HTTP/1.1" 200
+2026-05-15 10:51:41,264 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:52:01,113 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-05-15 10:55:01,851 INFO [uvicorn.access] [-] [IP]:37786 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 401
+2026-05-15 10:55:10,739 INFO [uvicorn.access] [-] [IP]:37872 - "POST /api/v1/auth/login HTTP/1.1" 200
+2026-05-15 10:55:10,935 INFO [uvicorn.access] [-] [IP]:37878 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 10:55:11,246 INFO [backend.app.api.routes.cloud] [5d62a848] get_filament_info called with 3 IDs: ['GFA00', 'GFA01', 'GFSNL02']
+2026-05-15 10:55:11,700 INFO [backend.app.services.firmware_check] [87c683c9] Got Bambu Lab build ID: DGVvLxp_mb7yePrzlGQYu
+2026-05-15 10:55:11,737 WARNING [backend.app.api.routes.cloud] [5d62a848] Failed to get cloud preset GFSNL02 (API ID: GFSNL02): Failed to get setting detail: 400
+2026-05-15 10:55:11,740 INFO [uvicorn.access] [-] [IP]:37942 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-15 10:56:41,269 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 10:57:08,492 INFO [uvicorn.access] [-] [IP]:60608 - "PATCH /api/v1/settings HTTP/1.1" 403
+2026-05-15 11:01:41,274 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 11:03:10,219 INFO [uvicorn.access] [-] [IP]:54546 - "PATCH /api/v1/settings HTTP/1.1" 422
+2026-05-15 11:03:27,747 INFO [uvicorn.access] [-] [IP]:54553 - "PATCH /api/v1/settings HTTP/1.1" 422
+2026-05-15 11:04:01,153 INFO [uvicorn.access] [-] [IP]:54566 - "PATCH /api/v1/settings HTTP/1.1" 422
+2026-05-15 11:06:41,279 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 11:11:41,286 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 11:11:52,781 INFO [uvicorn.access] [-] [IP]:54776 - "PATCH /api/v1/settings HTTP/1.1" 403
+2026-05-15 11:13:21,737 INFO [uvicorn.access] [-] [IP]:48000 - "POST /api/v1/auth/logout HTTP/1.1" 401
+2026-05-15 11:13:22,018 INFO [uvicorn.access] [-] [IP]:48018 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 401
+2026-05-15 11:13:23,032 INFO [uvicorn.access] [-] [IP]:48040 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 401
+2026-05-15 11:13:59,067 INFO [uvicorn.access] [-] [IP]:48288 - "POST /api/v1/auth/login HTTP/1.1" 200
+2026-05-15 11:13:59,294 INFO [uvicorn.access] [-] [IP]:48296 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 11:13:59,565 INFO [backend.app.api.routes.cloud] [f9cdba25] get_filament_info called with 3 IDs: ['GFA00', 'GFA01', 'GFSNL02']
+2026-05-15 11:14:00,110 WARNING [backend.app.api.routes.cloud] [f9cdba25] Failed to get cloud preset GFSNL02 (API ID: GFSNL02): Failed to get setting detail: 400
+2026-05-15 11:14:00,112 INFO [uvicorn.access] [-] [IP]:48350 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-15 11:14:19,140 INFO [uvicorn.access] [-] [IP]:48590 - "POST /api/v1/api-keys/ HTTP/1.1" 200
+2026-05-15 11:14:49,121 INFO [uvicorn.access] [-] [IP]:54831 - "PATCH /api/v1/settings HTTP/1.1" 403
+2026-05-15 11:16:41,292 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 11:17:46,648 INFO [uvicorn.access] [-] [IP]:50648 - "PATCH /api/v1/settings/ HTTP/1.1" 401
+2026-05-15 11:17:58,316 INFO [uvicorn.access] [-] [IP]:50770 - "PATCH /api/v1/settings/ HTTP/1.1" 403
+2026-05-15 11:21:41,298 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 11:22:55,641 INFO [uvicorn.access] [-] [IP]:53510 - "PATCH /api/v1/settings/ HTTP/1.1" 403
+2026-05-15 11:26:41,305 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-15 11:27:09,435 INFO [uvicorn.access] [-] [IP]:55966 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-15 11:29:44,639 INFO [backend.app.api.routes.support] [c6f53d61] Log level changed to DEBUG
+2026-05-15 11:29:44,639 INFO [backend.app.api.routes.bug_report] [c6f53d61] Bug report: enabled debug logging
+2026-05-15 11:29:44,640 DEBUG [backend.app.services.bambu_mqtt] [c6f53d61] [[SERIAL]] Requesting status update (pushall)
+2026-05-15 11:29:44,640 INFO [uvicorn.access] [-] [IP]:57678 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-05-15 11:29:45,559 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: FINISH, gcode_file: , subtask_name: 2x1x1 LU - Labelled - Magnetic - Simple Multibin Drawer
+2026-05-15 11:29:45,559 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '255', 'tray_now': '255', 'tray_pre': '255', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 48, 'insert_flag': True, 'power_on_flag': True}
+2026-05-15 11:29:45,560 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 255
+2026-05-15 11:29:45,560 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-05-15 11:29:45,560 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x2003 -> extruder 0
+2026-05-15 11:29:45,560 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-05-15 11:29:45,560 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 0 (main=0, sub=0)
+2026-05-15 11:29:45,560 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-15 11:29:45,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-05-15 11:29:45,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-05-15 11:29:45,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-05-15 11:29:45,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-05-15 11:29:45,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-05-15 11:29:45,562 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-05-15 11:29:45,562 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -76dBm
+2026-05-15 11:29:45,562 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'off'}]
+2026-05-15 11:29:45,562 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: FINISH -> FINISH, file: , subtask: 2x1x1 LU - Labelled - Magnetic - Simple Multibin Drawer
+2026-05-15 11:29:47,598 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-15 11:29:47,598 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -77dBm
