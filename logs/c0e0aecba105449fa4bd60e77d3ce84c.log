@@ -1,0 +1,200 @@
+2026-05-15 11:57:37,859 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:39,700 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:39,700 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:41,544 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:41,544 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:43,358 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:43,359 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:45,181 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:45,181 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:46,971 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:46,972 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:48,815 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:48,815 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:50,604 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:50,605 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:52,471 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:52,471 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:54,339 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:54,339 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:56,149 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:56,149 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:57,966 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:57,966 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:59,774 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:57:59,774 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:01,599 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:01,599 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:03,409 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:03,409 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:05,221 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:05,222 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:07,044 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:07,044 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:08,858 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:08,858 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:10,698 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:10,698 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:12,494 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:12,494 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:14,325 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:14,325 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:16,161 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:16,161 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:17,980 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:17,980 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:19,824 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:19,824 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:21,733 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:21,733 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:23,549 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:23,549 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:25,371 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:25,371 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:27,191 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:27,191 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:29,038 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:29,039 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:30,825 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:30,825 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:32,644 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:32,644 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:34,447 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:34,447 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:36,258 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:36,258 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:38,070 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:38,070 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:39,982 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:39,983 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:41,842 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:41,842 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:43,771 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:45,653 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:45,654 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:47,487 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:47,487 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:49,317 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:49,317 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:51,141 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:51,142 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:53,051 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:54,866 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:54,867 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:56,548 INFO [backend.app.api.routes.support] [576439f2] Log level changed to DEBUG
+2026-05-15 11:58:56,548 INFO [backend.app.api.routes.bug_report] [576439f2] Bug report: enabled debug logging
+2026-05-15 11:58:56,548 WARNING [backend.app.services.bambu_mqtt] [576439f2] [[SERIAL]] request_status_update: not connected
+2026-05-15 11:58:56,548 INFO [uvicorn.access] [-] [IP]:58758 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-05-15 11:58:56,651 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:58:56,651 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:58:56,672 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:56,673 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:58,457 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:58:58,457 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:58:58,476 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:58:58,477 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:00,260 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:00,260 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:00,275 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:00,275 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:02,102 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:02,102 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:02,136 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:02,136 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:04,040 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:04,040 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:04,065 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:04,065 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:05,848 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:05,849 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:05,870 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:05,870 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:07,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:07,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:07,689 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:07,689 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:08,420 WARNING [backend.app.services.discovery] [279deaca] Subnet [IP]/16 has 65534 hosts, limiting to /22 (1024 hosts)
+2026-05-15 11:59:08,422 INFO [backend.app.services.discovery] [279deaca] Starting subnet scan of [IP]/16 (1024 hosts)
+2026-05-15 11:59:08,424 INFO [uvicorn.access] [-] [IP]:58622 - "POST /api/v1/discovery/scan HTTP/1.1" 200
+2026-05-15 11:59:09,734 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:09,734 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:09,750 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:09,751 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:11,571 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:11,571 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:11,595 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:11,595 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:13,411 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:13,411 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:13,426 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:13,426 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:15,261 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:15,261 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:15,279 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:15,279 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:15,841 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: not connected
+2026-05-15 11:59:17,099 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:17,099 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:17,135 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:17,135 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:18,957 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:18,958 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:18,991 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:18,991 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:20,814 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:20,814 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:20,855 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:20,855 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:22,700 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:22,700 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:22,718 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:22,718 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:24,580 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:24,580 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:24,597 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:24,598 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:26,420 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:26,420 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:26,444 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:26,444 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:28,266 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:28,266 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:28,283 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:28,283 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:29,463 INFO [backend.app.services.discovery] [279deaca] Subnet scan complete. Found 0 printers.
+2026-05-15 11:59:30,109 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:30,109 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:30,124 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:30,124 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:31,930 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:31,930 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:31,945 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:31,945 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:33,469 INFO [uvicorn.access] [-] [IP]:58622 - "POST /api/v1/discovery/stop HTTP/1.1" 200
+2026-05-15 11:59:33,474 INFO [uvicorn.access] [-] [IP]:40514 - "POST /api/v1/discovery/scan/stop HTTP/1.1" 200
+2026-05-15 11:59:33,732 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:33,733 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:33,746 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:33,746 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:35,541 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:35,541 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:35,556 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:35,556 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:37,361 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:37,361 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:37,377 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:37,377 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:38,040 WARNING [backend.app.services.bambu_mqtt] [396f0ae6] [[SERIAL]] request_status_update: not connected
+2026-05-15 11:59:38,041 INFO [uvicorn.access] [-] [IP]:58622 - "POST /api/v1/printers/1/refresh-status HTTP/1.1" 400
+2026-05-15 11:59:39,163 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:39,163 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:39,178 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:39,178 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:40,991 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:40,991 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:41,015 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:41,015 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:42,817 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Requesting firmware version info
+2026-05-15 11:59:42,817 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending K-profile priming request
+2026-05-15 11:59:42,835 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-05-15 11:59:42,835 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
