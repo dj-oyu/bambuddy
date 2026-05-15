@@ -590,21 +590,25 @@ class TestAssignSpoolLiveCaliIdx:
 
 
 class TestAssignSpoolEmptySlotPreConfig:
-    """SpoolBuddy primary workflow: weigh-then-assign before the spool is in the AMS.
+    """Assign path under ambiguous / explicit-empty AMS state.
 
-    Bambu firmware silently drops ams_filament_setting / extrusion_cali_sel for
-    unloaded slots — there's no filament context for the cali_idx to attach to.
-    The endpoint persists the SpoolAssignment row with an empty fingerprint_type
-    (the "pending config" marker) and skips the MQTT publish; on_ams_change
-    re-fires the full configuration when filament is later inserted.
+    Updated for the #1322 follow-up: only the firmware's *explicit* empty
+    signal (state ∈ {9, 10}) skips MQTT. Anything else — including the
+    SpoolBuddy weigh-then-assign-before-insert case where state/tray_type
+    can't tell us whether a spool is loaded — attempts MQTT. The deferred-
+    config workflow still works because on_ams_change at main.py:1031-1054
+    re-fires when an AMS push eventually reports the loaded slot.
     """
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_empty_slot_skips_mqtt_but_persists_assignment(
+    async def test_empty_tray_type_without_state_still_fires_mqtt(
         self, async_client: AsyncClient, printer_factory, spool_factory
     ):
-        """Assigning to an empty slot skips MQTT and returns pending_config=True."""
+        """tray_type='' with no state field: AMS can't tell us whether a
+        spool is loaded. Trust the user's Assign click and fire MQTT —
+        firmware accepts it when a spool is physically there, drops it
+        silently otherwise (no harm)."""
         printer = await printer_factory(name="H2D")
         spool = await spool_factory(slicer_filament="GFL05", material="PLA")
 
@@ -612,7 +616,6 @@ class TestAssignSpoolEmptySlotPreConfig:
         mock_client.ams_set_filament_setting.return_value = True
         mock_client.extrusion_cali_sel.return_value = True
 
-        # Slot found but empty (tray_type=""): the SpoolBuddy scenario
         status = _make_mock_status(ams_data=[{"id": 2, "tray": [{"id": 3, "tray_type": ""}]}])
 
         with patch("backend.app.services.printer_manager.printer_manager") as mock_pm:
@@ -625,27 +628,27 @@ class TestAssignSpoolEmptySlotPreConfig:
             )
 
         assert response.status_code == 200
+        mock_client.ams_set_filament_setting.assert_called_once()
         body = response.json()
-        assert body["pending_config"] is True
-        assert body["configured"] is False
-        # Critical: no MQTT was published (firmware would drop it)
-        mock_client.ams_set_filament_setting.assert_not_called()
-        mock_client.extrusion_cali_sel.assert_not_called()
+        assert body["pending_config"] is False
+        assert body["configured"] is True
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_empty_slot_no_ams_data_skips_mqtt(self, async_client: AsyncClient, printer_factory, spool_factory):
-        """No AMS data at all (printer offline, no telemetry yet) → still pre-config."""
+    async def test_no_ams_data_with_no_client_marks_pending(
+        self, async_client: AsyncClient, printer_factory, spool_factory
+    ):
+        """No AMS data + no MQTT client (printer offline, no telemetry):
+        publish can't happen, so configured=False and pending_config=True so
+        on_ams_change replay picks it up when the printer comes online."""
         printer = await printer_factory(name="X1C")
         spool = await spool_factory(slicer_filament="GFL05", material="PLA")
 
-        mock_client = MagicMock()
-
-        # No AMS data — fingerprint_type stays None, treated as empty
+        # No AMS data — fingerprint_type stays None.
         status = _make_mock_status(ams_data=[])
 
         with patch("backend.app.services.printer_manager.printer_manager") as mock_pm:
-            mock_pm.get_client.return_value = mock_client
+            mock_pm.get_client.return_value = None  # Printer offline, no MQTT client.
             mock_pm.get_status.return_value = status
 
             response = await async_client.post(
@@ -654,8 +657,9 @@ class TestAssignSpoolEmptySlotPreConfig:
             )
 
         assert response.status_code == 200
-        assert response.json()["pending_config"] is True
-        mock_client.ams_set_filament_setting.assert_not_called()
+        body = response.json()
+        assert body["pending_config"] is True
+        assert body["configured"] is False
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -994,15 +998,23 @@ class TestAssignSpoolEmptyDetection:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_state_missing_falls_back_to_tray_type_empty(
+    async def test_state_missing_with_empty_tray_type_still_fires_mqtt(
         self, async_client: AsyncClient, printer_factory, spool_factory
     ):
-        """Older firmware without state field + empty tray_type → pending."""
+        """Older firmware without state field + empty tray_type still fires MQTT.
+
+        The AMS doesn't tell us whether a spool is physically loaded in this
+        case (no state, no tray_type), so the assign click is the user's
+        assertion that a spool is there. Firmware silently drops the push on
+        a truly empty slot — no harm done, and on_ams_change replay handles
+        the deferred-config case (#1322 follow-up).
+        """
         printer = await printer_factory()
         spool = await spool_factory(slicer_filament="PFUS9ac902733670a9", material="PLA")
 
         mock_client = MagicMock()
         mock_client.ams_set_filament_setting.return_value = True
+        mock_client.extrusion_cali_sel.return_value = True
 
         tray_data = {"id": 3, "tray_type": "", "tray_color": ""}
         status = _make_mock_status(ams_data=[{"id": 2, "tray": [tray_data]}])
@@ -1017,10 +1029,10 @@ class TestAssignSpoolEmptyDetection:
             )
 
         assert response.status_code == 200
-        # Legacy fallback: empty tray_type + no state → treated as empty.
-        mock_client.ams_set_filament_setting.assert_not_called()
+        mock_client.ams_set_filament_setting.assert_called_once()
         body = response.json()
-        assert body["pending_config"] is True
+        assert body["pending_config"] is False
+        assert body["configured"] is True
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -1059,19 +1071,26 @@ class TestAssignSpoolEmptyDetection:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_state_never_eleven_firmware_with_empty_tray_marks_pending(
+    async def test_post_reset_slot_with_state_3_still_fires_mqtt(
         self, async_client: AsyncClient, printer_factory, spool_factory
     ):
-        """Same firmwares as above, but the slot is truly unconfigured
-        (tray_type=''). Neither signal points to 'loaded', so this should
-        still pending-config — the user has to configure or insert filament
-        before MQTT can fire. Pins that the disjunction didn't accidentally
-        flip empty slots into the loaded branch."""
+        """A1 Mini BMCU / P1S Standard AMS post-"Reset Slot" with spool still
+        inserted: state=3, tray_type="". The AMS gives us no signal to tell
+        this apart from a truly-empty slot. We trust the user's Assign click
+        and fire MQTT — firmware accepts the push because a spool is
+        physically there (#1322 follow-up by @RosdasHH).
+
+        Replaces the previous "marks_pending" assertion which was the bug:
+        that gate created a deadlock because the AMS would never report a
+        state change (nothing physically changed), so on_ams_change replay
+        never re-fired the deferred config either.
+        """
         printer = await printer_factory()
         spool = await spool_factory(slicer_filament="PFUS9ac902733670a9", material="PLA")
 
         mock_client = MagicMock()
         mock_client.ams_set_filament_setting.return_value = True
+        mock_client.extrusion_cali_sel.return_value = True
 
         tray_data = {"id": 3, "state": 3, "tray_type": "", "tray_color": "00000000", "tray_info_idx": ""}
         status = _make_mock_status(ams_data=[{"id": 2, "tray": [tray_data]}])
@@ -1086,9 +1105,10 @@ class TestAssignSpoolEmptyDetection:
             )
 
         assert response.status_code == 200
-        mock_client.ams_set_filament_setting.assert_not_called()
+        mock_client.ams_set_filament_setting.assert_called_once()
         body = response.json()
-        assert body["pending_config"] is True
+        assert body["pending_config"] is False
+        assert body["configured"] is True
 
     @pytest.mark.asyncio
     @pytest.mark.integration

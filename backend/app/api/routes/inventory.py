@@ -1270,36 +1270,40 @@ async def assign_spool(
 
     # 4. Auto-configure AMS slot via MQTT.
     #
-    # Skip the publish entirely when the target slot is empty: Bambu firmware
-    # silently drops ams_filament_setting / extrusion_cali_sel for unloaded
-    # slots (there is no filament context for the cali_idx to attach to). The
-    # SpoolAssignment row is preserved with an empty fingerprint_type, which
-    # acts as the "pending config" marker — when the spool is physically
-    # inserted later, on_ams_change re-fires the full configuration. This is
-    # the SpoolBuddy primary workflow: weigh-then-assign before insertion.
+    # Only suppress the publish when the firmware's *explicit* empty signal
+    # (state ∈ {9, 10}) is set — "no spool" / "spool present but no feed".
+    # Every other state, including state=3 (the default idle on A1 Mini BMCU /
+    # P1S Standard AMS for both loaded and unconfigured slots) and missing
+    # state (older firmwares), is treated as the user's assertion that a
+    # spool is in the slot and we attempt the MQTT push.
     #
-    # Empty-detection: priority order is the firmware's explicit signals
-    # first, then a tray_type fallback for firmwares that don't use the full
-    # state enum meaningfully.
-    #   - state == 9  → empty (firmware says "no spool")
-    #   - state == 10 → empty (firmware says "spool present but no feed")
-    #   - state == 11 → loaded (firmware says "filament in extruder")
-    #   - any other state value, including 3 (A1 Mini BMCU / P1S Standard AMS
-    #     always report 3) or None (older firmwares omit the field), falls
-    #     back to tray_type: configured ⇒ loaded, empty ⇒ empty (#1322).
-    # The tray_type fallback for state==3 fixes the reported bug. The 9/10
-    # branch keeps existing behavior intact even if the MQTT relay's
-    # auto-clearing of tray_type ever fails to fire — the firmware's
-    # explicit "empty" signal stays authoritative over stale metadata.
-    if tray_state == 9 or tray_state == 10:
-        slot_is_empty = True
-    elif tray_state == 11:
-        slot_is_empty = False
-    else:
-        slot_is_empty = not (fingerprint_type and fingerprint_type.strip())
+    # The pre-existing "skip when slot looks empty" guard read state=3 +
+    # tray_type="" as "empty" and skipped MQTT. On these firmwares that
+    # combination is the post-"Reset Slot" state with the spool still
+    # physically inserted — there is NO AMS signal that distinguishes it
+    # from a truly-empty slot, so the guard created a deadlock: MQTT never
+    # fired, the AMS never reported any change (because nothing changed
+    # physically), and on_ams_change replay therefore never re-fired the
+    # config either. Reporter (#1322 follow-up by @RosdasHH) verified
+    # empirically that removing the guard makes the slot configure
+    # correctly because Bambu firmware DOES accept the push for a
+    # physically-loaded slot, even when tray_type is "" and state is 3.
+    #
+    # Trade-off for the truly-empty slot case: firmware drops the push
+    # silently (per Bambu's documented behavior), the SpoolAssignment row
+    # still has empty fingerprint_type because nothing in the assign path
+    # updates that column, and on_ams_change at main.py:1031-1054 still
+    # fires the deferred config when a spool eventually appears. So the
+    # SpoolBuddy weigh-then-assign-before-insert workflow continues to
+    # work — just without the optimization of skipping a no-op MQTT call.
+    #
+    # state ∈ {9, 10} stays as an explicit short-circuit so we don't churn
+    # a doomed MQTT push when the firmware has positively confirmed "no
+    # spool" — and to keep the on_ams_change replay path as the single
+    # source of truth for those slots.
+    slot_is_definitely_empty = tray_state == 9 or tray_state == 10
     configured = False
-    pending_config = slot_is_empty
-    if not slot_is_empty:
+    if not slot_is_definitely_empty:
         try:
             configured = await apply_spool_to_slot_via_mqtt(
                 db=db,
@@ -1313,6 +1317,11 @@ async def assign_spool(
             )
         except Exception as e:
             logger.warning("MQTT auto-configure failed for spool %d: %s", spool.id, e)
+    # pending_config is the "config not landed yet" UI marker. True when the
+    # firmware said empty, OR when MQTT couldn't actually publish (printer
+    # offline, no client, transient failure). on_ams_change replay re-fires
+    # the config in either case once the AMS reports a non-empty fingerprint.
+    pending_config = slot_is_definitely_empty or not configured
 
     # Return assignment with spool data
     result = await db.execute(
