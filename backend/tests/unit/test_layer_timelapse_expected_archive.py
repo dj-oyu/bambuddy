@@ -64,6 +64,14 @@ def _build_mocks(*, external_camera_enabled: bool, external_camera_url: str | No
     mock_printer.external_camera_url = external_camera_url
     mock_printer.external_camera_type = "snapshot"
     mock_printer.external_camera_snapshot_url = external_camera_url
+    # Disable plate detection in the mock so on_print_start's plate-detection
+    # block is skipped entirely. Plate detection isn't the subject under test
+    # and its real code path tries to capture a frame — which fails differently
+    # in CI (no ffmpeg) vs. local dev (ffmpeg present), and the CI-only path
+    # somehow prevents the expected-archive branch's start_session from being
+    # reached. MagicMock's default attribute access returns a truthy object,
+    # so without this explicit False the production code enters plate detection.
+    mock_printer.plate_detection_enabled = False
     mock_printer.name = "TestA1"
 
     mock_archive = MagicMock()
