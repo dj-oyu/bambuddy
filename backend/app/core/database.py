@@ -2591,6 +2591,25 @@ async def run_migrations(conn):
             """)
         )
 
+    # Migration: smart_plugs gets per-plug auto-off-after-drying toggle and
+    # delay (#1349). Fires whenever any AMS attached to the linked printer
+    # finishes a dry cycle. Plain ANSI ALTER TABLE works on both SQLite and
+    # Postgres for INTEGER/BOOLEAN with simple defaults.
+    if is_sqlite():
+        await _safe_execute(conn, "ALTER TABLE smart_plugs ADD COLUMN auto_off_after_drying BOOLEAN DEFAULT 0")
+        await _safe_execute(
+            conn, "ALTER TABLE smart_plugs ADD COLUMN off_delay_after_drying_minutes INTEGER DEFAULT 10"
+        )
+    else:
+        await _safe_execute(
+            conn,
+            "ALTER TABLE smart_plugs ADD COLUMN IF NOT EXISTS auto_off_after_drying BOOLEAN DEFAULT false",
+        )
+        await _safe_execute(
+            conn,
+            "ALTER TABLE smart_plugs ADD COLUMN IF NOT EXISTS off_delay_after_drying_minutes INTEGER DEFAULT 10",
+        )
+
 
 async def seed_notification_templates():
     """Seed default notification templates if they don't exist."""
