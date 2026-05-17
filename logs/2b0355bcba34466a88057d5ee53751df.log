@@ -1,0 +1,200 @@
+2026-05-17 15:35:41,260 INFO [uvicorn.access] [-] [IP]:41724 - "POST /api/v1/library/files/8/print?printer_id=1 HTTP/1.1" 200
+2026-05-17 15:35:41,265 ERROR [backend.app.services.background_dispatch] [-] Background dispatch job 2 failed: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+Traceback (most recent call last):
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 371, in _run_active_job
+    await self._process_job(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 543, in _process_job
+    await self._run_print_library_file(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 744, in _run_print_library_file
+    raise RuntimeError("Not a sliced file. Only .gcode or .gcode.3mf files can be printed.")
+RuntimeError: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+2026-05-17 15:35:58,843 INFO [backend.app.api.routes.camera] [3c2ded11] Using chamber image protocol for P1S
+2026-05-17 15:35:58,843 INFO [backend.app.api.routes.camera] [3c2ded11] Camera viewer attached to printer-1 (subscribers=1)
+2026-05-17 15:35:58,844 INFO [backend.app.api.routes.camera] [3c2ded11] Starting chamber image stream for [IP] (stream_id=1-fanout, model=P1S)
+2026-05-17 15:35:58,877 INFO [uvicorn.access] [-] [IP]:52078 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-17 15:35:58,913 INFO [backend.app.api.routes.camera] [b52b7d29] Using chamber image protocol for P1S
+2026-05-17 15:35:58,913 INFO [backend.app.api.routes.camera] [b52b7d29] Camera viewer attached to printer-1 (subscribers=2)
+2026-05-17 15:35:59,582 INFO [backend.app.services.camera] [3c2ded11] Chamber image: connected to [IP]:6000
+2026-05-17 15:36:01,557 INFO [backend.app.api.routes.camera] [3c2ded11] Camera viewer detached from printer-1 (subscribers=1)
+2026-05-17 15:36:23,463 INFO [backend.app.api.routes.camera] [b52b7d29] Camera viewer detached from printer-1 (subscribers=0)
+2026-05-17 15:36:23,554 INFO [backend.app.api.routes.camera] [3c2ded11] Chamber image stream cancelled (stream_id=1-fanout)
+2026-05-17 15:36:23,568 INFO [backend.app.api.routes.camera] [3c2ded11] Chamber image stream stopped for [IP] (stream_id=1-fanout)
+2026-05-17 15:36:23,571 INFO [backend.app.api.routes.camera] [1864c160] Shut down camera fan-out broadcaster for printer 1
+2026-05-17 15:36:23,572 INFO [backend.app.api.routes.camera] [1864c160] Stopped 0 camera stream(s) for printer 1
+2026-05-17 15:36:23,575 INFO [uvicorn.access] [-] [IP]:40144 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-05-17 15:36:27,041 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:36:29,888 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:37:21,118 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-05-17 15:37:21,158 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Firmware version: 01.09.01.00
+2026-05-17 15:37:21,344 INFO [uvicorn.access] [-] [IP]:53898 - "PATCH /api/v1/printers/1 HTTP/1.1" 200
+2026-05-17 15:37:29,997 INFO [backend.app.services.bambu_mqtt] [c1c15a51] [[SERIAL]] Set chamber lights on (seq=4)
+2026-05-17 15:37:29,998 INFO [uvicorn.access] [-] [IP]:53898 - "POST /api/v1/printers/1/chamber-light?on=true HTTP/1.1" 200
+2026-05-17 15:37:33,211 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Probing developer mode via ams_filament_setting (seq=5)
+2026-05-17 15:37:33,223 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Developer mode probe: ENABLED (result='success')
+2026-05-17 15:37:33,916 INFO [uvicorn.access] [-] [IP]:53898 - "PATCH /api/v1/printers/1 HTTP/1.1" 200
+2026-05-17 15:37:35,828 INFO [uvicorn.access] [-] [IP]:53898 - "PATCH /api/v1/printers/1 HTTP/1.1" 200
+2026-05-17 15:37:37,928 INFO [backend.app.services.camera] [82d83981] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-05-17 15:37:39,758 INFO [backend.app.services.camera] [82d83981] Saved camera frame to: /tmp/tmp9x1hd2x1.jpg
+2026-05-17 15:37:45,800 INFO [backend.app.api.routes.camera] [b8f8646c] Using chamber image protocol for P1S
+2026-05-17 15:37:45,802 INFO [backend.app.api.routes.camera] [b8f8646c] Camera viewer attached to printer-1 (subscribers=1)
+2026-05-17 15:37:45,803 INFO [backend.app.api.routes.camera] [b8f8646c] Starting chamber image stream for [IP] (stream_id=1-fanout, model=P1S)
+2026-05-17 15:37:45,847 INFO [uvicorn.access] [-] [IP]:48820 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-17 15:37:45,881 INFO [backend.app.api.routes.camera] [61c4910d] Using chamber image protocol for P1S
+2026-05-17 15:37:45,882 INFO [backend.app.api.routes.camera] [61c4910d] Camera viewer attached to printer-1 (subscribers=2)
+2026-05-17 15:37:46,535 INFO [backend.app.services.camera] [b8f8646c] Chamber image: connected to [IP]:6000
+2026-05-17 15:37:48,935 INFO [backend.app.api.routes.camera] [b8f8646c] Camera viewer detached from printer-1 (subscribers=1)
+2026-05-17 15:37:57,595 INFO [backend.app.api.routes.camera] [61c4910d] Camera viewer detached from printer-1 (subscribers=0)
+2026-05-17 15:37:57,722 INFO [backend.app.api.routes.camera] [b8f8646c] Chamber image stream cancelled (stream_id=1-fanout)
+2026-05-17 15:37:57,729 INFO [backend.app.api.routes.camera] [b8f8646c] Chamber image stream stopped for [IP] (stream_id=1-fanout)
+2026-05-17 15:37:57,729 INFO [backend.app.api.routes.camera] [2c7cd78d] Shut down camera fan-out broadcaster for printer 1
+2026-05-17 15:37:57,729 INFO [backend.app.api.routes.camera] [2c7cd78d] Stopped 0 camera stream(s) for printer 1
+2026-05-17 15:37:57,730 INFO [uvicorn.access] [-] [IP]:48854 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-05-17 15:38:16,500 INFO [uvicorn.access] [-] [IP]:48854 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:38:16,510 INFO [uvicorn.access] [-] [IP]:52038 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:38:16,689 WARNING [backend.app.services.slice_preview] [66bab62c] Preview slice failed for library_file/10 plate 1 (bundle=-): Slicer sidecar unreachable: All connection attempts failed
+2026-05-17 15:38:44,495 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-17 15:38:52,773 INFO [uvicorn.access] [-] [IP]:52056 - "POST /api/v1/library/files/10/print?printer_id=1 HTTP/1.1" 200
+2026-05-17 15:38:52,778 ERROR [backend.app.services.background_dispatch] [-] Background dispatch job 3 failed: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+Traceback (most recent call last):
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 371, in _run_active_job
+    await self._process_job(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 543, in _process_job
+    await self._run_print_library_file(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 744, in _run_print_library_file
+    raise RuntimeError("Not a sliced file. Only .gcode or .gcode.3mf files can be printed.")
+RuntimeError: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+2026-05-17 15:39:34,843 INFO [uvicorn.access] [-] [IP]:46874 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-17 15:39:52,009 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-17 15:39:52,389 INFO [uvicorn.access] [-] [IP]:46874 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-17 15:39:52,517 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-17 15:39:52,518 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-17 15:39:52,530 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-17 15:39:52,835 INFO [backend.app.api.routes.cloud] [c8d4cf04] get_filament_info called with 2 IDs: ['GFA00', 'GFA01']
+2026-05-17 15:39:52,856 INFO [uvicorn.access] [-] [IP]:35888 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-17 15:39:52,990 INFO [backend.app.services.firmware_check] [f88bed57] Got Bambu Lab build ID: DGVvLxp_mb7yePrzlGQYu
+2026-05-17 15:41:24,043 INFO [uvicorn.access] [-] [IP]:37012 - "POST /api/v1/library/files/4/slicer-token HTTP/1.1" 200
+2026-05-17 15:42:31,117 INFO [backend.app.services.mqtt_relay] [e4b797e0] MQTT relay disabled
+2026-05-17 15:42:31,122 INFO [uvicorn.access] [-] [IP]:50368 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-17 15:43:00,684 INFO [backend.app.services.mqtt_relay] [ed0de78a] MQTT relay disabled
+2026-05-17 15:43:00,688 INFO [uvicorn.access] [-] [IP]:55196 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-05-17 15:43:44,505 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-17 15:45:49,685 INFO [backend.app.api.routes.cloud] [5589232f] get_filament_info called with 2 IDs: ['GFA00', 'GFA01']
+2026-05-17 15:45:49,713 INFO [uvicorn.access] [-] [IP]:43672 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-17 15:46:02,396 INFO [uvicorn.access] [-] [IP]:50420 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:46:02,402 INFO [uvicorn.access] [-] [IP]:50434 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:46:02,570 WARNING [backend.app.services.slice_preview] [71818ef9] Preview slice failed for library_file/12 plate 1 (bundle=-): Slicer sidecar unreachable: All connection attempts failed
+2026-05-17 15:47:32,435 INFO [uvicorn.access] [-] [IP]:54640 - "POST /api/v1/library/files/12/print?printer_id=1 HTTP/1.1" 200
+2026-05-17 15:47:32,437 ERROR [backend.app.services.background_dispatch] [-] Background dispatch job 4 failed: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+Traceback (most recent call last):
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 371, in _run_active_job
+    await self._process_job(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 543, in _process_job
+    await self._run_print_library_file(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 744, in _run_print_library_file
+    raise RuntimeError("Not a sliced file. Only .gcode or .gcode.3mf files can be printed.")
+RuntimeError: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+2026-05-17 15:48:06,102 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-17 15:48:06,585 INFO [uvicorn.access] [-] [IP]:54636 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-05-17 15:48:06,801 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-17 15:48:06,803 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-17 15:48:06,818 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-17 15:48:07,200 INFO [backend.app.api.routes.cloud] [c58166c2] get_filament_info called with 2 IDs: ['GFA00', 'GFA01']
+2026-05-17 15:48:07,202 INFO [uvicorn.access] [-] [IP]:43526 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-17 15:48:44,515 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-17 15:49:29,548 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:49:32,593 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:49:46,448 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:49:49,377 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:50:11,537 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:50:20,359 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:50:25,790 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:53:44,519 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-17 15:54:24,970 INFO [uvicorn.access] [-] [IP]:50038 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:54:24,977 INFO [uvicorn.access] [-] [IP]:41022 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:54:25,169 WARNING [backend.app.services.slice_preview] [d4683942] Preview slice failed for library_file/14 plate 1 (bundle=-): Slicer sidecar unreachable: All connection attempts failed
+2026-05-17 15:54:28,702 INFO [uvicorn.access] [-] [IP]:50066 - "POST /api/v1/library/files/14/print?printer_id=1 HTTP/1.1" 200
+2026-05-17 15:54:29,561 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:54:29,571 WARNING [backend.app.services.bambu_ftp] [-] Failed to delete /Inverted_Oloid.3mf: 550 
+2026-05-17 15:54:29,582 INFO [backend.app.services.bambu_ftp] [-] FTP connecting to [IP] for upload (model=P1S, mode=prot_p, socket_timeout=30.0s)...
+2026-05-17 15:54:30,356 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-05-17 15:54:30,356 INFO [backend.app.services.bambu_ftp] [-] FTP connected to [IP]
+2026-05-17 15:54:30,356 INFO [backend.app.services.bambu_ftp] [-] FTP uploading /opt/[user]/data/archive/library/files/3a0a7f858cec4b39854737d1a85d3ffe.3mf (1388689 bytes) to /Inverted_Oloid.3mf
+2026-05-17 15:54:30,430 INFO [backend.app.services.bambu_ftp] [-] FTP data channel ready in 0.1s (PASV + TLS handshake)
+2026-05-17 15:54:38,461 INFO [backend.app.services.bambu_ftp] [-] FTP STOR confirmed for /Inverted_Oloid.3mf: 226
+2026-05-17 15:54:38,461 INFO [backend.app.services.bambu_ftp] [-] FTP upload complete: /Inverted_Oloid.3mf (1388689 bytes in 8.1s, 167 KB/s)
+2026-05-17 15:54:38,461 INFO [backend.app.services.bambu_ftp] [-] FTP mode cached for [IP]: prot_p
+2026-05-17 15:54:38,468 INFO [backend.app.main] [-] Registered expected print: printer=1, file=Inverted_Oloid.3mf, archive=1, ams_mapping=[0, 1, 2, 3]
+2026-05-17 15:54:38,477 INFO [backend.app.services.printer_manager] [-] PRINT COMMAND: printer=1, file=Inverted_Oloid.3mf, caller=background_dispatch.py:543:_process_job
+2026-05-17 15:54:38,477 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending print command: {"print": {"sequence_id": "20000", "command": "project_file", "param": "Metadata/plate_1.gcode", "url": "ftp://Inverted_Oloid.3mf", "file": "Inverted_Oloid.3mf", "md5": "", "bed_type": "auto", "timelapse": false, "bed_leveling": true, "auto_bed_leveling": 1, "flow_cali": false, "vibration_cali": true, "layer_inspect": false, "use_ams": true, "cfg": "0", "extrude_cali_flag": 0, "extrude_cali_manual_mode": 0, "nozzle_offset_cali": 2, "subtask_name": "Inverted_Oloid", "profile_id": "0", "project_id": "942018761", "subtask_id": "942018761", "task_id": "942018761", "ams_mapping": [0, 1, 2, 3], "ams_mapping2": [{"ams_id": 0, "slot_id": 0}, {"ams_id": 0, "slot_id": 1}, {"ams_id": 0, "slot_id": 2}, {"ams_id": 0, "slot_id": 3}]}}
+2026-05-17 15:55:48,983 INFO [backend.app.services.stl_thumbnail] [9e617635] Simplifying mesh from 947237 vertices
+2026-05-17 15:55:55,115 INFO [backend.app.services.stl_thumbnail] [9e617635] Simplified mesh to 99984 vertices
+2026-05-17 15:56:40,629 INFO [backend.app.services.stl_thumbnail] [9e617635] Generated STL thumbnail: /opt/[user]/data/archive/library/thumbnails/995d52bd643949dea590eafc1264ef84.png
+2026-05-17 15:56:40,737 INFO [uvicorn.access] [-] [IP]:50050 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 15:57:03,730 INFO [uvicorn.access] [-] [IP]:51508 - "POST /api/v1/library/files/14/print?printer_id=1 HTTP/1.1" 200
+2026-05-17 15:57:03,734 ERROR [backend.app.services.background_dispatch] [-] Background dispatch job 6 failed: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+Traceback (most recent call last):
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 371, in _run_active_job
+    await self._process_job(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 543, in _process_job
+    await self._run_print_library_file(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 744, in _run_print_library_file
+    raise RuntimeError("Not a sliced file. Only .gcode or .gcode.3mf files can be printed.")
+RuntimeError: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+2026-05-17 15:57:25,388 INFO [backend.app.services.bambu_mqtt] [3a7c932d] [[SERIAL]] Sent clear HMS errors command
+2026-05-17 15:57:25,390 INFO [uvicorn.access] [-] [IP]:51506 - "POST /api/v1/printers/1/hms/clear HTTP/1.1" 200
+2026-05-17 15:57:45,683 INFO [backend.app.api.routes.cloud] [cb12e971] get_filament_info called with 2 IDs: ['GFA00', 'GFA01']
+2026-05-17 15:57:45,706 INFO [uvicorn.access] [-] [IP]:55394 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-05-17 15:58:44,533 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-17 15:59:25,497 INFO [backend.app.services.stl_thumbnail] [30ac1649] Simplifying mesh from 947237 vertices
+2026-05-17 15:59:31,365 INFO [backend.app.services.stl_thumbnail] [30ac1649] Simplified mesh to 99984 vertices
+2026-05-17 16:00:15,429 INFO [backend.app.services.stl_thumbnail] [30ac1649] Generated STL thumbnail: /opt/[user]/data/archive/library/thumbnails/51f86590f4c24166bba95a5c97f36aa4.png
+2026-05-17 16:00:26,013 INFO [backend.app.services.stl_thumbnail] [d69bb318] Simplifying mesh from 947237 vertices
+2026-05-17 16:00:34,193 INFO [backend.app.services.stl_thumbnail] [d69bb318] Simplified mesh to 99984 vertices
+2026-05-17 16:01:17,106 INFO [backend.app.services.stl_thumbnail] [d69bb318] Generated STL thumbnail: /opt/[user]/data/archive/library/thumbnails/2d6a249b677049368ace4059d5918df2.png
+2026-05-17 16:01:17,304 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-17 16:01:17,305 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-05-17 16:01:17,339 INFO [uvicorn.access] [-] [IP]:34136 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 16:01:17,362 INFO [uvicorn.access] [-] [IP]:55470 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-05-17 16:01:20,305 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-17 16:01:20,305 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-17 16:01:20,316 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-17 16:01:21,249 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting...
+2026-05-17 16:01:21,250 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-05-17 16:01:21,251 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-05-17 16:01:21,466 INFO [uvicorn.access] [-] [IP]:34152 - "POST /api/v1/library/files/16/print?printer_id=1 HTTP/1.1" 200
+2026-05-17 16:01:21,469 ERROR [backend.app.services.background_dispatch] [-] Background dispatch job 7 failed: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+Traceback (most recent call last):
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 371, in _run_active_job
+    await self._process_job(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 543, in _process_job
+    await self._run_print_library_file(job)
+  File "/opt/[user]/backend/app/services/background_dispatch.py", line 744, in _run_print_library_file
+    raise RuntimeError("Not a sliced file. Only .gcode or .gcode.3mf files can be printed.")
+RuntimeError: Not a sliced file. Only .gcode or .gcode.3mf files can be printed.
+2026-05-17 16:03:44,553 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-17 16:04:56,204 INFO [backend.app.api.routes.support] [982d845b] Log level changed to DEBUG
+2026-05-17 16:04:56,204 INFO [backend.app.api.routes.bug_report] [982d845b] Bug report: enabled debug logging
+2026-05-17 16:04:56,204 DEBUG [backend.app.services.bambu_mqtt] [982d845b] [[SERIAL]] Requesting status update (pushall)
+2026-05-17 16:04:56,205 INFO [uvicorn.access] [-] [IP]:34158 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: IDLE, gcode_file: Inverted_Oloid.3mf, subtask_name: Inverted_Oloid
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '255', 'tray_now': '255', 'tray_pre': '255', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 2, 'insert_flag': True, 'power_on_flag': False}
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 255
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1003 -> extruder 0
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 0 (main=0, sub=0)
+2026-05-17 16:04:56,253 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-17 16:04:56,254 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-05-17 16:04:56,254 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-05-17 16:04:56,255 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-05-17 16:04:56,255 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-05-17 16:04:56,256 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-05-17 16:04:56,256 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-05-17 16:04:56,257 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -35dBm
+2026-05-17 16:04:56,257 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-05-17 16:04:56,257 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: IDLE -> IDLE, file: Inverted_Oloid.3mf, subtask: Inverted_Oloid
+2026-05-17 16:04:58,266 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-17 16:05:02,283 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-17 16:05:04,296 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-17 16:05:04,296 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -34dBm
+2026-05-17 16:05:06,312 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
