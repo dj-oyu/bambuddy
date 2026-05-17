@@ -2911,6 +2911,12 @@ async def upload_archive(
 
     try:
         content = await file.read()
+        # #1401: same content validation as library upload — catches
+        # raw-gcode-renamed-to-.3mf and other unprintable shapes before
+        # archiving them and offering them up for print.
+        from backend.app.api.routes.library import validate_print_file_upload
+
+        validate_print_file_upload(file.filename, content)
         temp_path.write_bytes(content)
 
         service = ArchiveService(db)
@@ -2937,6 +2943,8 @@ async def upload_archives_bulk(
     current_user: User | None = RequirePermissionIfAuthEnabled(Permission.ARCHIVES_CREATE),
 ):
     """Bulk upload multiple 3MF files to archive."""
+    from backend.app.api.routes.library import validate_print_file_upload
+
     results = []
     errors = []
 
@@ -2951,6 +2959,15 @@ async def upload_archives_bulk(
 
         try:
             content = await file.read()
+            # #1401: bulk-upload variant of the library validation. Collect
+            # the rejection per-file rather than aborting the whole batch
+            # so one bad file in a 10-file drag-drop doesn't lose the
+            # other nine.
+            try:
+                validate_print_file_upload(file.filename, content)
+            except HTTPException as exc:
+                errors.append({"filename": file.filename, "error": exc.detail})
+                continue
             temp_path.write_bytes(content)
 
             service = ArchiveService(db)
@@ -3864,6 +3881,12 @@ async def upload_source_3mf(
     source_path = source_dir / source_filename
 
     content = await file.read()
+    # #1401: validate zip header on source 3MF uploads too — source files
+    # are uploaded for reprint and slicing, so an invalid one breaks the
+    # same downstream paths as a bad sliced file.
+    from backend.app.api.routes.library import validate_print_file_upload
+
+    validate_print_file_upload(file.filename, content)
     source_path.write_bytes(content)
 
     # Update archive with source path (relative to base_dir)
@@ -4065,6 +4088,12 @@ async def upload_source_3mf_by_name(
     source_path = source_dir / source_filename
 
     content = await file.read()
+    # #1401: same zip-header check as the other upload routes — the
+    # match-by-name endpoint is used by slicer post-processing scripts,
+    # so a misconfigured script is exactly how a bad 3MF would slip in.
+    from backend.app.api.routes.library import validate_print_file_upload
+
+    validate_print_file_upload(file.filename, content)
     source_path.write_bytes(content)
 
     # Update archive with source path
