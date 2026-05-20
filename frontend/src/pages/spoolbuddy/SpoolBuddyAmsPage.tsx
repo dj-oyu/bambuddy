@@ -753,6 +753,7 @@ export function SpoolBuddyAmsPage() {
                         {assignment.spool.brand ? `${assignment.spool.brand} ` : ''}{assignment.spool.material}
                         {assignment.spool.color_name ? ` - ${assignment.spool.color_name}` : ''}
                       </span>
+                      <span className="text-[10px] font-mono text-zinc-500 shrink-0 ml-auto">#{assignment.spool.id}</span>
                     </div>
                   </div>
                 )}
