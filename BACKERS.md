@@ -28,6 +28,7 @@ If you sponsor and your name isn't here within 48h, please write an email to mar
 - [@rewart01](https://github.com/rewart01)
 - [@rstocks](https://github.com/rstocks)
 - [@sixfootseven](https://github.com/sixfootseven)
+- [@pwostran](https://github.com/pwostran)
 
 ## Backers ($5/mo+)
 
@@ -36,7 +37,6 @@ If you sponsor and your name isn't here within 48h, please write an email to mar
 - [@grizz0blaw](https://github.com/grizz0blaw)
 - [@NoahTingey](https://github.com/NoahTingey)
 - [@sentinel-center](https://github.com/sentinel-center)
-- [@pwostran](https://github.com/pwostran)
 ---
 
 ## One-time and historical supporters
