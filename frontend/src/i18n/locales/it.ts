@@ -26,6 +26,8 @@ export default {
     switchToDark: 'Passa a tema scuro',
     smartSwitches: 'Interruttori Smart',
     logout: 'Esci',
+    installApp: 'Installa app',
+    installAppSuccess: 'Bambuddy è stato installato',
   },
 
   // Common
@@ -122,6 +124,12 @@ export default {
 
   // Printers page
   printers: {
+    addPreflight: {
+      checking: 'Verifica della connessione...',
+      warning: 'Alcuni controlli di connessione non sono riusciti. Questa stampante potrebbe risultare offline. Controlla le verifiche qui sotto, risolvi ciò che puoi oppure salva comunque.',
+      back: 'Indietro',
+      saveAnyway: 'Salva comunque',
+    },
     title: 'Stampanti',
     addPrinter: 'Aggiungi Stampante',
     editPrinter: 'Modifica Stampante',
@@ -919,6 +927,15 @@ export default {
 
   // Queue page
   queue: {
+    filamentShort: {
+      rowBadge: 'Filamento insufficiente per la bobina assegnata',
+      rowTooltip: 'Lo scheduler ha segnalato questo elemento. Premi Play per vedere il deficit per slot e decidere se stampare comunque.',
+      confirmTitle: 'Filamento insufficiente',
+      confirmIntro: 'La bobina assegnata non puo coprire almeno uno slot. Stampare comunque?',
+      lineItem: 'Slot {{slot}}: servono {{required}} g, rimangono {{remaining}} g',
+      unknown: 'sconosciuto',
+      printAnyway: 'Stampa comunque',
+    },
     title: 'Coda di stampa',
     subtitle: 'Programma e gestisci i tuoi lavori di stampa',
     addToQueue: 'Aggiungi alla coda',
@@ -2318,6 +2335,7 @@ export default {
       nfc: 'NFC',
       scale: 'Bilancia',
       cpuTemp: 'Temp. CPU',
+      cpuLoad: 'Carico CPU',
       memory: 'Memoria',
       disk: 'Disco',
       update: 'Aggiorna',
@@ -2822,6 +2840,7 @@ export default {
       importing: 'Importazione...',
       search: 'Cerca preset locali...',
       noPresets: 'Nessun preset locale ancora',
+      noSearchResults: 'Nessun preset corrisponde alla ricerca',
       badge: 'Locale',
       edit: 'Modifica',
       delete: 'Elimina',
@@ -3023,6 +3042,11 @@ export default {
     collectItem10: 'Versioni dei pacchetti Python',
     collectItem11: 'Controlli di integrità del database',
     collectItem12: 'Dettagli dell\'ambiente Docker',
+    bundleGenerating: 'Generazione del pacchetto...',
+    bundleStepConnection: 'Controlli di connettività delle stampanti in corso',
+    bundleStepVirtualPrinters: 'Controlli di configurazione delle stampanti virtuali in corso',
+    bundleStepLogScan: 'Analisi dei log recenti per problemi noti',
+    bundleStepBuild: 'Creazione dello ZIP del pacchetto di supporto',
   },
 
   // File manager
@@ -3418,6 +3442,9 @@ export default {
   slice: {
     title: 'Slicing modello',
     action: 'Slice',
+    actionAll: 'Slicia tutti i {{count}} piatti',
+    actionAllTitle: 'Slicia tutti i piatti in un unico output multi-piatto (un solo archivio). La selezione del filamento copre ogni slot definito dal progetto.',
+    allPlatesToggle: 'Slicia tutti i {{count}} piatti',
     slicing: 'Slicing…',
     printer: 'Profilo stampante',
     process: 'Profilo processo',
@@ -3430,10 +3457,13 @@ export default {
     previewToast: 'Analisi di {{name}} – {{elapsed}}',
     previewWithProgress: 'Analisi di {{name}} – {{stage}} ({{percent}}%) – {{elapsed}}',
     notUsedByPlate: '— non usato da questo piano',
-    printerMismatch: 'Questo 3MF è stato sezionato per {{source}}, ma hai scelto {{target}}. La CLI del slicer non può ri-sezionare un 3MF per una stampante diversa — apri la sorgente in Bambu Studio, cambia stampante e ri-esporta.',
     noPresetsForSlot: 'Nessun preset disponibile',
+    otherPrinters: 'Altre stampanti',
     presetsLoadFailed: 'Caricamento preset fallito. Apri Impostazioni → Profili per importarli prima.',
     allPresetsRequired: 'Tutti i preset devono essere selezionati',
+    bundle: 'Bundle slicer',
+    bundleNone: '— Nessuno (scegli i preset singolarmente) —',
+    bundleAllRequired: 'Devi scegliere il processo del bundle e ogni slot filamento',
     enqueuing: 'Invio lavoro di slicing…',
     queued: 'In coda…',
     failed: 'Slicing fallito. Controlla i log del sidecar.',
@@ -3441,7 +3471,9 @@ export default {
     queuedToast: 'In coda: {{name}} – {{elapsed}}',
     runningToast: 'Slicing {{name}} – {{elapsed}}',
     runningWithProgress: '{{name}} – {{stage}} ({{percent}}%) – {{elapsed}}',
+    runningWithProgressMultiPlate: 'Piatto {{plateIndex}} di {{plateCount}} • {{name}} – {{stage}} ({{percent}}%) – {{elapsed}}',
     completedToast: '{{name}} sezionato',
+    failedTitle: 'Slicing fallito',
     failedToast: 'Slicing di {{name}} fallito: {{detail}}',
     tier: {
       local: 'Importato',
@@ -4402,6 +4434,14 @@ export default {
       description: 'Scegli come vengono nominati i nuovi archivi quando i file arrivano tramite la stampante virtuale. "Metadati" utilizza il titolo incorporato nello slicer dal 3MF (default). "Nome file" utilizza il nome che Bambu Studio ha inviato via FTP — utile se hai rinominato il job nella finestra "invia a stampante".',
       metadata: 'Metadati',
       filename: 'Nome file',
+    },
+    caCert: {
+      title: 'Certificato dello slicer',
+      description: 'Le stampanti virtuali usano un certificato TLS firmato dalla CA di Bambuddy. Importa questo certificato CA nell\'archivio attendibile del tuo slicer una sola volta affinché accetti la connessione — senza doverlo copiare dalla riga di comando.',
+      copy: 'Copia',
+      copied: 'Copiato',
+      download: 'Scarica',
+      fingerprint: 'SHA-256',
     },
   },
 
@@ -5451,7 +5491,167 @@ export default {
     },
   },
 
+  diagnostic: {
+    modalTitle: 'Diagnostica connessione — {{name}}',
+    running: 'Diagnostica in corso...',
+    runFailed: 'Impossibile eseguire la diagnostica: {{error}}',
+    retry: 'Esegui di nuovo',
+    runButton: 'Esegui diagnostica',
+    sectionTitle: 'Diagnostica connessione',
+    sectionDescription: 'Verifica perché una stampante non si connette o non stampa — raggiungibilità delle porte, modalità sviluppatore LAN, modalità di rete Docker e credenziali.',
+    noPrinters: 'Nessuna stampante configurata.',
+    overall: {
+      ok: 'Nessun problema rilevato — la connessione della stampante sembra a posto.',
+      warnings: 'La stampante dovrebbe funzionare, ma alcuni aspetti richiedono attenzione.',
+      problems: 'Sono stati rilevati problemi che spiegano perché la stampante non si connette o non stampa.',
+    },
+    check: {
+      port_mqtt: {
+        title: 'Porta di controllo (MQTT 8883)',
+        pass: 'Raggiungibile — la stampante accetta connessioni di controllo.',
+        fail: 'La porta 8883 non è raggiungibile. La stampante è spenta, ha un altro indirizzo IP oppure un firewall la blocca. Verifica l\'IP della stampante e che nulla blocchi la porta 8883.',
+      },
+      port_ftps: {
+        title: 'Porta trasferimento file (FTPS 990)',
+        pass: 'Raggiungibile — l\'invio dei file di stampa funzionerà.',
+        warn: 'La porta 990 non è raggiungibile. Il monitoraggio potrebbe ancora funzionare, ma l\'invio delle stampe alla stampante fallirà. Assicurati che la porta 990 non sia bloccata.',
+      },
+      port_rtsps: {
+        title: 'Porta fotocamera (RTSPS 322)',
+        pass: 'Raggiungibile — lo streaming della fotocamera funzionerà.',
+        warn: 'La porta 322 non è raggiungibile. La visualizzazione live della fotocamera non funzionerà. Questo non influisce sulla stampa.',
+      },
+      network_mode: {
+        title: 'Modalità di rete Docker',
+        pass: 'In esecuzione in modalità di rete host.',
+        warn: 'Bambuddy è in esecuzione con la rete Docker bridge. Il rilevamento delle stampanti e la stampante virtuale richiedono la modalità di rete host — ricrea il container con "network_mode: host".',
+        skip: 'Non in esecuzione in Docker — non applicabile.',
+      },
+      subnet: {
+        title: 'Sottorete',
+        pass: 'La stampante e Bambuddy sono nella stessa sottorete.',
+        warn: 'La stampante ({{printer_ip}}) e Bambuddy ({{host_ip}}) sono in sottoreti diverse. Potrebbero non raggiungersi a meno che non sia configurato il routing tra le sottoreti.',
+        skip: 'Impossibile determinare la sottorete — ignorato.',
+      },
+      mqtt_auth: {
+        title: 'Credenziali stampante',
+        pass: 'La stampante ha accettato la connessione.',
+        fail: 'La stampante è raggiungibile ma ha rifiutato la connessione. Il codice di accesso o il numero di serie è molto probabilmente errato. Il codice di accesso cambia ogni volta che la modalità sviluppatore viene attivata/disattivata — ricopialo dallo schermo della stampante.',
+        skip: 'Non verificato — impossibile raggiungere la stampante.',
+      },
+      developer_mode: {
+        title: 'Modalità sviluppatore LAN',
+        pass: 'La modalità sviluppatore è attivata.',
+        fail: 'La modalità sviluppatore è DISATTIVATA sulla stampante. Attivala nelle impostazioni LAN della stampante — e conferma con OK. Senza di essa le stampe non verranno avviate.',
+        skip: 'Impossibile verificare — richiede una connessione attiva alla stampante.',
+      },
+    },
+  },
+
+  systemHealth: {
+    sectionTitle: 'Stato del sistema',
+    sectionDescription: 'Analizza i log recenti alla ricerca di problemi noti che di solito puoi risolvere da solo, prima che diventino un ticket di assistenza.',
+    rescan: 'Analizza di nuovo',
+    clean: 'Nessun problema noto trovato nelle ultime {{times}} voci di log.',
+    logUnavailable: 'La registrazione su file è disattivata, quindi i log non possono essere analizzati. Attiva la registrazione su file per usare questo controllo.',
+    learnMore: 'Come risolvere',
+    fixLabel: 'Soluzione:',
+    occurrences: 'Visto {{times}}× — ultima volta alle {{lastSeen}}',
+    category: {
+      layer8: 'Puoi risolverlo tu',
+      environment: 'Ambiente',
+      bug: 'Segnalalo, per favore',
+    },
+    signature: {
+      'ftp-auth-rejected': {
+        name: 'La stampante ha rifiutato il codice di accesso',
+        cause: 'La stampante ha rifiutato l\'accesso per il trasferimento file. Il codice di accesso è errato oppure è cambiato dopo aver attivato la Modalità Sviluppatore.',
+        fix: 'Ricopia il codice di accesso dallo schermo della stampante (impostazioni LAN) e aggiornalo nelle impostazioni della stampante in Bambuddy.',
+      },
+      'ftp-connection-timeout': {
+        name: 'Timeout della connessione di trasferimento file',
+        cause: 'Bambuddy non è riuscito a raggiungere la porta di trasferimento file della stampante (FTPS 990). La porta è bloccata, oppure la stampante è spenta o in un\'altra sottorete.',
+        fix: 'Assicurati che nulla blocchi la porta 990 tra Bambuddy e la stampante e che entrambi siano sulla stessa rete.',
+      },
+      'ftp-ssl-error': {
+        name: 'Handshake sicuro del trasferimento file non riuscito',
+        cause: 'L\'handshake TLS con il server di trasferimento file della stampante non è riuscito. Spesso è dovuto a un firewall o a un firmware della stampante obsoleto.',
+        fix: 'Aggiorna il firmware della stampante e verifica che nessun firewall o proxy intercetti la connessione sulla porta 990.',
+      },
+      'mqtt-connection-flapping': {
+        name: 'La connessione alla stampante cade di continuo',
+        cause: 'La connessione di controllo (MQTT 8883) si disconnette e si riconnette ripetutamente, di solito per una rete debole o una porta parzialmente bloccata.',
+        fix: 'Controlla il segnale Wi-Fi vicino alla stampante, preferisci una connessione cablata e assicurati che la porta 8883 sia raggiungibile in modo affidabile.',
+      },
+      'camera-connection-refused': {
+        name: 'Flusso della telecamera non raggiungibile',
+        cause: 'Non è stato possibile raggiungere la telecamera dal vivo sulla porta RTSPS 322. La porta è bloccata, oppure la telecamera o la visione dal vivo via LAN è disattivata sulla stampante.',
+        fix: 'Attiva la telecamera e la visione dal vivo via LAN sulla stampante e assicurati che la porta 322 non sia bloccata. Questo non influisce sulla stampa.',
+      },
+      'database-locked': {
+        name: 'Conflitti di scrittura nel database',
+        cause: 'Il database SQLite presenta errori "database is locked" sotto carico, comune quando si usano più stampanti contemporaneamente.',
+        fix: 'Passa Bambuddy a un database PostgreSQL esterno. Consulta la guida PostgreSQL nella documentazione.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Controllo configurazione — {{name}}',
+    runButton: 'Esegui controllo configurazione',
+    running: 'Controllo configurazione in corso...',
+    runFailed: 'Impossibile eseguire il controllo della configurazione: {{error}}',
+    retry: 'Esegui di nuovo',
+    overall: {
+      ok: 'Tutti i controlli superati — questa stampante virtuale è configurata correttamente.',
+      warnings: 'La stampante virtuale dovrebbe funzionare, ma alcuni aspetti richiedono attenzione.',
+      problems: 'Sono stati trovati problemi che spiegano perché lo slicer non riesce a vedere o usare questa stampante virtuale.',
+    },
+    check: {
+      enabled: {
+        title: 'Stampante virtuale abilitata',
+        fail: 'Questa stampante virtuale è spenta. Attivala per renderla rilevabile.',
+      },
+      running: {
+        title: 'Servizi in esecuzione',
+        fail: 'La stampante virtuale è abilitata ma i suoi servizi non sono in esecuzione. Controlla il log di Bambuddy — di solito li ferma un conflitto di IP di binding o un errore di permessi.',
+      },
+      bind_interface: {
+        title: 'Interfaccia di rete di binding',
+        fail: 'L\'interfaccia di binding non è impostata o non esiste più su questo host. Scegli un\'interfaccia attuale nel menu "Interfaccia di binding".',
+      },
+      access_code: {
+        title: 'Codice di accesso impostato',
+        fail: 'Nessun codice di accesso impostato. Allo slicer deve essere fornito lo stesso codice di accesso di 8 caratteri impostato qui.',
+      },
+      target_printer: {
+        title: 'Stampante di destinazione',
+        fail: 'Nessuna stampante di destinazione selezionata. La modalità proxy richiede una stampante reale a cui inoltrare.',
+        warn: 'La stampante di destinazione è offline in questo momento — l\'inoltro riprenderà quando si riconnetterà.',
+      },
+      port_ftps: {
+        title: 'Servizio di caricamento file (porta {{port}})',
+        fail: 'Nulla è in ascolto sulla porta {{port}} dell\'IP di binding, quindi lo slicer non può caricare i file. La causa abituale è un conflitto di porta su questa interfaccia.',
+      },
+      port_mqtt: {
+        title: 'Servizio di controllo (porta {{port}})',
+        fail: 'Nulla è in ascolto sulla porta {{port}} dell\'IP di binding, quindi lo slicer non può connettersi o mostrare lo stato.',
+      },
+      port_bind: {
+        title: 'Servizio di rilevamento (porta {{port}})',
+        fail: 'Nulla è in ascolto sulla porta {{port}} dell\'IP di binding, quindi l\'handshake di rilevamento dello slicer fallisce.',
+      },
+      certificate: {
+        title: 'Certificato TLS',
+        pass: 'Certificato pronto. Assicurati che il certificato CA di Bambuddy (sopra) sia importato nell\'archivio attendibile del tuo slicer.',
+        fail: 'Il certificato TLS per questa stampante virtuale è mancante. Verifica che la directory dei dati di Bambuddy sia scrivibile.',
+      },
+    },
+  },
+
   bugReport: {
+    logHealthSummary: 'Trovati problemi noti nei tuoi log',
+    logHealthIntro: 'I log recenti corrispondono a problemi noti. Controlla le soluzioni qui sotto: risolverle potrebbe sistemare il problema senza una segnalazione di bug. Puoi comunque inviare una segnalazione qui sotto.',
     title: 'Segnala un bug',
     description: 'Descrizione',
     descriptionPlaceholder: 'Cosa è andato storto? Descrivi il problema...',
@@ -5474,8 +5674,16 @@ export default {
     maxDuration: 'Arresto automatico dopo {{minutes}} min',
     stoppingLogs: 'Raccolta log & invio...',
     submitting: 'Invio segnalazione bug...',
+    submittingStepConnection: 'Controlli di connettività delle stampanti in corso',
+    submittingStepVirtualPrinters: 'Controlli di configurazione delle stampanti virtuali in corso',
+    submittingStepLogScan: 'Analisi dei log recenti per problemi noti',
+    submittingStepSubmit: 'Invio del report a GitHub',
     submitSuccess: 'Segnalazione bug inviata con successo!',
     submitFailed: 'Impossibile inviare la segnalazione bug',
+    diagnosticChecking: 'Verifica delle connessioni delle stampanti...',
+    diagnosticHealthy: 'Verifica della connessione superata — nessun problema rilevato sulle tue stampanti.',
+    diagnosticSummary: '{{problems}} stampanti su {{total}} hanno problemi di connessione',
+    diagnosticIntro: 'Una o più stampanti hanno un problema di connessione che potrebbe essere la causa del tuo problema. Espandi una stampante qui sotto per vedere la soluzione — risolverla potrebbe sistemare il problema senza una segnalazione di bug. Puoi comunque inviare una segnalazione qui sotto.',
     thankYou: 'Grazie!',
     submitted: 'La tua segnalazione bug è stata inviata.',
     viewIssue: 'Vedi issue',

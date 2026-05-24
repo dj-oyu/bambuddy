@@ -31,9 +31,9 @@ from backend.app.schemas.slicer import SliceRequest
 from backend.app.services.archive import ArchiveService
 from backend.app.utils.http import build_content_disposition
 from backend.app.utils.threemf_tools import (
+    extract_embedded_presets_from_3mf,
     extract_nozzle_mapping_from_3mf,
     extract_project_filaments_from_3mf,
-    extract_source_printer_model_from_3mf,
 )
 
 logger = logging.getLogger(__name__)
@@ -1343,8 +1343,34 @@ async def update_archive(
         if archive.created_by_id != user.id:
             raise HTTPException(403, "You can only update your own archives")
 
-    for field, value in update_data.model_dump(exclude_unset=True).items():
+    update_payload = update_data.model_dump(exclude_unset=True)
+    for field, value in update_payload.items():
         setattr(archive, field, value)
+
+    # #1444: Mirror per-run classification fields to the most recent
+    # PrintLogEntry for this archive. PrintLogEntry.failure_reason is captured
+    # once at print-completion time from archive.failure_reason — which is
+    # NULL until the user classifies the failure via the Edit Archive modal.
+    # Without this mirror the Failure Analysis widget (which groups by
+    # print_log_entries.failure_reason) keeps showing "Unknown" forever.
+    # Same desync hits status: flipping it in the modal wouldn't update the
+    # entry either. Only the latest entry is touched because that's the run
+    # the modal is implicitly showing (archive.failure_reason / status are
+    # overwritten on each reprint to reflect the latest run's outcome).
+    mirror_fields = {"failure_reason", "status"}
+    to_mirror = {k: v for k, v in update_payload.items() if k in mirror_fields}
+    if to_mirror:
+        from backend.app.models.print_log import PrintLogEntry
+
+        latest_entry = await db.scalar(
+            select(PrintLogEntry)
+            .where(PrintLogEntry.archive_id == archive_id)
+            .order_by(PrintLogEntry.id.desc())
+            .limit(1)
+        )
+        if latest_entry is not None:
+            for field, value in to_mirror.items():
+                setattr(latest_entry, field, value)
 
     await db.commit()
 
@@ -3045,10 +3071,14 @@ async def get_archive_plates(
     # never raises NameError when the archive isn't a valid zip (e.g. plain
     # .gcode file from a sliced-archive flow that didn't request 3MF output).
     gcode_files: list[str] = []
+    # Printer / process preset names the 3MF was prepared with — used by the
+    # SliceModal to default its dropdowns (#1325).
+    embedded_presets: dict[str, str | None] = {"printer": None, "process": None}
 
     try:
         with zipfile.ZipFile(file_path, "r") as zf:
             namelist = zf.namelist()
+            embedded_presets = extract_embedded_presets_from_3mf(zf)
 
             # Find all plate gcode files to determine available plates
             gcode_files = [n for n in namelist if n.startswith("Metadata/plate_") and n.endswith(".gcode")]
@@ -3290,20 +3320,14 @@ async def get_archive_plates(
     # to preview gcode — the viewer, skip-objects — can gate on this instead of
     # 404-ing on every plate request.
     has_gcode = bool(gcode_files)
-    # SliceModal pre-check signal — see library.py for rationale.
-    source_printer_model: str | None = None
-    try:
-        with zipfile.ZipFile(file_path, "r") as zf:
-            source_printer_model = extract_source_printer_model_from_3mf(zf)
-    except (zipfile.BadZipFile, OSError):
-        pass
     return {
         "archive_id": archive_id,
         "filename": archive.filename,
         "plates": plates,
         "is_multi_plate": len(plates) > 1,
         "has_gcode": has_gcode,
-        "source_printer_model": source_printer_model,
+        "embedded_printer": embedded_presets["printer"],
+        "embedded_process": embedded_presets["process"],
     }
 
 
@@ -3583,7 +3607,7 @@ async def slice_archive(
     user originally sent to slice) → ``file_path`` (the sliced 3MF/gcode that
     actually printed).
     """
-    from backend.app.api.routes.library import slice_and_persist_as_archive
+    from backend.app.api.routes.library import guard_nozzle_class_reslice, slice_and_persist_as_archive
     from backend.app.core.database import async_session
     from backend.app.services.slice_dispatch import (
         http_exception_to_job_error,
@@ -3629,6 +3653,11 @@ async def slice_archive(
     model_bytes = src_path.read_bytes()
     archive_id_local = archive.id
     user_id = current_user.id if current_user else None
+
+    # Block a cross-nozzle-class re-slice (single-nozzle <-> H2D) up front —
+    # BambuStudio's multi-extruder validator would otherwise reject it with a
+    # cryptic error. No-op for same-class or un-sliced sources.
+    await guard_nozzle_class_reslice(db, current_user, request, archive.sliced_for_model)
 
     async def _run(job_id: int):
         async with async_session() as task_db:

@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import {
   Loader2, Check, AlertTriangle, Eye, EyeOff, Info,
-  ChevronDown, ChevronRight, ArrowRightLeft, Trash2, ShieldCheck, Copy,
+  ChevronDown, ChevronRight, ArrowRightLeft, Trash2, ShieldCheck, Copy, Stethoscope,
 } from 'lucide-react';
 import { api, multiVirtualPrinterApi } from '../api/client';
 import type { VirtualPrinterConfig } from '../api/client';
 import { Card, CardContent } from './Card';
 import { Button } from './Button';
 import { ConfirmModal } from './ConfirmModal';
+import { VirtualPrinterDiagnosticModal } from './VirtualPrinterDiagnosticModal';
 import { useToast } from '../contexts/ToastContext';
+import { copyTextToClipboard } from '../utils/clipboard';
 
 type LocalMode = 'immediate' | 'review' | 'print_queue' | 'proxy';
 
@@ -48,6 +50,7 @@ export function VirtualPrinterCard({ printer, models }: VirtualPrinterCardProps)
   const [showAccessCode, setShowAccessCode] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [fqdnCopied, setFqdnCopied] = useState(false);
 
   // Host-level Tailscale identity (same for every VP) — shown inline on the card when
@@ -66,32 +69,7 @@ export function VirtualPrinterCard({ printer, models }: VirtualPrinterCardProps)
     e.stopPropagation();
     const fqdn = tailscaleFqdn;
     if (!fqdn) return;
-    let ok = false;
-    // Modern API — only works in secure contexts (HTTPS / localhost).
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(fqdn);
-        ok = true;
-      } catch {
-        // fall through to legacy
-      }
-    }
-    // Legacy fallback for HTTP (common when Bambuddy is reached over LAN / tailnet IP).
-    if (!ok) {
-      const ta = document.createElement('textarea');
-      ta.value = fqdn;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      try {
-        ta.select();
-        ok = document.execCommand('copy');
-      } catch {
-        ok = false;
-      } finally {
-        if (ta.parentNode) ta.parentNode.removeChild(ta);
-      }
-    }
+    const ok = await copyTextToClipboard(fqdn);
     if (ok) {
       setFqdnCopied(true);
       showToast(t('printers.copied'));
@@ -298,6 +276,13 @@ export function VirtualPrinterCard({ printer, models }: VirtualPrinterCardProps)
                 onKeyDown={(e) => e.key === 'Enter' && handleNameChange()}
                 className="flex-1 text-sm text-white bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-md px-3 py-1.5 focus:border-bambu-green focus:outline-none"
               />
+              <button
+                onClick={() => setShowDiagnostic(true)}
+                className="p-1.5 text-bambu-gray hover:text-bambu-green transition-colors flex-shrink-0"
+                title={t('vpDiagnostic.runButton')}
+              >
+                <Stethoscope className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="p-1.5 text-bambu-gray hover:text-red-400 transition-colors flex-shrink-0"
@@ -622,6 +607,14 @@ export function VirtualPrinterCard({ printer, models }: VirtualPrinterCardProps)
           isLoading={deleteMutation.isPending}
           onConfirm={() => deleteMutation.mutate()}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {showDiagnostic && (
+        <VirtualPrinterDiagnosticModal
+          vpId={printer.id}
+          vpName={printer.name}
+          onClose={() => setShowDiagnostic(false)}
         />
       )}
 

@@ -26,6 +26,8 @@ export default {
     switchToDark: 'Mudar para modo escuro',
     smartSwitches: 'Interruptores inteligentes',
     logout: 'Sair',
+    installApp: 'Instalar app',
+    installAppSuccess: 'Bambuddy foi instalado',
   },
 
   // Common
@@ -122,6 +124,12 @@ export default {
 
   // Printers page
   printers: {
+    addPreflight: {
+      checking: 'Verificando a conexão...',
+      warning: 'Algumas verificações de conexão falharam. Esta impressora pode aparecer como offline. Revise as verificações abaixo, corrija o que puder ou salve mesmo assim.',
+      back: 'Voltar',
+      saveAnyway: 'Salvar mesmo assim',
+    },
     title: 'Impressoras',
     addPrinter: 'Adicionar Impressora',
     editPrinter: 'Editar Impressora',
@@ -919,6 +927,15 @@ export default {
 
   // Queue page
   queue: {
+    filamentShort: {
+      rowBadge: 'Filamento insuficiente para a bobina atribuida',
+      rowTooltip: 'O escalonador sinalizou este item. Clique em Play para ver o deficit por slot e decidir se quer imprimir mesmo assim.',
+      confirmTitle: 'Filamento insuficiente',
+      confirmIntro: 'A bobina atribuida nao pode cobrir pelo menos um slot. Imprimir mesmo assim?',
+      lineItem: 'Slot {{slot}}: precisa de {{required}} g, restam {{remaining}} g',
+      unknown: 'desconhecido',
+      printAnyway: 'Imprimir mesmo assim',
+    },
     title: 'Fila de Impressão',
     subtitle: 'Agende e gerencie seus trabalhos de impressão',
     addToQueue: 'Adicionar à Fila',
@@ -2318,6 +2335,7 @@ export default {
       nfc: 'NFC',
       scale: 'Balança',
       cpuTemp: 'Temp. CPU',
+      cpuLoad: 'Carga da CPU',
       memory: 'Memória',
       disk: 'Disco',
       update: 'Atualizar',
@@ -2822,6 +2840,7 @@ export default {
       importing: 'Importando...',
       search: 'Pesquisar presets locais...',
       noPresets: 'Nenhum preset local ainda',
+      noSearchResults: 'Nenhum preset corresponde à sua busca',
       badge: 'Local',
       edit: 'Editar',
       delete: 'Excluir',
@@ -3023,6 +3042,11 @@ export default {
     collectItem10: 'Versões de pacotes Python',
     collectItem11: 'Verificações de integridade do banco de dados',
     collectItem12: 'Detalhes do ambiente Docker',
+    bundleGenerating: 'Gerando pacote...',
+    bundleStepConnection: 'Executando verificações de conectividade das impressoras',
+    bundleStepVirtualPrinters: 'Executando verificações de configuração das impressoras virtuais',
+    bundleStepLogScan: 'Analisando registros recentes em busca de problemas conhecidos',
+    bundleStepBuild: 'Criando o ZIP do pacote de suporte',
   },
 
   // File manager
@@ -3418,6 +3442,9 @@ export default {
   slice: {
     title: 'Fatiar modelo',
     action: 'Fatiar',
+    actionAll: 'Fatiar todas as {{count}} bandejas',
+    actionAllTitle: 'Fatiar todas as bandejas em uma saída multi-bandeja única (um único arquivo). A seleção de filamento cobre cada slot definido pelo projeto.',
+    allPlatesToggle: 'Fatiar todas as {{count}} bandejas',
     slicing: 'Fatiando…',
     printer: 'Perfil de impressora',
     process: 'Perfil de processo',
@@ -3430,10 +3457,13 @@ export default {
     previewToast: 'Analisando {{name}} – {{elapsed}}',
     previewWithProgress: 'Analisando {{name}} – {{stage}} ({{percent}}%) – {{elapsed}}',
     notUsedByPlate: '— não usado por esta mesa',
-    printerMismatch: 'Este 3MF foi fatiado para {{source}}, mas você escolheu {{target}}. A CLI do fatiador não pode re-fatiar um 3MF para outra impressora — abra a origem no Bambu Studio, troque a impressora e re-exporte.',
     noPresetsForSlot: 'Nenhuma predefinição disponível',
+    otherPrinters: 'Outras impressoras',
     presetsLoadFailed: 'Falha ao carregar predefinições. Abra Configurações → Perfis para importá-las primeiro.',
     allPresetsRequired: 'Todas as predefinições devem ser selecionadas',
+    bundle: 'Pacote do fatiador',
+    bundleNone: '— Nenhum (escolher predefinições individualmente) —',
+    bundleAllRequired: 'O processo do pacote e cada slot de filamento devem ser escolhidos',
     enqueuing: 'Enviando trabalho de fatiamento…',
     queued: 'Na fila…',
     failed: 'Falha ao fatiar. Verifique os logs do sidecar.',
@@ -3441,7 +3471,9 @@ export default {
     queuedToast: 'Na fila: {{name}} – {{elapsed}}',
     runningToast: 'Fatiando {{name}} – {{elapsed}}',
     runningWithProgress: '{{name}} – {{stage}} ({{percent}}%) – {{elapsed}}',
+    runningWithProgressMultiPlate: 'Bandeja {{plateIndex}} de {{plateCount}} • {{name}} – {{stage}} ({{percent}}%) – {{elapsed}}',
     completedToast: '{{name}} fatiado',
+    failedTitle: 'Falha ao fatiar',
     failedToast: 'Falha ao fatiar {{name}}: {{detail}}',
     tier: {
       local: 'Importado',
@@ -4402,6 +4434,14 @@ export default {
       description: 'Escolha como os novos arquivos são nomeados quando chegam pela impressora virtual. "Metadados" usa o título embutido pelo slicer no 3MF (padrão). "Nome do arquivo" usa o nome que o Bambu Studio enviou via FTP — útil se você renomeou o job no diálogo "enviar para impressora".',
       metadata: 'Metadados',
       filename: 'Nome do arquivo',
+    },
+    caCert: {
+      title: 'Certificado do slicer',
+      description: 'As impressoras virtuais usam um certificado TLS assinado pela CA do Bambuddy. Importe este certificado CA para o armazenamento de confiança do seu slicer uma única vez para que ele aceite a conexão — sem precisar copiá-lo pela linha de comando.',
+      copy: 'Copiar',
+      copied: 'Copiado',
+      download: 'Baixar',
+      fingerprint: 'SHA-256',
     },
   },
 
@@ -5451,7 +5491,167 @@ export default {
     },
   },
 
+  diagnostic: {
+    modalTitle: 'Diagnóstico de conexão — {{name}}',
+    running: 'Executando diagnóstico...',
+    runFailed: 'Não foi possível executar o diagnóstico: {{error}}',
+    retry: 'Executar novamente',
+    runButton: 'Executar diagnóstico',
+    sectionTitle: 'Diagnóstico de conexão',
+    sectionDescription: 'Verifique por que uma impressora não conecta ou não imprime — acessibilidade das portas, modo desenvolvedor LAN, modo de rede Docker e credenciais.',
+    noPrinters: 'Nenhuma impressora configurada.',
+    overall: {
+      ok: 'Nenhum problema encontrado — a conexão da impressora parece saudável.',
+      warnings: 'A impressora deve funcionar, mas alguns pontos exigem atenção.',
+      problems: 'Foram encontrados problemas que explicam por que a impressora não conecta ou não imprime.',
+    },
+    check: {
+      port_mqtt: {
+        title: 'Porta de controle (MQTT 8883)',
+        pass: 'Acessível — a impressora está aceitando conexões de controle.',
+        fail: 'A porta 8883 está inacessível. A impressora está desligada, em outro endereço IP, ou um firewall está bloqueando. Verifique o IP da impressora e se nada bloqueia a porta 8883.',
+      },
+      port_ftps: {
+        title: 'Porta de transferência de arquivos (FTPS 990)',
+        pass: 'Acessível — o envio de arquivos de impressão funcionará.',
+        warn: 'A porta 990 está inacessível. O monitoramento ainda pode funcionar, mas o envio de impressões para a impressora falhará. Verifique se a porta 990 não está bloqueada.',
+      },
+      port_rtsps: {
+        title: 'Porta da câmera (RTSPS 322)',
+        pass: 'Acessível — o streaming da câmera funcionará.',
+        warn: 'A porta 322 está inacessível. A visualização ao vivo da câmera não funcionará. Isso não afeta a impressão.',
+      },
+      network_mode: {
+        title: 'Modo de rede Docker',
+        pass: 'Executando no modo de rede host.',
+        warn: 'O Bambuddy está sendo executado em rede Docker bridge. A descoberta de impressoras e a impressora virtual precisam do modo de rede host — recrie o contêiner com "network_mode: host".',
+        skip: 'Não está sendo executado no Docker — não aplicável.',
+      },
+      subnet: {
+        title: 'Sub-rede',
+        pass: 'A impressora e o Bambuddy estão na mesma sub-rede.',
+        warn: 'A impressora ({{printer_ip}}) e o Bambuddy ({{host_ip}}) estão em sub-redes diferentes. Eles podem não se alcançar, a menos que o roteamento entre as sub-redes esteja configurado.',
+        skip: 'Não foi possível determinar a sub-rede — ignorado.',
+      },
+      mqtt_auth: {
+        title: 'Credenciais da impressora',
+        pass: 'A impressora aceitou a conexão.',
+        fail: 'A impressora está acessível mas recusou a conexão. O código de acesso ou o número de série provavelmente está incorreto. O código de acesso muda toda vez que o Modo Desenvolvedor é alternado — copie-o novamente da tela da impressora.',
+        skip: 'Não verificado — não foi possível alcançar a impressora.',
+      },
+      developer_mode: {
+        title: 'Modo Desenvolvedor LAN',
+        pass: 'O Modo Desenvolvedor está ativado.',
+        fail: 'O Modo Desenvolvedor está DESLIGADO na impressora. Ative-o nas configurações de LAN da impressora — e confirme com OK. Sem ele, as impressões não iniciarão.',
+        skip: 'Não foi possível verificar — requer uma conexão ativa com a impressora.',
+      },
+    },
+  },
+
+  systemHealth: {
+    sectionTitle: 'Saúde do sistema',
+    sectionDescription: 'Analisa os logs recentes em busca de problemas conhecidos que você normalmente pode resolver sozinho, antes que virem um chamado de suporte.',
+    rescan: 'Analisar novamente',
+    clean: 'Nenhum problema conhecido encontrado nas últimas {{times}} entradas de log.',
+    logUnavailable: 'O registro em arquivo está desativado, então os logs não podem ser analisados. Ative o registro em arquivo para usar esta verificação.',
+    learnMore: 'Como corrigir',
+    fixLabel: 'Correção:',
+    occurrences: 'Visto {{times}}× — última vez às {{lastSeen}}',
+    category: {
+      layer8: 'Você pode corrigir isto',
+      environment: 'Ambiente',
+      bug: 'Por favor, relate isto',
+    },
+    signature: {
+      'ftp-auth-rejected': {
+        name: 'A impressora rejeitou o código de acesso',
+        cause: 'A impressora recusou o login de transferência de arquivos. O código de acesso está errado ou mudou após alternar o Modo Desenvolvedor.',
+        fix: 'Copie novamente o código de acesso da tela da impressora (configurações de LAN) e atualize-o nas configurações da impressora no Bambuddy.',
+      },
+      'ftp-connection-timeout': {
+        name: 'Tempo limite da conexão de transferência de arquivos',
+        cause: 'O Bambuddy não conseguiu acessar a porta de transferência de arquivos da impressora (FTPS 990). A porta está bloqueada, ou a impressora está desligada ou em outra sub-rede.',
+        fix: 'Verifique se nada bloqueia a porta 990 entre o Bambuddy e a impressora e se ambos estão na mesma rede.',
+      },
+      'ftp-ssl-error': {
+        name: 'Falha no handshake seguro de transferência de arquivos',
+        cause: 'O handshake TLS com o servidor de transferência de arquivos da impressora falhou. Geralmente é causado por um firewall ou firmware desatualizado da impressora.',
+        fix: 'Atualize o firmware da impressora e verifique se nenhum firewall ou proxy intercepta a conexão na porta 990.',
+      },
+      'mqtt-connection-flapping': {
+        name: 'A conexão com a impressora cai repetidamente',
+        cause: 'A conexão de controle (MQTT 8883) desconecta e reconecta repetidamente — geralmente por uma rede fraca ou uma porta parcialmente bloqueada.',
+        fix: 'Verifique o sinal de Wi-Fi perto da impressora, prefira uma conexão com fio e certifique-se de que a porta 8883 esteja acessível de forma confiável.',
+      },
+      'camera-connection-refused': {
+        name: 'Transmissão da câmera inacessível',
+        cause: 'Não foi possível acessar a câmera ao vivo na porta RTSPS 322. A porta está bloqueada, ou a câmera ou a visualização ao vivo via LAN está desativada na impressora.',
+        fix: 'Ative a câmera e a visualização ao vivo via LAN na impressora e verifique se a porta 322 não está bloqueada. Isso não afeta a impressão.',
+      },
+      'database-locked': {
+        name: 'Conflitos de gravação no banco de dados',
+        cause: 'O banco de dados SQLite apresenta erros "database is locked" sob carga — comum ao usar várias impressoras ao mesmo tempo.',
+        fix: 'Migre o Bambuddy para um banco de dados PostgreSQL externo. Consulte o guia do PostgreSQL na documentação.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Verificação de configuração — {{name}}',
+    runButton: 'Executar verificação de configuração',
+    running: 'Executando verificação de configuração...',
+    runFailed: 'Não foi possível executar a verificação de configuração: {{error}}',
+    retry: 'Verificar novamente',
+    overall: {
+      ok: 'Todas as verificações passaram — esta impressora virtual está configurada corretamente.',
+      warnings: 'A impressora virtual deve funcionar, mas alguns pontos precisam de atenção.',
+      problems: 'Foram encontrados problemas que explicam por que o slicer não consegue ver ou usar esta impressora virtual.',
+    },
+    check: {
+      enabled: {
+        title: 'Impressora virtual habilitada',
+        fail: 'Esta impressora virtual está desligada. Ative-a para torná-la detectável.',
+      },
+      running: {
+        title: 'Serviços em execução',
+        fail: 'A impressora virtual está habilitada, mas seus serviços não estão em execução. Verifique o log do Bambuddy — geralmente um conflito de IP de vínculo ou um erro de permissão os interrompe.',
+      },
+      bind_interface: {
+        title: 'Interface de rede de vínculo',
+        fail: 'A interface de vínculo não está definida ou não existe mais neste host. Escolha uma interface atual no menu "Interface de vínculo".',
+      },
+      access_code: {
+        title: 'Código de acesso definido',
+        fail: 'Nenhum código de acesso definido. O slicer precisa receber o mesmo código de acesso de 8 caracteres que você define aqui.',
+      },
+      target_printer: {
+        title: 'Impressora de destino',
+        fail: 'Nenhuma impressora de destino selecionada. O modo proxy precisa de uma impressora real para a qual encaminhar.',
+        warn: 'A impressora de destino está offline no momento — o encaminhamento será retomado quando ela se reconectar.',
+      },
+      port_ftps: {
+        title: 'Serviço de upload de arquivos (porta {{port}})',
+        fail: 'Nada está escutando na porta {{port}} do IP de vínculo, então o slicer não consegue enviar arquivos. A causa habitual é um conflito de porta nesta interface.',
+      },
+      port_mqtt: {
+        title: 'Serviço de controle (porta {{port}})',
+        fail: 'Nada está escutando na porta {{port}} do IP de vínculo, então o slicer não consegue conectar nem mostrar o status.',
+      },
+      port_bind: {
+        title: 'Serviço de descoberta (porta {{port}})',
+        fail: 'Nada está escutando na porta {{port}} do IP de vínculo, então a negociação de descoberta do slicer falha.',
+      },
+      certificate: {
+        title: 'Certificado TLS',
+        pass: 'Certificado pronto. Verifique se o certificado CA do Bambuddy (acima) está importado no armazenamento de confiança do seu slicer.',
+        fail: 'O certificado TLS desta impressora virtual está ausente. Verifique se o diretório de dados do Bambuddy tem permissão de escrita.',
+      },
+    },
+  },
+
   bugReport: {
+    logHealthSummary: 'Problemas conhecidos encontrados nos seus logs',
+    logHealthIntro: 'Os logs recentes correspondem a problemas conhecidos. Veja as correções abaixo — resolvê-las pode solucionar seu problema sem um relatório de bug. Você ainda pode enviar um relatório abaixo.',
     title: 'Reportar um bug',
     description: 'Descrição',
     descriptionPlaceholder: 'O que deu errado? Por favor, descreva o problema...',
@@ -5474,8 +5674,16 @@ export default {
     maxDuration: 'Para automaticamente após {{minutes}} min',
     stoppingLogs: 'Coletando logs & enviando...',
     submitting: 'Enviando relatório de bug...',
+    submittingStepConnection: 'Executando verificações de conectividade das impressoras',
+    submittingStepVirtualPrinters: 'Executando verificações de configuração das impressoras virtuais',
+    submittingStepLogScan: 'Analisando registros recentes em busca de problemas conhecidos',
+    submittingStepSubmit: 'Enviando relatório para o GitHub',
     submitSuccess: 'Relatório de bug enviado com sucesso!',
     submitFailed: 'Falha ao enviar relatório de bug',
+    diagnosticChecking: 'Verificando as conexões das impressoras...',
+    diagnosticHealthy: 'Verificação de conexão aprovada — nenhum problema encontrado nas suas impressoras.',
+    diagnosticSummary: '{{problems}} de {{total}} impressoras têm problemas de conexão',
+    diagnosticIntro: 'Uma ou mais impressoras têm um problema de conexão que pode estar causando seu problema. Expanda uma impressora abaixo para ver a solução — resolvê-la pode solucionar o problema sem um relatório de bug. Você ainda pode enviar um relatório abaixo.',
     thankYou: 'Obrigado!',
     submitted: 'Seu relatório de bug foi enviado.',
     viewIssue: 'Ver issue',
