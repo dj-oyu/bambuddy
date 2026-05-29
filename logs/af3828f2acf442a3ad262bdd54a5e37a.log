@@ -1,0 +1,200 @@
+2026-05-29 18:57:20,260 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 18:57:26,737 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] MQTT publish to device/[SERIAL]/request: {"pushing":{"command":"pushall","push_target":1,"sequence_id":"20028","version":1}}...
+2026-05-29 18:57:26,738 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] MQTT pushing command: pushall
+2026-05-29 18:57:26,738 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] Sending status report in response to pushall
+2026-05-29 18:57:29,063 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:57:39,393 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:57:44,423 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:57:49,456 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:57:50,277 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 18:57:50,283 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 18:57:59,898 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:04,930 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:09,858 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:20,294 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 18:58:20,296 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 18:58:20,366 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:25,601 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:27,847 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT TLS connection from ('[IP]', 58348) - cipher=('TLS_AES_256_GCM_SHA384', 'TLSv1.3', 256), version=TLSv1.3
+2026-05-29 18:58:27,847 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client connected: [IP]:58348
+2026-05-29 18:58:27,854 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client authenticated successfully
+2026-05-29 18:58:27,961 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT subscribe: device/[SERIAL]/report QoS=0
+2026-05-29 18:58:30,664 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:36,152 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:41,081 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:46,141 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:50,307 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 18:58:50,314 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 18:58:51,070 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:58:56,173 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:01,206 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:06,241 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:11,476 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:16,842 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:18,861 INFO [backend.app.api.routes.printers] [74b7e17d] Cover: resolved plate 1 before download (subtask=Minis_25-32mm_5x5_Base_Travelbox_40k)
+2026-05-29 18:59:20,330 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 18:59:20,336 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 18:59:21,875 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:26,944 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:31,223 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT TLS connection from ('[IP]', 55740) - cipher=('TLS_AES_256_GCM_SHA384', 'TLSv1.3', 256), version=TLSv1.3
+2026-05-29 18:59:31,224 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client connected: [IP]:55740
+2026-05-29 18:59:31,226 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client authenticated successfully
+2026-05-29 18:59:31,287 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT subscribe: device/[SERIAL]/report QoS=0
+2026-05-29 18:59:31,975 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:37,045 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:42,077 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:47,180 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:50,353 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 18:59:50,360 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 18:59:52,109 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 18:59:57,289 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:02,320 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:07,445 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:12,578 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:17,946 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:20,377 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:00:20,384 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:00:22,977 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:28,048 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:32,344 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT TLS connection from ('[IP]', 50350) - cipher=('TLS_AES_256_GCM_SHA384', 'TLSv1.3', 256), version=TLSv1.3
+2026-05-29 19:00:32,344 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client connected: [IP]:50350
+2026-05-29 19:00:32,346 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client authenticated successfully
+2026-05-29 19:00:32,421 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT subscribe: device/[SERIAL]/report QoS=0
+2026-05-29 19:00:33,079 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:35,620 INFO [backend.app.services.virtual_printer.certificate] [bd369e8a] Using existing CA certificate (expires in 7294 days)
+2026-05-29 19:00:38,150 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:43,182 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:45,406 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-05-29 19:00:48,150 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:50,400 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:00:50,407 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:00:53,180 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:00:58,150 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:03,182 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:08,458 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:13,691 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:19,059 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:20,423 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:01:20,430 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:01:24,092 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:29,157 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:34,189 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:37,965 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT TLS connection from ('[IP]', 49006) - cipher=('TLS_AES_256_GCM_SHA384', 'TLSv1.3', 256), version=TLSv1.3
+2026-05-29 19:01:37,965 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client connected: [IP]:49006
+2026-05-29 19:01:37,968 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client authenticated successfully
+2026-05-29 19:01:38,031 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT subscribe: device/[SERIAL]/report QoS=0
+2026-05-29 19:01:39,257 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:44,290 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:49,255 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:50,446 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:01:50,452 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:01:54,286 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:01:59,456 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:04,391 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:09,562 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:14,791 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:20,062 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:20,470 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:02:20,477 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:02:25,092 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:25,775 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] MQTT publish to device/[SERIAL]/request: {"info":{"command":"get_version","sequence_id":"20029"}}...
+2026-05-29 19:02:25,775 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] MQTT info command: get_version
+2026-05-29 19:02:25,776 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] Sent version response (product_name=P1S)
+2026-05-29 19:02:25,779 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] MQTT publish to device/[SERIAL]/request: {"pushing":{"command":"pushall","push_target":1,"sequence_id":"20030","version":1}}...
+2026-05-29 19:02:25,780 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] MQTT pushing command: pushall
+2026-05-29 19:02:25,780 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] Sending status report in response to pushall
+2026-05-29 19:02:30,059 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:35,092 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:40,363 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:43,374 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-05-29 19:02:43,429 INFO [backend.app.services.spoolman] [-] Updating existing spool 1 for tag CAEBECAC0FB740DB...
+2026-05-29 19:02:43,452 INFO [backend.app.services.spoolman] [-] Updating existing spool 2 for tag 6C7F06BA7B2F4BBB...
+2026-05-29 19:02:43,473 INFO [backend.app.services.spoolman] [-] [PRINTER] AMS 0 tray 2 — skipping (no RFID tag and no slot-assignment hint)
+2026-05-29 19:02:43,473 INFO [backend.app.services.spoolman] [-] [PRINTER] AMS 0 tray 3 — skipping (no RFID tag and no slot-assignment hint)
+2026-05-29 19:02:43,473 INFO [backend.app.main] [-] Auto-synced 2 AMS trays to Spoolman for printer 1
+2026-05-29 19:02:45,395 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:50,367 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:02:50,494 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:02:50,500 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:02:55,399 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:00,565 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:05,497 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:10,574 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:15,908 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:20,517 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:03:20,524 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:03:21,173 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:26,173 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:26,898 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT TLS connection from ('[IP]', 54560) - cipher=('TLS_AES_256_GCM_SHA384', 'TLSv1.3', 256), version=TLSv1.3
+2026-05-29 19:03:26,898 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client connected: [IP]:54560
+2026-05-29 19:03:26,901 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client authenticated successfully
+2026-05-29 19:03:26,982 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT subscribe: device/[SERIAL]/report QoS=0
+2026-05-29 19:03:31,203 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:36,240 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:41,472 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:46,448 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:50,540 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:03:50,547 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:03:51,883 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:03:57,044 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:01,972 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:06,944 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:11,975 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:16,946 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:20,558 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:04:20,560 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:04:22,277 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:27,341 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:28,233 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-05-29 19:04:28,287 INFO [backend.app.services.spoolman] [-] Updating existing spool 1 for tag CAEBECAC0FB740DB...
+2026-05-29 19:04:28,310 INFO [backend.app.services.spoolman] [-] Updating existing spool 2 for tag 6C7F06BA7B2F4BBB...
+2026-05-29 19:04:28,331 INFO [backend.app.services.spoolman] [-] [PRINTER] AMS 0 tray 2 — skipping (no RFID tag and no slot-assignment hint)
+2026-05-29 19:04:28,331 INFO [backend.app.services.spoolman] [-] [PRINTER] AMS 0 tray 3 — skipping (no RFID tag and no slot-assignment hint)
+2026-05-29 19:04:28,332 INFO [backend.app.main] [-] Auto-synced 2 AMS trays to Spoolman for printer 1
+2026-05-29 19:04:30,235 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT TLS connection from ('[IP]', 57700) - cipher=('TLS_AES_256_GCM_SHA384', 'TLSv1.3', 256), version=TLSv1.3
+2026-05-29 19:04:30,236 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client connected: [IP]:57700
+2026-05-29 19:04:30,238 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT client authenticated successfully
+2026-05-29 19:04:30,298 INFO [backend.app.services.virtual_printer.mqtt_server] [c22b7682] [Virtual P1s] MQTT subscribe: device/[SERIAL]/report QoS=0
+2026-05-29 19:04:32,273 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:37,251 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:42,482 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:47,951 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:50,572 INFO [backend.app.services.print_scheduler] [-] Queue check: found 1 pending items: [(2, None, None, 131)]
+2026-05-29 19:04:50,578 INFO [backend.app.services.print_scheduler] [-] Queue: printer 1 not available — connected=True, state=RUNNING, awaiting_plate_clear=False
+2026-05-29 19:04:52,981 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:58,043 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:04:58,622 INFO [backend.app.api.routes.support] [af5d92d5] Log level changed to DEBUG
+2026-05-29 19:04:58,622 INFO [backend.app.api.routes.bug_report] [af5d92d5] Bug report: enabled debug logging
+2026-05-29 19:04:58,623 DEBUG [backend.app.services.bambu_mqtt] [af5d92d5] [[SERIAL]] Requesting status update (pushall)
+2026-05-29 19:04:58,624 INFO [uvicorn.access] [-] [IP]:41596 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-05-29 19:04:59,539 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: RUNNING, gcode_file: Minis_25-32mm_5x5_Base_Travelbox_40k.3mf, subtask_name: Minis_25-32mm_5x5_Base_Travelbox_40k
+2026-05-29 19:04:59,540 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '0', 'tray_now': '0', 'tray_pre': '0', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 35, 'insert_flag': True, 'power_on_flag': True}
+2026-05-29 19:04:59,540 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 0
+2026-05-29 19:04:59,540 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-05-29 19:04:59,541 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x2003 -> extruder 0
+2026-05-29 19:04:59,541 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-05-29 19:04:59,541 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 768 (main=3, sub=0)
+2026-05-29 19:04:59,542 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-29 19:04:59,542 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-05-29 19:04:59,542 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-05-29 19:04:59,543 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-05-29 19:04:59,543 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-05-29 19:04:59,543 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-05-29 19:04:59,543 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'disable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-05-29 19:04:59,543 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -52dBm
+2026-05-29 19:04:59,544 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-05-29 19:04:59,544 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: RUNNING -> RUNNING, file: Minis_25-32mm_5x5_Base_Travelbox_40k.3mf, subtask: Minis_25-32mm_5x5_Base_Travelbox_40k
+2026-05-29 19:05:01,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-29 19:05:01,561 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -50dBm
+2026-05-29 19:05:02,485 DEBUG [backend.app.api.routes.printers] [15d75f6c] API returning ams_mapping: [], ams_extruder_map: {'0': 0}
+2026-05-29 19:05:02,485 DEBUG [backend.app.api.routes.printers] [15d75f6c] Using tray_now directly as global ID: 0
+2026-05-29 19:05:03,077 DEBUG [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Received M-SEARCH from [IP]
+2026-05-29 19:05:03,078 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
+2026-05-29 19:05:04,069 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: added 30s, total=34800s (9.67h)
+2026-05-29 19:05:04,077 DEBUG [backend.app.main] [-] Updated runtime for 1 printer(s)
+2026-05-29 19:05:05,583 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-29 19:05:05,584 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -52dBm
+2026-05-29 19:05:07,604 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-05-29 19:05:07,604 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -51dBm
+2026-05-29 19:05:08,084 DEBUG [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Received M-SEARCH from [IP]
+2026-05-29 19:05:08,085 INFO [backend.app.services.virtual_printer.ssdp_server] [c22b7682] Sent SSDP response to [IP] for 'Virtual P1s' (Location=[IP], USN=[SERIAL])
