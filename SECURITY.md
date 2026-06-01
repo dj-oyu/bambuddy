@@ -6,16 +6,11 @@ The Bambuddy team takes security seriously. We appreciate your efforts to respon
 
 ### How to Report
 
-**Please DO NOT report security vulnerabilities through public GitHub issues.**
+**Please DO NOT report security vulnerabilities through public GitHub.**
 
 Instead, please report them via email to:
 
 **security@bambuddy.cool**
-
-Or use GitHub's private vulnerability reporting feature:
-1. Go to the [Security tab](https://github.com/maziggy/bambuddy/security)
-2. Click "Report a vulnerability"
-3. Fill out the form with details
 
 ### What to Include
 
