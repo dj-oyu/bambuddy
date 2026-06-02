@@ -361,12 +361,20 @@ async def get_ui_preferences(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/check-ffmpeg")
-async def check_ffmpeg():
-    """Check if ffmpeg is installed and available."""
+async def check_ffmpeg(
+    _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
+):
+    """Check if ffmpeg is installed and available.
+
+    Gated on ``SETTINGS_READ`` (audit finding I4 — the binary path was
+    leaking the host filesystem layout to unauthenticated callers).
+    ``require_permission_if_auth_enabled`` returns ``None`` only when
+    auth is disabled (in which case there's no privacy boundary to
+    enforce); otherwise it raises 401/403 before we get here.
+    """
     from backend.app.services.camera import get_ffmpeg_path
 
     ffmpeg_path = get_ffmpeg_path()
-
     return {
         "installed": ffmpeg_path is not None,
         "path": ffmpeg_path,

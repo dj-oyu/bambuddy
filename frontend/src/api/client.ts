@@ -5088,6 +5088,12 @@ export const api = {
   getCameraStreamToken: () =>
     request<{ token: string }>('/printers/camera/stream-token', { method: 'POST' }),
 
+  // WebSocket auth (GHSA-r2qv follow-up) — mint a short-lived token for
+  // the /ws connection. Browsers can't attach Authorization headers to a
+  // WebSocket handshake, so the token rides in the ?token= query param.
+  getWebSocketToken: () =>
+    request<{ token: string }>('/auth/ws-token', { method: 'POST' }),
+
   // Long-lived camera-stream tokens (#1108)
   createLongLivedCameraToken: (payload: { name: string; expires_in_days: number }) =>
     request<LongLivedCameraToken>('/auth/tokens', {

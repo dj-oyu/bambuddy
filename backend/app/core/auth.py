@@ -504,6 +504,72 @@ async def create_camera_stream_token() -> str:
     return token
 
 
+WEBSOCKET_TOKEN_EXPIRE_MINUTES = 60
+
+
+async def create_websocket_token(username: str | None) -> str:
+    """Create a short-lived token for ``/api/v1/ws`` connections.
+
+    Mirrors the camera-stream-token pattern: opaque random string stored
+    in ``auth_ephemeral_tokens`` with type ``"websocket"`` so the WS
+    endpoint can verify it *before* calling ``websocket.accept()``.
+
+    Records the issuing principal in the ``username`` field — for JWT
+    callers this is the actual username, for API-keyed callers this is
+    the empty string (handled in the route layer; we accept None at this
+    interface so the auth-disabled path doesn't have to fabricate one).
+
+    The 60-minute expiry matches camera tokens: long enough to survive
+    page reloads / brief disconnects, short enough that a leaked token
+    is not a credential.
+    """
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=WEBSOCKET_TOKEN_EXPIRE_MINUTES)
+    token = secrets.token_urlsafe(24)
+    async with async_session() as db:
+        # Prune expired tokens opportunistically (same shape as camera).
+        await db.execute(
+            delete(AuthEphemeralToken).where(
+                AuthEphemeralToken.token_type == "websocket",
+                AuthEphemeralToken.expires_at < now,
+            )
+        )
+        db.add(
+            AuthEphemeralToken(
+                token=token,
+                token_type="websocket",
+                username=username or "",
+                expires_at=expires_at,
+            )
+        )
+        await db.commit()
+    return token
+
+
+async def verify_websocket_token(token: str) -> str | None:
+    """Verify a WebSocket connect token.
+
+    Returns the recorded ``username`` (possibly ``""`` for API-key
+    callers, never ``None`` on success) when the token is valid, or
+    ``None`` when it is missing / expired / unknown. The token is
+    NOT consumed — a single page reload should not need a new round
+    trip to mint a replacement.
+    """
+    now = datetime.now(timezone.utc)
+    async with async_session() as db:
+        result = await db.execute(
+            select(AuthEphemeralToken).where(
+                AuthEphemeralToken.token == token,
+                AuthEphemeralToken.token_type == "websocket",
+                AuthEphemeralToken.expires_at > now,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return row.username or ""
+
+
 async def verify_camera_stream_token(token: str) -> bool:
     """Verify a camera stream token is valid (reusable — does not consume it).
 
@@ -748,7 +814,7 @@ async def _validate_api_key(db: AsyncSession, api_key_value: str) -> APIKey | No
                 api_key.last_used = datetime.now(timezone.utc)
                 await db.commit()
                 return api_key
-    except Exception as e:
+    except Exception as e:  # SEC-AUTH-EXC: validation failure returns None; every caller treats None as "invalid key" → 401 (fail-closed)
         logger.warning("API key validation error: %s", e)
     return None
 
@@ -939,19 +1005,92 @@ def require_role(required_role: str):
 
 
 def require_admin_if_auth_enabled():
-    """Dependency factory that requires admin role if auth is enabled."""
+    """Dependency factory that requires admin role if auth is enabled.
+
+    GHSA-r2qv follow-up (audit pattern P3): explicitly fail-closed for API
+    keys. The previous implementation chained on ``require_auth_if_enabled``
+    which returns ``None`` for *both* "auth disabled" *and* "valid API
+    key" — the inner ``admin_checker`` then treated ``None`` as auth-
+    disabled and admitted the caller. If any route had ever adopted this
+    dep, any API key with no scope flags set would have satisfied an
+    admin requirement.
+
+    Today no route uses this dep, but rather than leave the footgun
+    armed, the dep is rewritten to distinguish the two cases by
+    consulting ``is_auth_enabled`` directly and rejecting API-keyed
+    requests with 403. "Admin" requires a user-identity role, which API
+    keys do not carry.
+    """
 
     async def admin_checker(
-        current_user: Annotated[User | None, Depends(require_auth_if_enabled)] = None,
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
+        x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
     ) -> User | None:
-        if current_user is None:
-            return None  # Auth not enabled, allow access
-        if current_user.role != "admin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Requires admin role",
-            )
-        return current_user
+        async with async_session() as db:
+            if not await is_auth_enabled(db):
+                return None  # Auth disabled — no role to check.
+
+            # Reject API-keyed requests up front: admin is a user-role
+            # concept, not a key-scope concept. The right path for
+            # admin-equivalent API-key access is a specific Permission
+            # (e.g. SETTINGS_UPDATE) gated by the allowlist, not the
+            # admin role.
+            if x_api_key or (credentials and credentials.credentials.startswith("bb_")):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin operations require a user role; API keys cannot be admins",
+                )
+
+            # Standard JWT path: validate and require admin role.
+            if credentials is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            try:
+                payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+                username: str = payload.get("sub")
+                if username is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Could not validate credentials",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+                jti: str | None = payload.get("jti")
+                if not jti or await is_jti_revoked(jti):
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Could not validate credentials",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+                iat: int | float | None = payload.get("iat")
+            except JWTError:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Could not validate credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            user = await get_user_by_username(db, username)
+            if user is None or not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Could not validate credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            if not _is_token_fresh(iat, user):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Could not validate credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            if user.role != "admin":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Requires admin role",
+                )
+            return user
 
     return admin_checker
 

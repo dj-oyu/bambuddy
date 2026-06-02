@@ -1074,20 +1074,73 @@ async def delete_folder(
 
 # ============ External Folder Endpoints ============
 
-# Blocked system directories that cannot be mounted
-_BLOCKED_PREFIXES = (
-    "/proc",
-    "/sys",
-    "/dev",
-    "/run",
-    "/boot",
-    "/sbin",
-    "/bin",
-    "/usr/sbin",
-    "/usr/bin",
-    "/lib",
-    "/etc",
-)
+# GHSA-r2qv follow-up (audit finding I1): external-folder mount path uses an
+# allowlist of operator-opted-in roots rather than the original denylist of
+# system directories. The denylist shape was fail-open-on-growth — anything
+# not enumerated (``/data`` containing other users' archives, ``/root``,
+# arbitrary NFS/SMB mounts, the Bambuddy ``LOG_DIR``) could be mounted by any
+# user with ``LIBRARY_UPLOAD``. The allowlist defaults to empty and is
+# extended via the ``BAMBUDDY_EXTERNAL_ROOTS`` env var (colon-separated
+# absolute paths). The route is additionally gated on ``SETTINGS_UPDATE``
+# (admin scope) rather than ``LIBRARY_UPLOAD`` because mounting host paths
+# is an operator-level capability that crosses user boundaries.
+
+
+# Bambuddy-owned data directories. Hardcode-rejected even if the operator
+# tries to add them to ``BAMBUDDY_EXTERNAL_ROOTS`` — mounting these would
+# allow reading other users' archives, log files, or the static assets path.
+def _bambuddy_reserved_roots() -> tuple[Path, ...]:
+    """Resolved Bambuddy-owned directories that may NEVER be mounted as an
+    external folder regardless of the operator's allowlist.
+
+    Resolved at call time because tests patch ``settings.base_dir`` /
+    ``settings.log_dir`` to a temp dir; resolving lazily picks up the
+    patched values rather than module-import-time values.
+    """
+    from backend.app.core.config import settings as app_settings
+
+    reserved = [app_settings.base_dir, app_settings.log_dir, app_settings.static_dir, app_settings.archive_dir]
+    return tuple(Path(p).resolve() for p in reserved if p is not None)
+
+
+def _allowed_external_roots() -> tuple[Path, ...]:
+    """Parse ``BAMBUDDY_EXTERNAL_ROOTS`` into resolved allowed roots.
+
+    Empty env var (the default) means external folders are disabled.
+    Operators opt in explicitly: ``BAMBUDDY_EXTERNAL_ROOTS=/mnt/library:/srv/3d``
+    Returns a tuple of resolved ``Path`` objects; entries that don't
+    resolve to absolute paths are silently dropped (operator error, not
+    a security boundary). Resolved lazily so tests can monkeypatch.
+    """
+    raw = os.environ.get("BAMBUDDY_EXTERNAL_ROOTS", "")
+    roots: list[Path] = []
+    for entry in raw.split(":"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        try:
+            resolved = Path(entry).resolve()
+        except (OSError, RuntimeError):  # noqa: BLE001 — operator config error, not a security boundary
+            continue
+        if resolved.is_absolute():
+            roots.append(resolved)
+    return tuple(roots)
+
+
+def _path_within(child: Path, parent: Path) -> bool:
+    """Return True if ``child`` is ``parent`` or any descendant.
+
+    Uses ``Path.relative_to`` semantics (raises ``ValueError`` on miss)
+    instead of string ``startswith``, which would falsely match
+    ``/data-other`` against ``/data``. ``Path.is_relative_to`` is the
+    sanctioned form on Python 3.9+; both are available here.
+    """
+    try:
+        child.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
 
 # Supported file extensions for external folder scanning
 _SCANNABLE_EXTENSIONS = {
@@ -1108,15 +1161,53 @@ _SCANNABLE_EXTENSIONS = {
 
 
 def _validate_external_path(path_str: str) -> Path:
-    """Validate an external path is safe to mount."""
+    """Validate an external path is safe to mount.
+
+    Allowlist semantics:
+    1. Path must be absolute and resolve cleanly (symlink-escape rejected
+       implicitly by the resolved-startswith check below).
+    2. Path must fall under one of the roots enumerated in
+       ``BAMBUDDY_EXTERNAL_ROOTS``; empty allowlist (the default)
+       means external folders are not available on this deployment.
+    3. Path must NOT fall under any Bambuddy-owned directory (``base_dir``,
+       ``log_dir``, ``static_dir``, ``archive_dir``) — the reserved set
+       takes precedence over the allowlist, so an operator who accidentally
+       sets ``BAMBUDDY_EXTERNAL_ROOTS=/`` does not expose ``/data``.
+    4. Existence + directory-type + readability gates remain.
+    """
     path = Path(path_str).resolve()
 
     if not path.is_absolute():
         raise HTTPException(status_code=400, detail="Path must be absolute")
 
-    for prefix in _BLOCKED_PREFIXES:
-        if str(path).startswith(prefix):
-            raise HTTPException(status_code=400, detail=f"Cannot mount system directory: {prefix}")
+    allowed_roots = _allowed_external_roots()
+    if not allowed_roots:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "External folders are not enabled on this deployment. Ask the "
+                "operator to set BAMBUDDY_EXTERNAL_ROOTS=<colon-separated paths>."
+            ),
+        )
+
+    # Reserved (Bambuddy-owned) paths are rejected before the allowlist check
+    # so an over-broad allowlist (e.g. operator set "/" for testing) cannot
+    # expose Bambuddy's own data dir or log dir.
+    for reserved in _bambuddy_reserved_roots():
+        if _path_within(path, reserved):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot mount Bambuddy-managed directory: {reserved}",
+            )
+
+    if not any(_path_within(path, root) for root in allowed_roots):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Path '{path}' is not within an allowed external root. "
+                f"Allowed roots: {', '.join(str(r) for r in allowed_roots)}"
+            ),
+        )
 
     if not path.exists():
         raise HTTPException(status_code=400, detail=f"Path does not exist: {path}")
@@ -1135,7 +1226,14 @@ def _validate_external_path(path_str: str) -> Path:
 async def create_external_folder(
     data: ExternalFolderCreate,
     db: AsyncSession = Depends(get_db),
-    _: User | None = Depends(require_permission_if_auth_enabled(Permission.LIBRARY_UPLOAD)),
+    # GHSA-r2qv follow-up (I1): elevated from LIBRARY_UPLOAD to SETTINGS_UPDATE.
+    # Registering a host filesystem path as a Bambuddy library folder is an
+    # operator-level capability that crosses user boundaries (one user's
+    # registered external folder is visible to every other user via
+    # /api/v1/library/folders). LIBRARY_UPLOAD was always the wrong scope —
+    # SETTINGS_UPDATE is the admin-class gate that already protects every
+    # other host-affecting setting (SMTP, LDAP, cloud, smart plugs).
+    _: User | None = Depends(require_permission_if_auth_enabled(Permission.SETTINGS_UPDATE)),
 ):
     """Create an external folder that points to a host directory."""
     resolved = _validate_external_path(data.external_path)

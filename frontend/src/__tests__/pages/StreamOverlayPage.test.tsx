@@ -11,6 +11,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { ToastProvider } from '../../contexts/ToastContext';
+import { AuthProvider } from '../../contexts/AuthContext';
 
 const mockPrinter = {
   id: 1,
@@ -60,13 +61,15 @@ function renderOverlayPage(printerId: number, queryParams = '') {
   return rtlRender(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/overlay/${printerId}${queryParams}`]}>
-        <ThemeProvider>
-          <ToastProvider>
-            <Routes>
-              <Route path="/overlay/:printerId" element={<StreamOverlayPage />} />
-            </Routes>
-          </ToastProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <Routes>
+                <Route path="/overlay/:printerId" element={<StreamOverlayPage />} />
+              </Routes>
+            </ToastProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );
