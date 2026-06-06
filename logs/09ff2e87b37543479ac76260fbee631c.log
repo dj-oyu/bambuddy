@@ -1,0 +1,200 @@
+2026-06-05 21:35:18,684 INFO [uvicorn.access] [-] [IP]:64289 - "PATCH /api/v1/printers/1 HTTP/1.1" 200
+2026-06-05 21:35:42,498 INFO [backend.app.services.external_camera] [164fe4be] Testing camera connection: type=rtsp, url=rtsp://[CREDENTIALS]@[IP]:554/stre...
+2026-06-05 21:35:42,617 ERROR [backend.app.services.external_camera] [164fe4be] ffmpeg RTSP capture failed: ffmpeg version 7.1.4-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 14 (Debian 14.2.0-19)
+  configuration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libd
+2026-06-05 21:35:42,617 INFO [backend.app.services.external_camera] [164fe4be] Capture result: 0 bytes
+2026-06-05 21:35:42,618 INFO [uvicorn.access] [-] [IP]:64305 - "POST /api/v1/printers/1/camera/external/test?url=rtsp%3A%2F%2Fdevonbane%3ARuby2019%3F%3F%40192.168.1.184%3A554%2Fstream&camera_type=rtsp HTTP/1.1" 200
+2026-06-05 21:35:43,322 INFO [backend.app.services.external_camera] [758a7560] Testing camera connection: type=rtsp, url=rtsp://[CREDENTIALS]@[IP]:554/stre...
+2026-06-05 21:35:43,418 ERROR [backend.app.services.external_camera] [758a7560] ffmpeg RTSP capture failed: ffmpeg version 7.1.4-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 14 (Debian 14.2.0-19)
+  configuration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libd
+2026-06-05 21:35:43,418 INFO [backend.app.services.external_camera] [758a7560] Capture result: 0 bytes
+2026-06-05 21:35:43,418 INFO [uvicorn.access] [-] [IP]:64305 - "POST /api/v1/printers/1/camera/external/test?url=rtsp%3A%2F%2Fdevonbane%3ARuby2019%3F%3F%40192.168.1.184%3A554%2Fstream&camera_type=rtsp HTTP/1.1" 200
+2026-06-05 21:36:37,856 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 21:39:47,633 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 21:39:53,770 INFO [uvicorn.access] [-] [IP]:64437 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-06-05 21:39:53,876 INFO [uvicorn.access] [-] [IP]:64444 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 21:39:53,998 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 21:39:53,999 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 21:39:54,002 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 21:39:54,088 INFO [backend.app.api.routes.cloud] [4b2a2e79] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 21:39:54,091 INFO [uvicorn.access] [-] [IP]:64450 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 21:40:09,817 INFO [backend.app.services.external_camera] [7dd87f2d] Testing camera connection: type=rtsp, url=rtsp://[CREDENTIALS]@[IP]:554/...
+2026-06-05 21:40:11,104 INFO [backend.app.services.external_camera] [7dd87f2d] Capture result: 277239 bytes
+2026-06-05 21:40:11,105 INFO [uvicorn.access] [-] [IP]:64477 - "POST /api/v1/printers/1/camera/external/test?url=rtsp%3A%2F%2Fdevonbane%3ARuby2019%253F%253F%40192.168.1.184%3A554%2Fstream1&camera_type=rtsp HTTP/1.1" 200
+2026-06-05 21:40:24,624 INFO [backend.app.api.routes.camera] [b194c4aa] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 21:40:24,749 INFO [backend.app.services.camera] [b194c4aa] RTSP socket I/O timeout flag: -timeout
+2026-06-05 21:40:32,492 INFO [backend.app.api.routes.camera] [9c12b923] Stopped 0 camera stream(s) for printer 1
+2026-06-05 21:40:32,493 INFO [uvicorn.access] [-] [IP]:64494 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 21:40:32,725 INFO [backend.app.services.external_camera] [b194c4aa] RTSP stream cancelled
+2026-06-05 21:40:32,726 INFO [backend.app.api.routes.camera] [b194c4aa] External camera stream ended for printer 1
+2026-06-05 21:40:37,179 INFO [uvicorn.access] [-] [IP]:64494 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 21:40:40,081 INFO [uvicorn.access] [-] [IP]:64494 - "POST /api/v1/auth/login HTTP/1.1" 200
+2026-06-05 21:40:40,333 INFO [uvicorn.access] [-] [IP]:64494 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-06-05 21:40:40,536 INFO [uvicorn.access] [-] [IP]:64512 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 21:40:40,704 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 21:40:40,704 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 21:40:40,705 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 21:40:40,756 INFO [backend.app.api.routes.cloud] [7406e309] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 21:40:40,757 INFO [uvicorn.access] [-] [IP]:64501 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 21:40:57,413 INFO [backend.app.api.routes.camera] [8e04d8fc] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 21:41:37,862 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 21:41:45,945 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 21:41:45,949 INFO [backend.app.services.external_camera] [8e04d8fc] RTSP stream cancelled
+2026-06-05 21:41:45,950 INFO [backend.app.api.routes.camera] [8e04d8fc] External camera stream ended for printer 1
+2026-06-05 21:44:54,958 INFO [backend.app.api.routes.camera] [e5112e9f] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 21:45:06,598 INFO [backend.app.services.external_camera] [e5112e9f] RTSP stream cancelled
+2026-06-05 21:45:06,599 INFO [backend.app.api.routes.camera] [e5112e9f] External camera stream ended for printer 1
+2026-06-05 21:45:06,601 INFO [backend.app.api.routes.camera] [5a373088] Stopped 0 camera stream(s) for printer 1
+2026-06-05 21:45:06,601 INFO [uvicorn.access] [-] [IP]:64628 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 21:45:14,981 INFO [backend.app.api.routes.cloud] [f0d4f765] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 21:45:14,985 INFO [uvicorn.access] [-] [IP]:64651 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 21:46:37,867 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 21:48:11,680 INFO [backend.app.api.routes.camera] [e5d8bc4d] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 21:48:36,897 INFO [backend.app.services.bambu_mqtt] [fb61c76e] [[SERIAL]] Set chamber lights off (seq=13)
+2026-06-05 21:48:36,898 INFO [uvicorn.access] [-] [IP]:54899 - "POST /api/v1/printers/1/chamber-light?on=false HTTP/1.1" 200
+2026-06-05 21:48:46,030 INFO [backend.app.services.bambu_mqtt] [69f37af3] [[SERIAL]] Set chamber lights on (seq=15)
+2026-06-05 21:48:46,031 INFO [uvicorn.access] [-] [IP]:54899 - "POST /api/v1/printers/1/chamber-light?on=true HTTP/1.1" 200
+2026-06-05 21:49:03,371 INFO [backend.app.services.bambu_mqtt] [35451249] [[SERIAL]] Set chamber lights off (seq=17)
+2026-06-05 21:49:03,372 INFO [uvicorn.access] [-] [IP]:54922 - "POST /api/v1/printers/1/chamber-light?on=false HTTP/1.1" 200
+2026-06-05 21:49:05,294 INFO [backend.app.services.bambu_mqtt] [001c1e15] [[SERIAL]] Set chamber lights on (seq=19)
+2026-06-05 21:49:05,295 INFO [uvicorn.access] [-] [IP]:54922 - "POST /api/v1/printers/1/chamber-light?on=true HTTP/1.1" 200
+2026-06-05 21:51:37,873 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 21:56:37,878 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 21:57:14,170 INFO [backend.app.api.routes.cloud] [ce5cf1bf] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 21:57:14,227 INFO [uvicorn.access] [-] [IP]:55121 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 21:57:14,360 INFO [backend.app.api.routes.camera] [77ef2b59] Stopped 0 camera stream(s) for printer 1
+2026-06-05 21:57:14,374 INFO [uvicorn.access] [-] [IP]:55140 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 21:57:14,420 INFO [uvicorn.access] [-] [IP]:55139 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 21:57:14,527 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 21:57:14,527 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 21:57:14,530 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 21:57:47,967 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 22:00:32,056 INFO [backend.app.services.local_backup] [-] Running scheduled local backup
+2026-06-05 22:00:32,941 INFO [backend.app.services.local_backup] [-] Local backup created: /app/data/backups/bambuddy-backup-20260605-220032.zip
+2026-06-05 22:01:37,888 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:06:37,893 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:11:37,899 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:16:37,904 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:19:10,781 INFO [backend.app.api.routes.camera] [26e5e8f2] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:21:37,910 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:24:07,799 INFO [backend.app.api.routes.camera] [eceaf1e9] External camera stream ended for printer 1
+2026-06-05 22:24:10,782 INFO [backend.app.api.routes.camera] [818ffb19] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:24:10,816 INFO [backend.app.services.external_camera] [26e5e8f2] RTSP stream cancelled
+2026-06-05 22:24:10,816 INFO [backend.app.api.routes.camera] [26e5e8f2] External camera stream ended for printer 1
+2026-06-05 22:24:19,782 INFO [backend.app.api.routes.camera] [d6e9e543] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:24:19,821 INFO [backend.app.services.external_camera] [818ffb19] RTSP stream cancelled
+2026-06-05 22:24:19,821 INFO [backend.app.api.routes.camera] [818ffb19] External camera stream ended for printer 1
+2026-06-05 22:24:19,945 INFO [backend.app.api.routes.camera] [d6e9e543] External camera stream ended for printer 1
+2026-06-05 22:24:34,790 INFO [backend.app.api.routes.camera] [90106c1d] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:24:35,006 INFO [backend.app.api.routes.camera] [90106c1d] External camera stream ended for printer 1
+2026-06-05 22:24:53,789 INFO [backend.app.api.routes.camera] [5b844e6d] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:26:37,920 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:31:37,926 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:36:37,930 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:41:37,938 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:44:54,830 INFO [uvicorn.access] [-] [IP]:53678 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-06-05 22:44:54,912 INFO [backend.app.api.routes.cloud] [8644b741] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 22:44:54,931 INFO [uvicorn.access] [-] [IP]:53686 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 22:44:54,947 INFO [backend.app.api.routes.camera] [c693f1eb] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:44:55,713 INFO [backend.app.services.external_camera] [5b844e6d] RTSP stream cancelled
+2026-06-05 22:44:55,723 INFO [backend.app.api.routes.camera] [5b844e6d] External camera stream ended for printer 1
+2026-06-05 22:45:01,177 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 22:45:10,760 INFO [uvicorn.access] [-] [IP]:53709 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-06-05 22:45:10,833 INFO [uvicorn.access] [-] [IP]:53703 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 22:45:10,877 INFO [backend.app.api.routes.cloud] [15d9bd24] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 22:45:10,880 INFO [uvicorn.access] [-] [IP]:53714 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 22:45:10,962 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 22:45:10,963 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 22:45:10,964 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 22:45:11,907 INFO [backend.app.services.bambu_mqtt] [a0ddf64d] [[SERIAL]] Set chamber lights off (seq=21)
+2026-06-05 22:45:11,908 INFO [uvicorn.access] [-] [IP]:53710 - "POST /api/v1/printers/1/chamber-light?on=false HTTP/1.1" 200
+2026-06-05 22:45:12,290 INFO [backend.app.api.routes.camera] [8e9cf8ab] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:45:12,456 INFO [backend.app.api.routes.camera] [8e9cf8ab] External camera stream ended for printer 1
+2026-06-05 22:45:19,542 INFO [backend.app.services.bambu_mqtt] [a91ce1c7] [[SERIAL]] Set chamber lights on (seq=23)
+2026-06-05 22:45:19,543 INFO [uvicorn.access] [-] [IP]:53704 - "POST /api/v1/printers/1/chamber-light?on=true HTTP/1.1" 200
+2026-06-05 22:45:22,185 INFO [backend.app.services.bambu_mqtt] [69726346] [[SERIAL]] Set chamber lights off (seq=25)
+2026-06-05 22:45:22,185 INFO [uvicorn.access] [-] [IP]:53731 - "POST /api/v1/printers/1/chamber-light?on=false HTTP/1.1" 200
+2026-06-05 22:45:22,399 INFO [backend.app.api.routes.camera] [861e500b] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:45:22,533 INFO [backend.app.api.routes.camera] [861e500b] External camera stream ended for printer 1
+2026-06-05 22:45:27,368 INFO [backend.app.services.bambu_mqtt] [9e7f54a3] [[SERIAL]] Set chamber lights on (seq=27)
+2026-06-05 22:45:27,369 INFO [uvicorn.access] [-] [IP]:53733 - "POST /api/v1/printers/1/chamber-light?on=true HTTP/1.1" 200
+2026-06-05 22:45:34,135 INFO [backend.app.api.routes.camera] [229e6b47] External camera stream ended for printer 1
+2026-06-05 22:45:34,390 INFO [backend.app.api.routes.camera] [d6f1319c] Stopped 0 camera stream(s) for printer 1
+2026-06-05 22:45:34,393 INFO [uvicorn.access] [-] [IP]:53755 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 22:45:38,760 INFO [backend.app.services.external_camera] [9031abc6] Testing camera connection: type=rtsp, url=rtsp://[CREDENTIALS]@[IP]:554/...
+2026-06-05 22:45:41,041 INFO [backend.app.services.external_camera] [9031abc6] Capture result: 176770 bytes
+2026-06-05 22:45:41,042 INFO [uvicorn.access] [-] [IP]:53758 - "POST /api/v1/printers/1/camera/external/test?url=rtsp%3A%2F%2Fdevonbane%3ARuby2019%253F%253F%40192.168.1.184%3A554%2Fstream1&camera_type=rtsp HTTP/1.1" 200
+2026-06-05 22:45:46,152 INFO [backend.app.api.routes.camera] [ac6a860c] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:45:48,400 INFO [backend.app.services.bambu_mqtt] [e3958d26] [[SERIAL]] Set chamber lights off (seq=29)
+2026-06-05 22:45:48,401 INFO [uvicorn.access] [-] [IP]:53761 - "POST /api/v1/printers/1/chamber-light?on=false HTTP/1.1" 200
+2026-06-05 22:45:51,305 INFO [backend.app.services.bambu_mqtt] [db54ee76] [[SERIAL]] Set chamber lights on (seq=31)
+2026-06-05 22:45:51,306 INFO [uvicorn.access] [-] [IP]:53761 - "POST /api/v1/printers/1/chamber-light?on=true HTTP/1.1" 200
+2026-06-05 22:45:58,485 INFO [backend.app.services.external_camera] [ac6a860c] RTSP stream cancelled
+2026-06-05 22:45:58,485 INFO [backend.app.api.routes.camera] [ac6a860c] External camera stream ended for printer 1
+2026-06-05 22:45:58,497 INFO [backend.app.api.routes.camera] [a0ca432c] Stopped 0 camera stream(s) for printer 1
+2026-06-05 22:45:58,498 INFO [uvicorn.access] [-] [IP]:53761 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 22:46:00,195 INFO [backend.app.api.routes.camera] [877981f1] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:46:05,176 INFO [backend.app.services.camera] [93d862e7] Capturing camera frame bytes from [IP] using chamber image protocol (model: [PRINTER])
+2026-06-05 22:46:07,057 INFO [uvicorn.access] [-] [IP]:53767 - "POST /api/v1/printers/1/camera/diagnose HTTP/1.1" 200
+2026-06-05 22:46:13,816 INFO [backend.app.services.camera] [5ebc52df] Capturing camera frame bytes from [IP] using chamber image protocol (model: [PRINTER])
+2026-06-05 22:46:15,646 INFO [uvicorn.access] [-] [IP]:53772 - "POST /api/v1/printers/1/camera/diagnose HTTP/1.1" 200
+2026-06-05 22:46:21,909 INFO [backend.app.api.routes.camera] [758e6123] Stopped 0 camera stream(s) for printer 1
+2026-06-05 22:46:21,910 INFO [uvicorn.access] [-] [IP]:53777 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 22:46:21,978 INFO [backend.app.services.external_camera] [877981f1] RTSP stream cancelled
+2026-06-05 22:46:21,979 INFO [backend.app.api.routes.camera] [877981f1] External camera stream ended for printer 1
+2026-06-05 22:46:22,017 INFO [backend.app.api.routes.camera] [8bbf2c3f] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:46:22,158 INFO [backend.app.api.routes.camera] [8bbf2c3f] External camera stream ended for printer 1
+2026-06-05 22:46:23,950 INFO [backend.app.api.routes.camera] [9aa76321] Using external camera (rtsp) for printer 1 at 15 fps
+2026-06-05 22:46:24,103 INFO [backend.app.api.routes.camera] [9aa76321] External camera stream ended for printer 1
+2026-06-05 22:46:25,079 INFO [backend.app.api.routes.camera] [ca6a52f0] Stopped 0 camera stream(s) for printer 1
+2026-06-05 22:46:25,080 INFO [uvicorn.access] [-] [IP]:53778 - "POST /api/v1/printers/1/camera/stop HTTP/1.1" 200
+2026-06-05 22:46:28,741 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 22:46:31,815 INFO [uvicorn.access] [-] [IP]:53781 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 22:46:31,920 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 22:46:31,920 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 22:46:31,921 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 22:46:32,596 INFO [uvicorn.access] [-] [IP]:53781 - "POST /api/v1/auth/login HTTP/1.1" 200
+2026-06-05 22:46:33,072 INFO [uvicorn.access] [-] [IP]:53796 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 22:46:33,168 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 22:46:33,168 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 22:46:33,169 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 22:46:35,445 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 22:46:35,447 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-06-05 22:46:37,943 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-06-05 22:48:52,832 INFO [uvicorn.access] [-] [IP]:53848 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-06-05 22:48:52,992 INFO [uvicorn.access] [-] [IP]:53865 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-05 22:48:53,147 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-06-05 22:48:53,147 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-05 22:48:53,150 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-05 22:48:53,245 INFO [backend.app.api.routes.cloud] [6af3bb56] get_filament_info called with 4 IDs: ['GFA00', 'GFG00', 'GFG02', 'GFU00']
+2026-06-05 22:48:53,246 INFO [uvicorn.access] [-] [IP]:53863 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-05 22:48:56,378 INFO [backend.app.services.bambu_mqtt] [b6270d3f] [[SERIAL]] Set chamber lights off (seq=33)
+2026-06-05 22:48:56,378 INFO [uvicorn.access] [-] [IP]:53860 - "POST /api/v1/printers/1/chamber-light?on=false HTTP/1.1" 200
+2026-06-05 22:50:05,987 INFO [backend.app.api.routes.support] [ba7d94a2] Log level changed to DEBUG
+2026-06-05 22:50:05,987 INFO [backend.app.api.routes.bug_report] [ba7d94a2] Bug report: enabled debug logging
+2026-06-05 22:50:05,987 DEBUG [backend.app.services.bambu_mqtt] [ba7d94a2] [[SERIAL]] Requesting status update (pushall)
+2026-06-05 22:50:05,988 INFO [uvicorn.access] [-] [IP]:53916 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: FINISH, gcode_file: , subtask_name: [PRINTER]_X1C_Tapo_C110_Camera_Mount
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '255', 'tray_now': '255', 'tray_pre': '255', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 151, 'insert_flag': True, 'power_on_flag': True}
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 255
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-06-05 22:50:06,557 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 0 (main=0, sub=0)
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-06-05 22:50:06,558 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-06-05 22:50:06,559 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -49dBm
+2026-06-05 22:50:06,559 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'off'}]
+2026-06-05 22:50:06,559 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: FINISH -> FINISH, file: , subtask: [PRINTER]_X1C_Tapo_C110_Camera_Mount
+2026-06-05 22:50:08,574 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-05 22:50:08,575 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -47dBm
+2026-06-05 22:50:12,618 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-05 22:50:16,647 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-05 22:50:16,648 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -46dBm
