@@ -1,0 +1,200 @@
+2026-06-07 19:31:19,337 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 353856 bytes
+2026-06-07 19:31:19,337 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 353856 bytes
+2026-06-07 19:31:19,338 INFO [backend.app.main] [-] [HMS] Sent notification for 1 error(s) on printer 1
+2026-06-07 19:31:32,000 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:31:32,002 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:31:33,217 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 227435 bytes
+2026-06-07 19:31:33,218 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 227435 bytes
+2026-06-07 19:31:33,734 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:31:33,736 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:31:34,937 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 279652 bytes
+2026-06-07 19:31:34,938 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 279652 bytes
+2026-06-07 19:31:34,940 INFO [backend.app.main] [-] [HMS] Sent notification for 1 error(s) on printer 1
+2026-06-07 19:35:00,843 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 19:35:39,299 INFO [uvicorn.access] [-] [IP]:60414 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-06-07 19:35:39,426 INFO [uvicorn.access] [-] [IP]:60412 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-07 19:35:39,485 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=<anonymous>)
+2026-06-07 19:35:39,485 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-06-07 19:35:39,486 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-06-07 19:35:39,552 INFO [backend.app.api.routes.cloud] [7fcaf289] get_filament_info called with 3 IDs: ['Pccd0d10', 'GFL99', 'GFU01']
+2026-06-07 19:35:39,557 INFO [uvicorn.access] [-] [IP]:60417 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-07 19:36:01,515 INFO [uvicorn.access] [-] [IP]:60425 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-06-07 19:36:41,868 INFO [uvicorn.access] [-] [IP]:60444 - "POST /api/v1/library/files/1/print?printer_id=1 HTTP/1.1" 200
+2026-06-07 19:36:42,084 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:36:42,089 WARNING [backend.app.services.bambu_ftp] [-] Failed to delete /He_Man_Wig.3mf: 550 Delete operation failed.
+2026-06-07 19:36:42,097 INFO [backend.app.services.bambu_ftp] [-] FTP connecting to [IP] for upload (model=H2D, mode=prot_p, socket_timeout=30.0s)...
+2026-06-07 19:36:42,257 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:36:42,258 INFO [backend.app.services.bambu_ftp] [-] FTP connected to [IP]
+2026-06-07 19:36:42,259 INFO [backend.app.services.bambu_ftp] [-] FTP uploading /app/data/archive/library/files/7149064ae98145489df0f64abbef203d.3mf (34979874 bytes) to /He_Man_Wig.3mf
+2026-06-07 19:36:42,282 INFO [backend.app.services.bambu_ftp] [-] FTP data channel ready in 0.0s (PASV + TLS handshake)
+2026-06-07 19:36:47,718 WARNING [backend.app.services.bambu_ftp] [-] FTP STOR returned error_temp for /He_Man_Wig.3mf but file is intact on the printer (34979874 bytes match) — proceeding: 426 Failure reading network stream.
+2026-06-07 19:36:47,718 INFO [backend.app.services.bambu_ftp] [-] FTP upload complete: /He_Man_Wig.3mf (34979874 bytes in 5.5s, 6254 KB/s)
+2026-06-07 19:36:47,719 INFO [backend.app.services.bambu_ftp] [-] FTP mode cached for [IP]: prot_p
+2026-06-07 19:36:47,729 INFO [backend.app.main] [-] Registered expected print: printer=1, file=He_Man_Wig.3mf, archive=2, ams_mapping=[255, 254]
+2026-06-07 19:36:47,740 INFO [backend.app.services.printer_manager] [-] PRINT COMMAND: printer=1, file=He_Man_Wig.3mf, caller=background_dispatch.py:554:_process_job
+2026-06-07 19:36:47,741 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Sending print command: {"print": {"sequence_id": "20000", "command": "project_file", "param": "Metadata/plate_1.gcode", "url": "ftp://He_Man_Wig.3mf", "file": "He_Man_Wig.3mf", "md5": "", "bed_type": "auto", "timelapse": false, "bed_leveling": true, "auto_bed_leveling": 1, "flow_cali": false, "vibration_cali": true, "layer_inspect": false, "use_ams": true, "cfg": "0", "extrude_cali_flag": 2, "extrude_cali_manual_mode": 0, "nozzle_offset_cali": 2, "subtask_name": "He_Man_Wig", "profile_id": "0", "project_id": "611464378", "subtask_id": "611464378", "task_id": "611464378", "ams_mapping": [-1, -1], "ams_mapping2": [{"ams_id": 255, "slot_id": 0}, {"ams_id": 254, "slot_id": 0}]}}
+2026-06-07 19:36:47,748 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Captured ams_mapping from print command: [-1, -1]
+2026-06-07 19:37:24,382 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] PRINT START detected - file: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig, is_new: True, is_file_change: False
+2026-06-07 19:37:24,384 INFO [backend.app.main] [-] [CALLBACK] on_print_start called for printer 1, data keys: ['filename', 'subtask_name', 'remaining_time', 'raw_data', 'ams_mapping']
+2026-06-07 19:37:24,401 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Skipped trays with invalid remain% for printer 1: AMS0-T1(remain=-1), AMS0-T2(remain=-1), AMS0-T3(remain=-1)
+2026-06-07 19:37:24,401 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping=[65280, 65024], tray_now=254, last_loaded_tray=254
+2026-06-07 19:37:24,401 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping-related keys: {'mapping': [65280, 65024], 'ams_extruder_map': {'0': 0, '128': 1}}
+2026-06-07 19:37:24,402 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1 AMS 0: T0(type=, color=, now=?, tar=?), T1(type=PC, color=2850E0FF, now=?, tar=?), T2(type=PLA, color=FFFFFFFF, now=?, tar=?), T3(type=, color=, now=?, tar=?)
+2026-06-07 19:37:24,402 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1 AMS 128: T0(type=, color=, now=?, tar=?)
+2026-06-07 19:37:24,404 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Captured start remain% for printer 1 (4 trays): {'0-0': 0, '128-0': 0, '255-0': 0, '255-1': 0}
+2026-06-07 19:37:24,407 INFO [backend.app.main] [-] [PLATE CHECK] printer_id=1, plate_detection_enabled=False
+2026-06-07 19:37:24,407 INFO [backend.app.main] [-] [CALLBACK] Print start detected - filename: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig
+2026-06-07 19:37:24,407 INFO [backend.app.main] [-] Using expected archive 2 for print (skipping duplicate)
+2026-06-07 19:37:24,412 INFO [backend.app.main] [-] [ENERGY] No smart plug for printer 1 (archive 2)
+2026-06-07 19:37:24,414 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:37:24,414 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:37:25,607 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 202650 bytes
+2026-06-07 19:37:25,607 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 202650 bytes
+2026-06-07 19:37:25,607 INFO [backend.app.services.notification_service] [-] on_print_start called for printer 1 ([PRINTER])
+2026-06-07 19:37:25,608 INFO [backend.app.services.notification_service] [-] No notification providers configured for print_start event on printer 1
+2026-06-07 19:37:25,621 INFO [backend.app.main] [-] Loaded 1 printable objects for printer 1
+2026-06-07 19:37:25,730 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:37:25,797 INFO [backend.app.main] [-] [TIMELAPSE] Baseline at print start: 37 video files for printer 1
+2026-06-07 19:37:35,971 INFO [backend.app.api.routes.printers] [21bc4a0a] Cover: resolved plate 1 before download (subtask=He_Man_Wig)
+2026-06-07 19:37:35,971 INFO [backend.app.api.routes.printers] [21bc4a0a] Cover using cached 3MF from /app/data/archive/library/files/7149064ae98145489df0f64abbef203d.3mf (avoided duplicate FTP)
+2026-06-07 19:37:35,971 INFO [backend.app.api.routes.printers] [21bc4a0a] Downloaded file size: 34979874 bytes
+2026-06-07 19:40:00,814 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 19:40:10,834 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:40:10,837 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:40:12,142 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 194698 bytes
+2026-06-07 19:40:12,142 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 194698 bytes
+2026-06-07 19:43:44,268 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:43:44,269 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:43:45,455 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 279186 bytes
+2026-06-07 19:43:45,456 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 279186 bytes
+2026-06-07 19:45:00,786 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 19:50:00,779 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 19:52:37,910 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:52:37,913 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:52:39,057 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 179597 bytes
+2026-06-07 19:52:39,058 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 179597 bytes
+2026-06-07 19:55:00,759 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 19:55:46,269 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 19:55:46,269 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:55:47,924 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 133497 bytes
+2026-06-07 19:55:47,924 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 133497 bytes
+2026-06-07 19:58:23,794 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] PRINT COMPLETE detected - state: FAILED, status: failed, file: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig, was_running: True, timelapse_during_print: False
+2026-06-07 19:58:23,796 INFO [backend.app.main] [-] [CALLBACK] on_print_complete started for printer 1
+2026-06-07 19:58:23,796 INFO [backend.app.main] [-] [TIMING] WebSocket send_print_complete: 0.000s elapsed
+2026-06-07 19:58:23,796 INFO [backend.app.main] [-] Print complete - filename: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig, status: failed
+2026-06-07 19:58:23,796 INFO [backend.app.main] [-] Looking for archive in _active_prints, keys to try: [(1, 'He_Man_Wig.3mf'), (1, 'He_Man_Wig.gcode.3mf'), (1, 'He_Man_Wig'), (1, 'plate_1.gcode.3mf'), (1, 'plate_1.3mf')]...
+2026-06-07 19:58:23,797 INFO [backend.app.main] [-] Current _active_prints: [(1, 'He Man Wig.gcode.3mf'), (1, 'He_Man_Wig.3mf')]
+2026-06-07 19:58:23,797 INFO [backend.app.main] [-] Found archive 2 with key (1, 'He_Man_Wig.3mf')
+2026-06-07 19:58:24,229 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:58:24,260 INFO [backend.app.main] [-] Deleted /He_Man_Wig.3mf from printer [PRINTER] SD card
+2026-06-07 19:58:24,389 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:58:24,393 WARNING [backend.app.services.bambu_ftp] [-] Failed to delete /He_Man_Wig.gcode: 550 Delete operation failed.
+2026-06-07 19:58:26,513 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:58:26,519 WARNING [backend.app.services.bambu_ftp] [-] Failed to delete /He_Man_Wig.gcode: 550 Delete operation failed.
+2026-06-07 19:58:28,647 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 19:58:28,652 WARNING [backend.app.services.bambu_ftp] [-] Failed to delete /He_Man_Wig.gcode: 550 Delete operation failed.
+2026-06-07 19:58:28,657 WARNING [backend.app.main] [-] SD card cleanup failed after 3 attempts for /He_Man_Wig.gcode (file may linger on SD card)
+2026-06-07 19:58:28,657 INFO [backend.app.main] [-] [TIMING] SD card cleanup: 4.861s elapsed
+2026-06-07 19:58:28,658 INFO [backend.app.main] [-] [TIMING] Queue item update: 4.862s elapsed
+2026-06-07 19:58:28,659 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] on_print_complete: printer=1, archive=2, session=yes, ams_mapping=[-1, -1]
+2026-06-07 19:58:28,659 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT COMPLETE printer 1: mapping=[65280, 65024], tray_now=254, last_loaded_tray=254
+2026-06-07 19:58:28,660 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: archive 2, filament_usage=[{'slot_id': 1, 'used_g': 603.86, 'type': 'TPU', 'color': '#FFFF80'}, {'slot_id': 2, 'used_g': 559.8, 'type': 'PLA', 'color': '#8080FF'}]
+2026-06-07 19:58:28,660 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: slot_to_tray=[-1, -1] (source: print_cmd)
+2026-06-07 19:58:28,660 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: slot_id=1 -> global_tray=1 -> AMS0-T1 (used_g=603.9, tray_now_override=None)
+2026-06-07 19:58:28,661 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: no spool assignment at printer 1 AMS0-T1
+2026-06-07 19:58:28,661 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: slot_id=2 -> global_tray=2 -> AMS0-T2 (used_g=559.8, tray_now_override=None)
+2026-06-07 19:58:28,661 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: no spool assignment at printer 1 AMS0-T2
+2026-06-07 19:58:28,661 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] AMS0-T0: not in print mapping/tray_change_log — skipping fallback for printer 1
+2026-06-07 19:58:28,661 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] AMS128-T0: not in print mapping/tray_change_log — skipping fallback for printer 1
+2026-06-07 19:58:28,661 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] VT255: not in print mapping/tray_change_log — skipping fallback for printer 1
+2026-06-07 19:58:28,662 INFO [backend.app.main] [-] [TIMING] Filament usage tracking: 4.867s elapsed
+2026-06-07 19:58:28,662 INFO [backend.app.main] [-] [TIMING] Archive lookup: 4.867s elapsed
+2026-06-07 19:58:28,662 INFO [backend.app.main] [-] [ARCHIVE] Updating archive 2 status...
+2026-06-07 19:58:28,665 INFO [backend.app.main] [-] [ARCHIVE] Archive 2 status updated to failed, failure_reason=None
+2026-06-07 19:58:28,665 INFO [backend.app.main] [-] [ARCHIVE] WebSocket notification sent for archive 2
+2026-06-07 19:58:28,665 INFO [backend.app.main] [-] [TIMING] Archive status update: 4.870s elapsed
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [PRINT_LOG] Log entry written for archive 2
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [TIMING] Print log entry: 4.871s elapsed
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [TIMING] Background tasks scheduled (energy, photo): 4.871s elapsed
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [TIMING] All background tasks scheduled: 4.871s elapsed
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [CALLBACK] on_print_complete finished for printer 1, archive 2
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [ENERGY-BG] Starting energy calculation for archive 2
+2026-06-07 19:58:28,667 INFO [backend.app.main] [-] [PHOTO-BG] Starting finish photo capture for archive 2
+2026-06-07 19:58:28,668 INFO [backend.app.main] [-] [AUTO-OFF-BG] Starting smart plug automation for printer 1
+2026-06-07 19:58:28,668 INFO [backend.app.services.smart_plug_manager] [-] Print on printer 1 ended with status 'failed', skipping auto-off to allow investigation
+2026-06-07 19:58:28,668 INFO [backend.app.main] [-] [AUTO-OFF-BG] Completed
+2026-06-07 19:58:28,668 INFO [backend.app.main] [-] [LAYER-TL] Cancelled layer timelapse for printer 1 (status: failed)
+2026-06-07 19:58:28,669 INFO [backend.app.main] [-] [ENERGY-BG] No start kWh recorded for archive 2
+2026-06-07 19:58:28,670 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 19:58:29,837 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 376198 bytes
+2026-06-07 19:58:29,841 INFO [backend.app.services.camera] [-] Saved camera frame to: /app/data/archive/1/20260607_193641_He Man Wig/photos/finish_20260607_195828_b5a0b801.jpg
+2026-06-07 19:58:29,841 INFO [backend.app.services.camera] [-] Finish photo saved: finish_20260607_195828_b5a0b801.jpg
+2026-06-07 19:58:29,844 INFO [backend.app.main] [-] [PHOTO-BG] Saved: finish_20260607_195828_b5a0b801.jpg
+2026-06-07 19:58:29,844 INFO [backend.app.main] [-] [PHOTO-NOTIFY] Photo task returned: finish_20260607_195828_b5a0b801.jpg
+2026-06-07 19:58:29,844 INFO [backend.app.main] [-] [NOTIFY-BG] Starting notifications for printer 1, photo=finish_20260607_195828_b5a0b801.jpg
+2026-06-07 19:58:29,847 INFO [backend.app.main] [-] [NOTIFY-BG] Loaded finish photo bytes: 376198 bytes
+2026-06-07 19:58:29,847 INFO [backend.app.services.notification_service] [-] on_print_complete called for printer 1 ([PRINTER]), status=failed
+2026-06-07 19:58:29,849 INFO [backend.app.services.notification_service] [-] No notification providers configured for on_print_failed event on printer 1
+2026-06-07 19:58:29,849 INFO [backend.app.main] [-] [NOTIFY-BG] Completed
+2026-06-07 19:59:58,559 INFO [backend.app.api.routes.cloud] [ff92f569] get_filament_info called with 3 IDs: ['Pccd0d10', 'GFL99', 'GFU01']
+2026-06-07 19:59:58,565 INFO [uvicorn.access] [-] [IP]:60501 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-06-07 20:00:00,739 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 20:00:28,385 INFO [uvicorn.access] [-] [IP]:60507 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-06-07 20:00:29,269 INFO [uvicorn.access] [-] [IP]:60507 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-06-07 20:04:27,040 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] PRINT START detected - file: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig, is_new: True, is_file_change: False
+2026-06-07 20:04:27,041 INFO [backend.app.main] [-] [CALLBACK] on_print_start called for printer 1, data keys: ['filename', 'subtask_name', 'remaining_time', 'raw_data', 'ams_mapping']
+2026-06-07 20:04:27,051 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Skipped trays with invalid remain% for printer 1: AMS0-T1(remain=-1), AMS0-T2(remain=-1), AMS0-T3(remain=-1)
+2026-06-07 20:04:27,051 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping=[65280, 65024], tray_now=254, last_loaded_tray=254
+2026-06-07 20:04:27,051 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping-related keys: {'mapping': [65280, 65024], 'ams_extruder_map': {'0': 0, '128': 1}}
+2026-06-07 20:04:27,051 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1 AMS 0: T0(type=, color=, now=?, tar=?), T1(type=PC, color=2850E0FF, now=?, tar=?), T2(type=PLA, color=FFFFFFFF, now=?, tar=?), T3(type=, color=, now=?, tar=?)
+2026-06-07 20:04:27,051 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1 AMS 128: T0(type=, color=, now=?, tar=?)
+2026-06-07 20:04:27,052 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Captured start remain% for printer 1 (4 trays): {'0-0': 0, '128-0': 0, '255-0': 0, '255-1': 0}
+2026-06-07 20:04:27,053 INFO [backend.app.main] [-] [PLATE CHECK] printer_id=1, plate_detection_enabled=False
+2026-06-07 20:04:27,054 INFO [backend.app.main] [-] [CALLBACK] Print start detected - filename: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig
+2026-06-07 20:04:27,055 INFO [backend.app.main] [-] Trying filenames: ['He_Man_Wig.gcode.3mf', 'He_Man_Wig.3mf', 'plate_1.gcode.3mf', 'plate_1.3mf']
+2026-06-07 20:04:27,165 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 20:04:27,185 INFO [backend.app.services.bambu_ftp] [-] FTP download failed for /He_Man_Wig.gcode.3mf: 550 Failed to open file. (not on printer)
+2026-06-07 20:04:27,297 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 20:04:32,296 INFO [backend.app.services.bambu_ftp] [-] Successfully downloaded /cache/He_Man_Wig.gcode.3mf to /app/data/archive/temp/He_Man_Wig.gcode.3mf (34979874 bytes)
+2026-06-07 20:04:32,296 INFO [backend.app.services.bambu_ftp] [-] FTP mode cached for [IP]: prot_p
+2026-06-07 20:04:32,306 INFO [backend.app.main] [-] Downloaded: /cache/He_Man_Wig.gcode.3mf
+2026-06-07 20:04:32,375 INFO [backend.app.main] [-] Created archive 3 for He_Man_Wig.gcode.3mf
+2026-06-07 20:04:32,376 INFO [backend.app.main] [-] [ENERGY] No smart plug for printer 1 (archive 3)
+2026-06-07 20:04:32,377 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-06-07 20:04:32,377 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using RTSP (model: H2D)
+2026-06-07 20:04:33,607 INFO [backend.app.services.camera] [-] Successfully captured camera frame bytes: 336492 bytes
+2026-06-07 20:04:33,607 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 336492 bytes
+2026-06-07 20:04:33,607 INFO [backend.app.services.notification_service] [-] on_print_start called for printer 1 ([PRINTER])
+2026-06-07 20:04:33,608 INFO [backend.app.services.notification_service] [-] No notification providers configured for print_start event on printer 1
+2026-06-07 20:04:33,619 INFO [backend.app.main] [-] Loaded 1 printable objects for printer 1
+2026-06-07 20:04:33,710 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=H2D, prot_c=False)
+2026-06-07 20:04:33,774 INFO [backend.app.main] [-] [TIMELAPSE] Baseline at print start: 37 video files for printer 1
+2026-06-07 20:05:00,723 INFO [backend.app.main] [-] Recorded 2 AMS sensor history entries
+2026-06-07 20:05:52,215 INFO [backend.app.api.routes.support] [2dc471c7] Log level changed to DEBUG
+2026-06-07 20:05:52,215 INFO [backend.app.api.routes.bug_report] [2dc471c7] Bug report: enabled debug logging
+2026-06-07 20:05:52,215 DEBUG [backend.app.services.bambu_mqtt] [2dc471c7] [[SERIAL]] Requesting status update (pushall)
+2026-06-07 20:05:52,215 INFO [uvicorn.access] [-] [IP]:60550 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Found xcam inside print data: {'allow_skip_parts': False, 'buildplate_marker_detector': True, 'cfg': 1781175, 'first_layer_inspector': True, 'halt_print_sensitivity': 'medium', 'print_halt': True, 'printing_monitor': True, 'spaghetti_detector': True}
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Parsing xcam data - all fields: ['allow_skip_parts', 'buildplate_marker_detector', 'cfg', 'first_layer_inspector', 'halt_print_sensitivity', 'print_halt', 'printing_monitor', 'spaghetti_detector']
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] xcam cfg bitmask: 1781175 (binary: 0b110110010110110110111)
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: RUNNING, gcode_file: /data/Metadata/plate_1.gcode, subtask_name: He_Man_Wig
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '11', 'ams_exist_bits_raw': '11', 'cali_id': 255, 'cali_stat': 0, 'insert_flag': True, 'power_on_flag': True, 'tray_exist_bits': '6', 'tray_hall_out_bits': '0', 'tray_is_bbl_bits': '6', 'tray_now': '0', 'tray_pre': '0', 'tray_read_done_bits': '6', 'tray_reading_bits': '0', 'tray_tar': '0', 'unbind_ams_stat': 0, 'version': 76364}
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] H2D tray_now: ams.tray_now slot 0 != snow slot -1, using snow value 254
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 254
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 2 new units, 2 total
+2026-06-07 20:05:52,669 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x10002003 -> extruder 0
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 128 info=0x10002104 -> extruder 1
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0, '128': 1}
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 768 (main=3, sub=0)
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] device.extruder.state=2 (switch_state bits 12-14: 0)
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] info.temp direct: 30°C (heater OFF)
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ctc_info keys: ['temp']
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=30.0, heating=False, respect_local=False
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 30.0, target: 0.0, heating: False
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'agora_service': 'disable', 'brtc_service': 'enable', 'bs_state': 0, 'cap_pic_enable': 'invalid', 'ipcam_dev': '1', 'ipcam_record': 'enable', 'laser_preview_res': 5, 'mode_bits': 2, 'resolution': '1080p', 'rtsp_url': 'rtsps://[IP]:322/streaming/live/1', 'timelapse': 'disable', 'tl_store_hpd_type': 2, 'tl_store_path_type': 2, 'tutk_server': 'disable'}
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -38dBm
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'mode': 'on', 'node': 'chamber_light'}, {'mode': 'flashing', 'node': 'work_light'}, {'mode': 'on', 'node': 'chamber_light2'}]
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT mapping field: [65280, 65024]
+2026-06-07 20:05:52,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: RUNNING -> RUNNING, file: /data/Metadata/plate_1.gcode, subtask: He_Man_Wig
