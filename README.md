@@ -683,6 +683,7 @@ Full documentation available at **[wiki.bambuddy.cool](http://wiki.bambuddy.cool
 | P1 | P1P, P1S |
 | P2 | P2S |
 | A1 | A1, A1 Mini |
+| A2 | A2L |
 
 ---
 
