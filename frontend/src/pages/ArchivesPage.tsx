@@ -3881,10 +3881,19 @@ export function ArchivesPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
                               {entry.filament_color && (
-                                <span
-                                  className="w-3 h-3 rounded-full border border-black/20 flex-shrink-0"
-                                  style={{ backgroundColor: entry.filament_color.startsWith('#') ? entry.filament_color : undefined }}
-                                />
+                                <div className="flex items-center gap-0.5 flex-wrap">
+                                  {entry.filament_color.split(',').map((color, i) => {
+                                    const trimmed = color.trim();
+                                    return (
+                                      <span
+                                        key={i}
+                                        className="w-3 h-3 rounded-full border border-black/20 flex-shrink-0"
+                                        style={{ backgroundColor: trimmed.startsWith('#') ? trimmed : undefined }}
+                                        title={trimmed}
+                                      />
+                                    );
+                                  })}
+                                </div>
                               )}
                               <span className="text-bambu-gray-light text-xs">
                                 {entry.filament_type || '—'}
