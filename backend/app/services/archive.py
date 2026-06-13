@@ -1313,8 +1313,14 @@ class ArchiveService:
         date_to: date | None = None,
         limit: int = 50,
         offset: int = 0,
+        visible_to_user_id: int | None = None,
     ) -> list[PrintArchive]:
-        """List archives with optional filtering."""
+        """List archives with optional filtering.
+
+        ``visible_to_user_id`` scopes results to archives that user owns. Used
+        when the caller has ARCHIVES_READ_OWN but not ARCHIVES_READ_ALL — pass
+        ``None`` to skip the filter (caller has read-all or auth is disabled).
+        """
         from sqlalchemy.orm import selectinload
 
         query = (
@@ -1340,6 +1346,9 @@ class ArchiveService:
         if date_to:
             dt_to = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
             query = query.where(PrintArchive.created_at <= dt_to)
+
+        if visible_to_user_id is not None:
+            query = query.where(PrintArchive.created_by_id == visible_to_user_id)
 
         query = query.limit(limit).offset(offset)
         result = await self.db.execute(query)
