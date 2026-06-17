@@ -1,0 +1,200 @@
+2026-06-17 13:54:00,279 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:00,280 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61203 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:00,550 INFO [uvicorn.access] [-] [IP]:61203 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:02,296 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:02,297 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61208 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:03,671 INFO [uvicorn.access] [-] [IP]:61208 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:04,313 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:04,314 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61212 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:06,730 INFO [uvicorn.access] [-] [IP]:61212 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+INFO:     [IP]:61220 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:09,977 INFO [uvicorn.access] [-] [IP]:61220 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:10,347 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:10,347 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+2026-06-17 13:54:12,362 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:12,362 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61222 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:13,202 INFO [uvicorn.access] [-] [IP]:61222 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:14,382 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:14,383 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -66dBm
+INFO:     [IP]:61224 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:16,384 INFO [uvicorn.access] [-] [IP]:61224 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:18,403 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:18,403 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61226 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:19,640 INFO [uvicorn.access] [-] [IP]:61226 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:20,420 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:20,420 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:54:22,435 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:22,436 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61228 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:22,867 INFO [uvicorn.access] [-] [IP]:61228 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:25,491 DEBUG [backend.app.services.network_utils] [7ef970fe] ip command not found, using ioctl fallback
+INFO:     [IP]:61260 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:25,961 INFO [uvicorn.access] [-] [IP]:61260 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:26,471 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:26,472 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:54:28,491 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:28,491 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -69dBm
+INFO:     [IP]:61263 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:29,022 INFO [uvicorn.access] [-] [IP]:61263 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:29,208 DEBUG [backend.app.services.bambu_mqtt] [d7c4c358] [[SERIAL]] Requesting status update (pushall)
+INFO:     [IP]:61265 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200 OK
+2026-06-17 13:54:29,209 INFO [uvicorn.access] [-] [IP]:61265 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-06-17 13:54:29,535 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: FINISH, gcode_file: , subtask_name: Vacuum_Adapter
+2026-06-17 13:54:29,536 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '255', 'tray_now': '255', 'tray_pre': '255', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 47, 'insert_flag': True, 'power_on_flag': False}
+2026-06-17 13:54:29,536 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 255
+2026-06-17 13:54:29,536 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-06-17 13:54:29,536 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-06-17 13:54:29,537 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-06-17 13:54:29,537 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 0 (main=0, sub=0)
+2026-06-17 13:54:29,537 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:29,537 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-06-17 13:54:29,537 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-06-17 13:54:29,537 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-06-17 13:54:29,538 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-06-17 13:54:29,538 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-06-17 13:54:29,538 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-06-17 13:54:29,538 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -69dBm
+2026-06-17 13:54:29,539 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-06-17 13:54:29,539 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: FINISH -> FINISH, file: , subtask: Vacuum_Adapter
+2026-06-17 13:54:31,534 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:31,534 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61271 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:32,171 INFO [uvicorn.access] [-] [IP]:61271 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+INFO:     [IP]:61282 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200 OK
+2026-06-17 13:54:33,488 INFO [uvicorn.access] [-] [IP]:61282 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+INFO:     [IP]:61309 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:33,549 INFO [uvicorn.access] [-] [IP]:61309 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:33,593 INFO [backend.app.services.virtual_printer.certificate] [7fbea3a5] Using existing CA certificate (expires in 7299 days)
+2026-06-17 13:54:33,593 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:33,594 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:54:33,608 DEBUG [backend.app.services.network_utils] [5fd38092] ip command not found, using ioctl fallback
+2026-06-17 13:54:35,567 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:35,567 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61318 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:36,650 INFO [uvicorn.access] [-] [IP]:61318 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:39,607 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:39,607 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -69dBm
+INFO:     [IP]:61328 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:39,751 INFO [uvicorn.access] [-] [IP]:61328 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:41,623 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:41,624 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61330 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:42,881 INFO [uvicorn.access] [-] [IP]:61330 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:43,639 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:43,640 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -69dBm
+2026-06-17 13:54:45,654 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:45,654 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -66dBm
+INFO:     [IP]:61336 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:46,029 INFO [uvicorn.access] [-] [IP]:61336 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+INFO:     [IP]:61342 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:49,173 INFO [uvicorn.access] [-] [IP]:61342 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:49,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:49,670 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:54:51,687 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:51,688 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61344 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:52,293 INFO [uvicorn.access] [-] [IP]:61344 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:53,704 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:53,705 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61350 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:55,362 INFO [uvicorn.access] [-] [IP]:61350 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:57,729 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:54:57,730 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61352 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:54:58,496 INFO [uvicorn.access] [-] [IP]:61352 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:54:59,742 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+INFO:     [IP]:61363 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:01,642 INFO [uvicorn.access] [-] [IP]:61363 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:01,758 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:01,758 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:55:03,774 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:03,775 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61372 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:04,745 INFO [uvicorn.access] [-] [IP]:61372 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:07,796 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:07,797 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -66dBm
+INFO:     [IP]:61374 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:07,868 INFO [uvicorn.access] [-] [IP]:61374 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:09,811 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:09,811 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61378 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:10,990 INFO [uvicorn.access] [-] [IP]:61378 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:11,828 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:11,829 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61384 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:14,140 INFO [uvicorn.access] [-] [IP]:61384 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:15,848 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:15,848 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61386 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:17,215 INFO [uvicorn.access] [-] [IP]:61386 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:19,879 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:19,880 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61392 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:20,343 INFO [uvicorn.access] [-] [IP]:61392 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:21,894 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+INFO:     [IP]:61394 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:23,428 INFO [uvicorn.access] [-] [IP]:61394 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+INFO:     [IP]:61401 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:26,547 INFO [uvicorn.access] [-] [IP]:61401 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:27,927 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:27,928 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+INFO:     [IP]:61405 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:29,643 INFO [uvicorn.access] [-] [IP]:61405 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+INFO:     [IP]:61407 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:32,731 INFO [uvicorn.access] [-] [IP]:61407 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:33,963 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:33,964 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -66dBm
+INFO:     [IP]:61417 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:35,848 INFO [uvicorn.access] [-] [IP]:61417 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:35,976 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:35,977 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:55:37,992 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:37,993 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -69dBm
+INFO:     [IP]:61421 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:38,943 INFO [uvicorn.access] [-] [IP]:61421 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:42,012 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:42,012 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+INFO:     [IP]:61423 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:42,078 INFO [uvicorn.access] [-] [IP]:61423 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:44,028 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:44,070 DEBUG [backend.app.services.bambu_mqtt] [075e64d7] [[SERIAL]] Requesting status update (pushall)
+INFO:     [IP]:61429 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200 OK
+2026-06-17 13:55:44,071 INFO [uvicorn.access] [-] [IP]:61429 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-06-17 13:55:45,053 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: FINISH, gcode_file: , subtask_name: Vacuum_Adapter
+2026-06-17 13:55:45,053 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '255', 'tray_now': '255', 'tray_pre': '255', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 47, 'insert_flag': True, 'power_on_flag': False}
+2026-06-17 13:55:45,053 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 255
+2026-06-17 13:55:45,054 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-06-17 13:55:45,054 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-06-17 13:55:45,054 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-06-17 13:55:45,054 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 0 (main=0, sub=0)
+2026-06-17 13:55:45,054 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:45,054 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-06-17 13:55:45,055 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-06-17 13:55:45,055 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-06-17 13:55:45,055 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-06-17 13:55:45,055 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-06-17 13:55:45,056 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-06-17 13:55:45,056 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -68dBm
+2026-06-17 13:55:45,056 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-06-17 13:55:45,056 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: FINISH -> FINISH, file: , subtask: Vacuum_Adapter
+INFO:     [IP]:61430 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:45,143 INFO [uvicorn.access] [-] [IP]:61430 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+INFO:     [IP]:61432 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:48,268 INFO [uvicorn.access] [-] [IP]:61432 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:49,084 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:49,085 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -67dBm
+2026-06-17 13:55:51,102 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:51,103 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -66dBm
+INFO:     [IP]:61438 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:51,420 INFO [uvicorn.access] [-] [IP]:61438 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:53,118 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:53,119 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -69dBm
+INFO:     [IP]:61444 - "POST /api/v1/auth/ws-token HTTP/1.1" 200 OK
+2026-06-17 13:55:54,566 INFO [uvicorn.access] [-] [IP]:61444 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-06-17 13:55:57,144 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-06-17 13:55:57,144 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -66dBm
