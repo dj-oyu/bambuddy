@@ -142,22 +142,16 @@ def _enrich_response(item: PrintQueueItem) -> PrintQueueItemResponse:
         except json.JSONDecodeError:
             filament_overrides_parsed = None
 
-    # Parse nozzle_mapping + nozzles_info from JSON string (#1780 — H2C rack
-    # slicer-pick preservation). Both are nullable opaque JSON blobs stored
-    # verbatim from BambuStudio's project_file; surface them parsed for the
-    # response model and any future "edit print → nozzle" UI.
+    # Parse nozzle_mapping from JSON string (#1780 — H2C rack slicer-pick
+    # preservation). Nullable opaque JSON blob stored verbatim from
+    # BambuStudio's project_file; surface it parsed for the response model
+    # and any future "edit print → nozzle" UI.
     nozzle_mapping_parsed = None
     if item.nozzle_mapping:
         try:
             nozzle_mapping_parsed = json.loads(item.nozzle_mapping)
         except json.JSONDecodeError:
             nozzle_mapping_parsed = None
-    nozzles_info_parsed = None
-    if item.nozzles_info:
-        try:
-            nozzles_info_parsed = json.loads(item.nozzles_info)
-        except json.JSONDecodeError:
-            nozzles_info_parsed = None
 
     # Create response with parsed ams_mapping
     item_dict = {
@@ -203,7 +197,6 @@ def _enrich_response(item: PrintQueueItem) -> PrintQueueItemResponse:
         "gcode_injection": item.gcode_injection,
         # H2C rack-swap nozzle pick (#1780)
         "nozzle_mapping": nozzle_mapping_parsed,
-        "nozzles_info": nozzles_info_parsed,
     }
     response = PrintQueueItemResponse(**item_dict)
     if item.archive:
@@ -1035,8 +1028,6 @@ async def update_queue_item(
         update_data["nozzle_mapping"] = (
             json.dumps(update_data["nozzle_mapping"]) if update_data["nozzle_mapping"] else None
         )
-    if "nozzles_info" in update_data:
-        update_data["nozzles_info"] = json.dumps(update_data["nozzles_info"]) if update_data["nozzles_info"] else None
 
     for field, value in update_data.items():
         setattr(item, field, value)

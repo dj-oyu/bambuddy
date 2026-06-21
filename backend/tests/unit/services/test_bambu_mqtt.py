@@ -5082,14 +5082,17 @@ class TestStartPrintRecordsDispatchedPlate:
 
 
 class TestStartPrintNozzleMappingDispatch:
-    """H2C dual-nozzle-rack (#1780) — nozzle_mapping + nozzles_info on dispatch.
+    """H2C dual-nozzle-rack (#1780) — nozzle_mapping on dispatch.
 
     BambuStudio's project_file MQTT command for O1C2 carries a per-filament
-    physical nozzle position ID array (`nozzle_mapping`) and a per-extruder
-    rack metadata array (`nozzles_info`). Without forwarding both, the H2C
-    firmware falls back to "last matching nozzle type" auto-pick and ignores
-    the user's slicer choice. Tests pin the gate, the parse, the no-op cases,
-    and the malformed-JSON safety net.
+    physical nozzle position ID array (`nozzle_mapping`). Without forwarding
+    it, the H2C firmware falls back to "last matching nozzle type" auto-pick
+    and ignores the user's slicer choice. Tests pin the gate, the parse, the
+    no-op cases, and the malformed-JSON safety net.
+
+    The original #1780 attempt also captured `nozzles_info` but a wire capture
+    on H2C confirmed BambuStudio never sends that field — the capture/dispatch
+    paths for it were dropped in the same release.
     """
 
     @pytest.fixture
@@ -5111,29 +5114,23 @@ class TestStartPrintNozzleMappingDispatch:
         call_args = mqtt_client._client.publish.call_args
         return json.loads(call_args[0][1])["print"]
 
-    def test_dual_nozzle_includes_nozzle_mapping_and_nozzles_info(self, mqtt_client):
-        """Dual-nozzle + both fields present → parsed JSON arrays injected
+    def test_dual_nozzle_includes_nozzle_mapping(self, mqtt_client):
+        """Dual-nozzle + nozzle_mapping present → parsed JSON array injected
         verbatim onto the dispatched project_file command."""
         mqtt_client._is_dual_nozzle = True
-        nozzles_info = [
-            {"id": 1, "type": None, "flowSize": "High Flow", "diameter": 0.4},
-            {"id": 2, "type": None, "flowSize": "Standard", "diameter": 0.4},
-        ]
 
         mqtt_client.start_print(
             "test.3mf",
-            nozzle_mapping=json.dumps([16, 0, 19]),
-            nozzles_info=json.dumps(nozzles_info),
+            nozzle_mapping=json.dumps([16, -1, -1, 1, -1, -1, -1, -1]),
         )
 
         cmd = self._published_print_cmd(mqtt_client)
-        # Lists, not strings — the wire shape must match BambuStudio's.
-        assert cmd["nozzle_mapping"] == [16, 0, 19]
-        assert cmd["nozzles_info"] == nozzles_info
+        # List, not string — the wire shape must match BambuStudio's.
+        assert cmd["nozzle_mapping"] == [16, -1, -1, 1, -1, -1, -1, -1]
 
     def test_single_nozzle_omits_nozzle_mapping_even_if_set(self, mqtt_client):
-        """A single-nozzle printer must NOT emit the rack fields even if the
-        caller passes them (defense-in-depth — the queue item could legitimately
+        """A single-nozzle printer must NOT emit the rack field even if the
+        caller passes it (defense-in-depth — the queue item could legitimately
         carry a stale capture from before a model change)."""
         mqtt_client._is_dual_nozzle = False
         mqtt_client.model = "P1S"  # single-nozzle
@@ -5141,41 +5138,22 @@ class TestStartPrintNozzleMappingDispatch:
         mqtt_client.start_print(
             "test.3mf",
             nozzle_mapping=json.dumps([16, 0, 19]),
-            nozzles_info=json.dumps([{"id": 1}]),
         )
 
         cmd = self._published_print_cmd(mqtt_client)
         assert "nozzle_mapping" not in cmd
-        assert "nozzles_info" not in cmd
 
-    def test_dual_nozzle_no_fields_no_injection(self, mqtt_client):
+    def test_dual_nozzle_no_field_no_injection(self, mqtt_client):
         """Dual-nozzle printer + no slicer pick (NULL on queue item) → command
-        carries no nozzle_mapping / nozzles_info. The firmware then runs its
-        normal auto-pick, which is the pre-fix behaviour for any non-O1C2 dual-
+        carries no nozzle_mapping. The firmware then runs its normal
+        auto-pick, which is the pre-fix behaviour for any non-O1C2 dual-
         nozzle model that has no rack to disambiguate against anyway."""
         mqtt_client._is_dual_nozzle = True
 
-        mqtt_client.start_print("test.3mf", nozzle_mapping=None, nozzles_info=None)
+        mqtt_client.start_print("test.3mf", nozzle_mapping=None)
 
         cmd = self._published_print_cmd(mqtt_client)
         assert "nozzle_mapping" not in cmd
-        assert "nozzles_info" not in cmd
-
-    def test_dual_nozzle_partial_only_mapping(self, mqtt_client):
-        """Half-populated case: nozzle_mapping carried but nozzles_info NULL.
-        Forward what we have; firmware tolerates a missing rack metadata
-        field and resolves against its own state."""
-        mqtt_client._is_dual_nozzle = True
-
-        mqtt_client.start_print(
-            "test.3mf",
-            nozzle_mapping=json.dumps([16]),
-            nozzles_info=None,
-        )
-
-        cmd = self._published_print_cmd(mqtt_client)
-        assert cmd["nozzle_mapping"] == [16]
-        assert "nozzles_info" not in cmd
 
     def test_malformed_nozzle_mapping_is_logged_and_omitted(self, mqtt_client, caplog):
         """Invalid JSON on the queue item must NOT block the dispatch. Log a
@@ -5189,7 +5167,6 @@ class TestStartPrintNozzleMappingDispatch:
             result = mqtt_client.start_print(
                 "test.3mf",
                 nozzle_mapping="not valid json {",
-                nozzles_info=None,
             )
 
         assert result is True  # dispatch still proceeded
@@ -5197,17 +5174,16 @@ class TestStartPrintNozzleMappingDispatch:
         assert "nozzle_mapping" not in cmd
         assert any("Invalid nozzle_mapping" in rec.message for rec in caplog.records)
 
-    def test_empty_string_fields_are_treated_as_absent(self, mqtt_client):
+    def test_empty_string_field_is_treated_as_absent(self, mqtt_client):
         """An empty-string column value (legacy data, or a NOT NULL DB
         recovery shim) must behave the same as NULL — no injection, no
         parse error log."""
         mqtt_client._is_dual_nozzle = True
 
-        mqtt_client.start_print("test.3mf", nozzle_mapping="", nozzles_info="")
+        mqtt_client.start_print("test.3mf", nozzle_mapping="")
 
         cmd = self._published_print_cmd(mqtt_client)
         assert "nozzle_mapping" not in cmd
-        assert "nozzles_info" not in cmd
 
 
 class TestFilamentTrackSwitchDetection:

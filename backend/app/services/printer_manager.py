@@ -566,15 +566,13 @@ class PrinterManager:
         use_ams: bool = True,
         nozzle_offset_cali: bool = False,
         nozzle_mapping: str | None = None,
-        nozzles_info: str | None = None,
     ) -> bool:
         """Start a print on a connected printer.
 
-        ``nozzle_mapping`` and ``nozzles_info`` are opaque JSON strings
-        captured from BambuStudio's project_file MQTT command (H2C rack-swap
-        slicer pick preservation, #1780). They ride through to the MQTT
-        client untouched; the dispatch builder there parses + injects them
-        only on dual-nozzle models.
+        ``nozzle_mapping`` is an opaque JSON string captured from BambuStudio's
+        project_file MQTT command (H2C rack-swap slicer pick preservation,
+        #1780). It rides through to the MQTT client untouched; the dispatch
+        builder there parses + injects it only on dual-nozzle models.
         """
         caller = traceback.extract_stack(limit=3)[0]
         logger.info(
@@ -598,7 +596,6 @@ class PrinterManager:
                 use_ams=use_ams,
                 nozzle_offset_cali=nozzle_offset_cali,
                 nozzle_mapping=nozzle_mapping,
-                nozzles_info=nozzles_info,
             )
         return False
 

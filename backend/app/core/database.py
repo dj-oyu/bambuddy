@@ -969,11 +969,14 @@ async def run_migrations(conn):
         await _safe_execute(conn, "ALTER TABLE virtual_printers ADD COLUMN gcode_injection BOOLEAN DEFAULT FALSE")
 
     # Migration: nozzle_mapping + nozzles_info on print_queue for H2C rack-swap
-    # slicer-pick preservation (#1780). Opaque JSON-string columns carrying
-    # BambuStudio's per-filament physical nozzle position IDs and the
-    # per-extruder rack metadata, forwarded straight from the VP intake to
-    # the dispatcher's project_file MQTT command. NULL on every other model.
-    # Nullable TEXT — no Postgres / SQLite divergence here.
+    # slicer-pick preservation (#1780). Opaque JSON-string column carrying
+    # BambuStudio's per-filament physical nozzle position IDs, forwarded
+    # straight from the VP intake to the dispatcher's project_file MQTT
+    # command. NULL on every other model. Nullable TEXT — no Postgres / SQLite
+    # divergence here. `nozzles_info` shipped in the original #1780 attempt
+    # but BambuStudio never actually sends it (verified via wire capture on
+    # H2C, see CHANGELOG 0.2.5b1) — the column stays nullable so old rows
+    # still load; nothing reads or writes to it anymore.
     await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN nozzle_mapping TEXT")
     await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN nozzles_info TEXT")
 

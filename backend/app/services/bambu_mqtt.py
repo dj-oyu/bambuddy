@@ -3502,7 +3502,6 @@ class BambuMQTTClient:
         use_ams: bool = True,
         nozzle_offset_cali: bool = False,
         nozzle_mapping: str | None = None,
-        nozzles_info: str | None = None,
     ):
         """Start a print job on the printer.
 
@@ -3528,9 +3527,6 @@ class BambuMQTTClient:
                 firmware honours the user's slicer pick instead of falling
                 back to "last matching nozzle" auto-pick. Silently ignored
                 on single-nozzle printers.
-            nozzles_info: Opaque JSON string for the per-extruder rack
-                metadata BambuStudio's project_file carries alongside
-                `nozzle_mapping` (#1780). Same dual-nozzle gating.
         """
         if self._client and self.state.connected:
             # Bambu print command format — matches Bambu Studio's format.
@@ -3690,32 +3686,24 @@ class BambuMQTTClient:
 
             # H2C dual-nozzle-rack slicer-pick preservation (#1780).
             # `nozzle_mapping` carries per-filament physical nozzle position
-            # IDs (`list[int]`), `nozzles_info` carries per-extruder rack
-            # metadata (`list[dict]`). Both are JSON-string-encoded when
-            # they leave the queue item; parse here so the wire ships
-            # arrays/objects, matching BambuStudio's project_file shape.
-            # Gate by `is_dual_nozzle` defensively — single-nozzle firmwares
-            # would ignore them but we err on the side of not emitting
-            # unrecognised fields. A parse failure is logged but never
-            # blocks the dispatch — the firmware will fall back to its
-            # auto-pick path, which is the pre-fix behaviour.
-            if is_dual_nozzle:
-                for src_str, json_key in (
-                    (nozzle_mapping, "nozzle_mapping"),
-                    (nozzles_info, "nozzles_info"),
-                ):
-                    if not src_str:
-                        continue
-                    try:
-                        command["print"][json_key] = json.loads(src_str)
-                    except json.JSONDecodeError:
-                        logger.warning(
-                            "[%s] Invalid %s JSON on dispatch, omitting from "
-                            "project_file (firmware will auto-pick): %r",
-                            self.serial_number,
-                            json_key,
-                            src_str,
-                        )
+            # IDs (`list[int]`), JSON-string-encoded when it leaves the queue
+            # item; parse here so the wire ships an array, matching
+            # BambuStudio's project_file shape. Gate by `is_dual_nozzle`
+            # defensively — single-nozzle firmwares would ignore the field
+            # but we err on the side of not emitting unrecognised fields. A
+            # parse failure is logged but never blocks the dispatch — the
+            # firmware will fall back to its auto-pick path, which is the
+            # pre-fix behaviour.
+            if is_dual_nozzle and nozzle_mapping:
+                try:
+                    command["print"]["nozzle_mapping"] = json.loads(nozzle_mapping)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "[%s] Invalid nozzle_mapping JSON on dispatch, omitting from "
+                        "project_file (firmware will auto-pick): %r",
+                        self.serial_number,
+                        nozzle_mapping,
+                    )
 
             logger.info("[%s] Sending print command: %s", self.serial_number, json.dumps(command))
             self._client.publish(self.topic_publish, json.dumps(command), qos=1)
