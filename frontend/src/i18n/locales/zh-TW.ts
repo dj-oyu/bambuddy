@@ -193,6 +193,25 @@ export default {
       large: '大卡片',
       extraLarge: '超大卡片',
     },
+    pageView: {
+      cards: '卡片',
+      camWall: '攝影機牆',
+    },
+    camWall: {
+      noPrinters: '沒有可顯示的印表機',
+      noSignal: '無訊號',
+      live: '直播',
+      snap: '快照',
+      off: '關閉',
+      summary: '直播 {{live}} 個，快照 {{snap}} 個，共 {{total}} 個',
+      settings: {
+        title: '攝影機牆設定',
+        maxLive: '最大直播數',
+        maxLiveHint: '同時直播的畫面數量。其他畫面以快照重新整理。',
+        snapshotInterval: '快照重新整理間隔（秒）',
+        snapshotIntervalHint: '非直播畫面取得新快照的頻率。',
+      },
+    },
     // Controls
     hideOffline: '隱藏離線',
     nextAvailable: '下一個可用',

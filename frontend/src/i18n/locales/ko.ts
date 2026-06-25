@@ -180,6 +180,25 @@ export default {
       large: '큰 카드',
       extraLarge: '아주 큰 카드'
     },
+    pageView: {
+      cards: '카드',
+      camWall: '카메라 월'
+    },
+    camWall: {
+      noPrinters: '표시할 프린터가 없습니다',
+      noSignal: '신호 없음',
+      live: '라이브',
+      snap: '스냅',
+      off: '꺼짐',
+      summary: '라이브 {{live}}개, 스냅 {{snap}}개, 총 {{total}}개',
+      settings: {
+        title: '카메라 월 설정',
+        maxLive: '최대 라이브 스트림',
+        maxLiveHint: '동시에 라이브 스트리밍할 타일 수. 나머지는 스냅샷으로 갱신됩니다.',
+        snapshotInterval: '스냅샷 간격(초)',
+        snapshotIntervalHint: '비라이브 타일이 새 스냅샷을 가져오는 주기.'
+      }
+    },
     hideOffline: '오프라인 숨기기',
     nextAvailable: '다음 가용',
     powerOn: '전원 켜기',

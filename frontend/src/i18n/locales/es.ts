@@ -193,6 +193,25 @@ export default {
       large: 'Tarjetas grandes',
       extraLarge: 'Tarjetas extragrandes',
     },
+    pageView: {
+      cards: 'Tarjetas',
+      camWall: 'Muro de cámaras',
+    },
+    camWall: {
+      noPrinters: 'No hay impresoras que mostrar',
+      noSignal: 'Sin señal',
+      live: 'En vivo',
+      snap: 'Foto',
+      off: 'Inactivo',
+      summary: '{{live}} en vivo, {{snap}} fotos, {{total}} en total',
+      settings: {
+        title: 'Ajustes del muro de cámaras',
+        maxLive: 'Máx. transmisiones en vivo',
+        maxLiveHint: 'Cuántos mosaicos transmiten en vivo a la vez. Los demás se actualizan como fotos.',
+        snapshotInterval: 'Intervalo de fotos (segundos)',
+        snapshotIntervalHint: 'Con qué frecuencia los mosaicos no en vivo obtienen una nueva foto.',
+      },
+    },
     // Controls
     hideOffline: 'Ocultar desconectadas',
     nextAvailable: 'Próxima disponible',

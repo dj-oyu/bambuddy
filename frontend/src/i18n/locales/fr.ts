@@ -193,6 +193,25 @@ export default {
       large: 'Grandes cartes',
       extraLarge: 'Très grandes cartes',
     },
+    pageView: {
+      cards: 'Cartes',
+      camWall: 'Mur de caméras',
+    },
+    camWall: {
+      noPrinters: 'Aucune imprimante à afficher',
+      noSignal: 'Aucun signal',
+      live: 'En direct',
+      snap: 'Photo',
+      off: 'Arrêt',
+      summary: '{{live}} en direct, {{snap}} captures, {{total}} au total',
+      settings: {
+        title: 'Paramètres du mur de caméras',
+        maxLive: 'Flux en direct max.',
+        maxLiveHint: 'Combien de vignettes diffusent en direct à la fois. Les autres se rafraîchissent en captures.',
+        snapshotInterval: 'Intervalle de capture (secondes)',
+        snapshotIntervalHint: 'À quelle fréquence les vignettes hors direct récupèrent une nouvelle capture.',
+      },
+    },
     // Controls
     hideOffline: 'Masquer hors ligne',
     nextAvailable: 'Prochaine disponible',

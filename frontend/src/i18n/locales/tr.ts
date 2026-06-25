@@ -193,6 +193,25 @@ export default {
       large: 'Büyük kartlar',
       extraLarge: 'Çok büyük kartlar',
     },
+    pageView: {
+      cards: 'Kartlar',
+      camWall: 'Kamera duvarı',
+    },
+    camWall: {
+      noPrinters: 'Gösterilecek yazıcı yok',
+      noSignal: 'Sinyal yok',
+      live: 'Canlı',
+      snap: 'Foto',
+      off: 'Kapalı',
+      summary: '{{live}} canlı, {{snap}} fotoğraf, toplam {{total}}',
+      settings: {
+        title: 'Kamera duvarı ayarları',
+        maxLive: 'Maks. canlı yayın',
+        maxLiveHint: 'Aynı anda kaç döşemenin canlı yayın yaptığı. Diğerleri foto olarak yenilenir.',
+        snapshotInterval: 'Foto aralığı (saniye)',
+        snapshotIntervalHint: 'Canlı olmayan döşemelerin ne sıklıkla yeni bir foto aldığı.',
+      },
+    },
     // Kontroller
     hideOffline: 'Çevrimdışı olanları gizle',
     nextAvailable: 'Sıradaki müsait',

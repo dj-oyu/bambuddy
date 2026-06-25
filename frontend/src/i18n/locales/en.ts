@@ -193,6 +193,25 @@ export default {
       large: 'Large cards',
       extraLarge: 'Extra large cards',
     },
+    pageView: {
+      cards: 'Cards',
+      camWall: 'Cam wall',
+    },
+    camWall: {
+      noPrinters: 'No printers to show',
+      noSignal: 'No signal',
+      live: 'Live',
+      snap: 'Snap',
+      off: 'Off',
+      summary: '{{live}} live, {{snap}} snapshots, {{total}} total',
+      settings: {
+        title: 'Cam wall settings',
+        maxLive: 'Max live streams',
+        maxLiveHint: 'How many tiles stream live at once. Others refresh as snapshots.',
+        snapshotInterval: 'Snapshot interval (seconds)',
+        snapshotIntervalHint: 'How often non-live tiles fetch a fresh snapshot.',
+      },
+    },
     // Controls
     hideOffline: 'Hide offline',
     nextAvailable: 'Next available',

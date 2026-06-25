@@ -193,6 +193,25 @@ export default {
       large: 'Cartões grandes',
       extraLarge: 'Cartões extra grandes',
     },
+    pageView: {
+      cards: 'Cartões',
+      camWall: 'Mural de câmeras',
+    },
+    camWall: {
+      noPrinters: 'Nenhuma impressora para exibir',
+      noSignal: 'Sem sinal',
+      live: 'Ao vivo',
+      snap: 'Foto',
+      off: 'Desligado',
+      summary: '{{live}} ao vivo, {{snap}} fotos, {{total}} no total',
+      settings: {
+        title: 'Configurações do mural de câmeras',
+        maxLive: 'Máx. transmissões ao vivo',
+        maxLiveHint: 'Quantos blocos transmitem ao vivo simultaneamente. Os demais atualizam como fotos.',
+        snapshotInterval: 'Intervalo de foto (segundos)',
+        snapshotIntervalHint: 'Com que frequência os blocos não ao vivo buscam uma nova foto.',
+      },
+    },
     // Controls
     hideOffline: 'Ocultar offline',
     nextAvailable: 'Próximo disponível',

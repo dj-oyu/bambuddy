@@ -193,6 +193,25 @@ export default {
       large: 'Große Karten',
       extraLarge: 'Extra große Karten',
     },
+    pageView: {
+      cards: 'Karten',
+      camWall: 'Kamera-Wand',
+    },
+    camWall: {
+      noPrinters: 'Keine Drucker anzuzeigen',
+      noSignal: 'Kein Signal',
+      live: 'Live',
+      snap: 'Foto',
+      off: 'Aus',
+      summary: '{{live}} live, {{snap}} Schnappschüsse, {{total}} insgesamt',
+      settings: {
+        title: 'Kamera-Wand-Einstellungen',
+        maxLive: 'Max. Live-Streams',
+        maxLiveHint: 'Wie viele Kacheln gleichzeitig live streamen. Andere aktualisieren als Schnappschüsse.',
+        snapshotInterval: 'Schnappschuss-Intervall (Sekunden)',
+        snapshotIntervalHint: 'Wie oft Nicht-Live-Kacheln einen neuen Schnappschuss abrufen.',
+      },
+    },
     // Controls
     hideOffline: 'Offline ausblenden',
     nextAvailable: 'Nächster verfügbar',

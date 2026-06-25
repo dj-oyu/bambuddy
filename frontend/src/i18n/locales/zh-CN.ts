@@ -193,6 +193,25 @@ export default {
       large: '大卡片',
       extraLarge: '超大卡片',
     },
+    pageView: {
+      cards: '卡片',
+      camWall: '摄像头墙',
+    },
+    camWall: {
+      noPrinters: '没有可显示的打印机',
+      noSignal: '无信号',
+      live: '直播',
+      snap: '快照',
+      off: '关闭',
+      summary: '直播 {{live}} 个，快照 {{snap}} 个，共 {{total}} 个',
+      settings: {
+        title: '摄像头墙设置',
+        maxLive: '最大直播数',
+        maxLiveHint: '同时直播的画面数量。其他画面以快照刷新。',
+        snapshotInterval: '快照刷新间隔（秒）',
+        snapshotIntervalHint: '非直播画面获取新快照的频率。',
+      },
+    },
     // Controls
     hideOffline: '隐藏离线',
     nextAvailable: '下一个可用',

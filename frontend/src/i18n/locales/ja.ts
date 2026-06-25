@@ -192,6 +192,25 @@ export default {
       large: '大',
       extraLarge: '特大',
     },
+    pageView: {
+      cards: 'カード',
+      camWall: 'カメラウォール',
+    },
+    camWall: {
+      noPrinters: '表示するプリンターがありません',
+      noSignal: '信号なし',
+      live: 'ライブ',
+      snap: 'スナップ',
+      off: 'オフ',
+      summary: 'ライブ {{live}}件、スナップ {{snap}}件、合計 {{total}}件',
+      settings: {
+        title: 'カメラウォール設定',
+        maxLive: '最大ライブ配信数',
+        maxLiveHint: '同時にライブ配信するタイル数。残りはスナップショットとして更新されます。',
+        snapshotInterval: 'スナップショット間隔（秒）',
+        snapshotIntervalHint: '非ライブのタイルが新しいスナップショットを取得する頻度。',
+      },
+    },
     // Controls
     hideOffline: 'オフラインを非表示',
     nextAvailable: '次に完了',

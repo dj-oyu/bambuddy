@@ -193,6 +193,25 @@ export default {
       large: 'Schede grandi',
       extraLarge: 'Schede extra grandi',
     },
+    pageView: {
+      cards: 'Schede',
+      camWall: 'Muro telecamere',
+    },
+    camWall: {
+      noPrinters: 'Nessuna stampante da mostrare',
+      noSignal: 'Nessun segnale',
+      live: 'Live',
+      snap: 'Foto',
+      off: 'Spento',
+      summary: '{{live}} live, {{snap}} foto, {{total}} totali',
+      settings: {
+        title: 'Impostazioni muro telecamere',
+        maxLive: 'Max stream live',
+        maxLiveHint: 'Quante tessere trasmettono in live contemporaneamente. Le altre si aggiornano come foto.',
+        snapshotInterval: 'Intervallo foto (secondi)',
+        snapshotIntervalHint: 'Con quale frequenza le tessere non live scaricano una nuova foto.',
+      },
+    },
     // Controls
     hideOffline: 'Nascondi offline',
     nextAvailable: 'Prossima disponibile',
