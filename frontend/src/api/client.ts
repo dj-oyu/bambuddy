@@ -1087,6 +1087,10 @@ export interface AppSettings {
   check_updates: boolean;
   check_printer_firmware: boolean;
   include_beta_updates: boolean;
+  // #1589: false hides the local username/password form on the login page;
+  // BAMBUDDY_LOCAL_LOGIN=true on the server flips the reported value back to
+  // true so the env-var recovery path is visible to the SPA.
+  local_login_enabled: boolean;
   language: string;
   notification_language: string;
   // AMS threshold settings
@@ -3191,6 +3195,9 @@ export interface OIDCProvider {
   // includes this field in the response (Pydantic default-False is
   // populated unconditionally in the route handler).
   has_icon: boolean;
+  // #1589: when true, the LoginPage redirects unauthenticated visitors
+  // straight to this provider on mount. At most one provider may carry this.
+  is_autologin: boolean;
 }
 
 export interface OIDCProviderCreate {
@@ -3206,6 +3213,7 @@ export interface OIDCProviderCreate {
   require_email_verified?: boolean;
   icon_url?: string | null;
   default_group_id?: number | null;
+  is_autologin?: boolean;  // #1589
 }
 
 export interface OIDCLink {
@@ -3228,6 +3236,13 @@ export interface TestSMTPResponse {
 export interface AdvancedAuthStatus {
   advanced_auth_enabled: boolean;
   smtp_configured: boolean;
+  // #1589: false hides the username/password form on the LoginPage; the env
+  // var BAMBUDDY_LOCAL_LOGIN=true on the server flips this back to true so
+  // the recovery path remains visible.
+  local_login_enabled: boolean;
+  // #1589: when set, LoginPage redirects to this provider's authorize URL
+  // on mount unless ?fallback=local is in the URL or the redirect times out.
+  autologin_provider_id: number | null;
 }
 
 export interface LDAPStatus {

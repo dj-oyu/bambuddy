@@ -1821,6 +1821,10 @@ export default {
     checkPrinterFirmware: 'Vérifier le firmware imprimante',
     includeBetaUpdates: 'Inclure les versions bêta',
     includeBetaUpdatesDesc: 'Notifier des versions bêta et préliminaires lors de la vérification des mises à jour',
+    localLogin: {
+      disable: 'Désactiver la connexion locale par nom d\'utilisateur/mot de passe',
+      disableHint: 'Quand activée, seuls les fournisseurs SSO peuvent se connecter. LDAP n\'est pas affecté. Définissez BAMBUDDY_LOCAL_LOGIN=true sur le serveur pour conserver une voie de récupération.',
+    },
     // Queue
     enableRetry: 'Activer la rétentative',
     // Home Assistant
@@ -2478,6 +2482,8 @@ export default {
         defaultGroup: 'Groupe par défaut',
         defaultGroupDesc: 'Groupe attribué aux utilisateurs créés automatiquement. Repli sur Viewers si non défini.',
         defaultGroupViewersFallback: 'Viewers (par défaut)',
+        autologin: 'Connexion automatique',
+        autologinDesc: 'Rediriger les visiteurs non authentifiés directement vers ce fournisseur. Un seul fournisseur peut porter cet indicateur.',
       },
     },
 
@@ -2672,6 +2678,8 @@ export default {
     signingIn: 'Connexion...',
     rememberMe: 'Se souvenir de moi',
     forgotPassword: 'Mot de passe oublié ?',
+    autologinFailed: 'La connexion SSO automatique a échoué. Choisissez un fournisseur ci-dessous pour continuer.',
+    localDisabledNotice: 'La connexion locale est désactivée. Utilisez l\'un des fournisseurs SSO ci-dessous.',
     loginSuccess: 'Connecté avec succès',
     loginFailed: 'Échec de connexion',
     enterCredentials: 'Entrez vos identifiants',

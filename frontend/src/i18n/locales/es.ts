@@ -1868,6 +1868,10 @@ export default {
     checkPrinterFirmware: 'Comprobar el firmware de la impresora',
     includeBetaUpdates: 'Incluir versiones beta',
     includeBetaUpdatesDesc: 'Notificar sobre versiones beta y preliminares al buscar actualizaciones',
+    localLogin: {
+      disable: 'Deshabilitar el inicio de sesión local con usuario/contraseña',
+      disableHint: 'Cuando se habilita, solo los proveedores SSO pueden iniciar sesión. LDAP no se ve afectado. Defina BAMBUDDY_LOCAL_LOGIN=true en el servidor para mantener una vía de recuperación.',
+    },
     // Queue
     enableRetry: 'Activar reintentos',
     // Home Assistant
@@ -2538,6 +2542,8 @@ export default {
         defaultGroup: 'Grupo predeterminado',
         defaultGroupDesc: 'Grupo asignado a los usuarios creados automáticamente. Si no se establece, se usa Visores como alternativa.',
         defaultGroupViewersFallback: 'Visores (predeterminado)',
+        autologin: 'Inicio automático',
+        autologinDesc: 'Redirigir a los visitantes no autenticados directamente a este proveedor. Solo un proveedor puede llevar esta marca.',
       },
     },
 
@@ -2686,6 +2692,8 @@ export default {
     signingIn: 'Iniciando sesión...',
     rememberMe: 'Recordarme',
     forgotPassword: '¿Olvidó su contraseña?',
+    autologinFailed: 'El inicio de sesión SSO automático falló. Elija un proveedor abajo para continuar.',
+    localDisabledNotice: 'El inicio de sesión local está deshabilitado. Use uno de los proveedores SSO de abajo.',
     loginSuccess: 'Sesión iniciada correctamente',
     loginFailed: 'Error al iniciar sesión',
     enterCredentials: 'Introduzca el nombre de usuario y la contraseña',

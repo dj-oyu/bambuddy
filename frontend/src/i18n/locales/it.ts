@@ -1821,6 +1821,10 @@ export default {
     checkPrinterFirmware: 'Controlla firmware stampante',
     includeBetaUpdates: 'Includi versioni beta',
     includeBetaUpdatesDesc: 'Notifica versioni beta e prerelease durante il controllo aggiornamenti',
+    localLogin: {
+      disable: 'Disabilita l\'accesso locale con nome utente/password',
+      disableHint: 'Quando attivato, solo i provider SSO possono accedere. LDAP non è interessato. Imposta BAMBUDDY_LOCAL_LOGIN=true sul server per mantenere un percorso di ripristino.',
+    },
     // Queue
     enableRetry: 'Abilita retry',
     // Home Assistant
@@ -2477,6 +2481,8 @@ export default {
         defaultGroup: 'Gruppo predefinito',
         defaultGroupDesc: 'Gruppo assegnato agli utenti creati automaticamente. Ritorno a Viewers se non impostato.',
         defaultGroupViewersFallback: 'Viewers (predefinito)',
+        autologin: 'Accesso automatico',
+        autologinDesc: 'Reindirizza i visitatori non autenticati direttamente a questo provider. Solo un provider può avere questo flag.',
       },
     },
 
@@ -2671,6 +2677,8 @@ export default {
     signingIn: 'Accesso in corso...',
     rememberMe: 'Ricordami',
     forgotPassword: 'Hai dimenticato la password?',
+    autologinFailed: 'Accesso SSO automatico fallito. Scegli un provider qui sotto per continuare.',
+    localDisabledNotice: 'L\'accesso locale è disabilitato. Usa uno dei provider SSO qui sotto.',
     loginSuccess: 'Accesso riuscito',
     loginFailed: 'Accesso fallito',
     enterCredentials: 'Inserisci nome utente e password',

@@ -1865,6 +1865,10 @@ export default {
     checkPrinterFirmware: 'Drucker-Firmware prüfen',
     includeBetaUpdates: 'Beta-Versionen einschließen',
     includeBetaUpdatesDesc: 'Über Beta- und Vorabversionen bei der Updateprüfung benachrichtigen',
+    localLogin: {
+      disable: 'Lokale Benutzername-/Passwort-Anmeldung deaktivieren',
+      disableHint: 'Wenn aktiviert, ist nur die Anmeldung über SSO möglich. LDAP ist davon nicht betroffen. Setzen Sie BAMBUDDY_LOCAL_LOGIN=true auf dem Server, um einen Wiederherstellungsweg offen zu halten.',
+    },
     // Queue
     enableRetry: 'Wiederholung aktivieren',
     // Home Assistant
@@ -2535,6 +2539,8 @@ export default {
         defaultGroup: 'Standardgruppe',
         defaultGroupDesc: 'Gruppe, der automatisch erstellte Benutzer zugewiesen werden. Fallback auf Viewers, wenn nicht gesetzt.',
         defaultGroupViewersFallback: 'Viewers (Standard)',
+        autologin: 'Automatische Anmeldung',
+        autologinDesc: 'Nicht angemeldete Besucher direkt zu diesem Anbieter weiterleiten. Diese Option kann nur für einen Anbieter aktiv sein.',
       },
     },
 
@@ -2683,6 +2689,8 @@ export default {
     signingIn: 'Anmeldung läuft...',
     rememberMe: 'Angemeldet bleiben',
     forgotPassword: 'Passwort vergessen?',
+    autologinFailed: 'Automatische SSO-Anmeldung fehlgeschlagen. Bitte wählen Sie unten einen Anbieter.',
+    localDisabledNotice: 'Lokale Anmeldung ist deaktiviert. Bitte verwenden Sie einen der SSO-Anbieter unten.',
     loginSuccess: 'Erfolgreich angemeldet',
     loginFailed: 'Anmeldung fehlgeschlagen',
     enterCredentials: 'Bitte Benutzername und Passwort eingeben',

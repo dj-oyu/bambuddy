@@ -1879,6 +1879,10 @@ export default {
     checkPrinterFirmware: 'Check printer firmware',
     includeBetaUpdates: 'Include beta versions',
     includeBetaUpdatesDesc: 'Notify about beta and prerelease versions when checking for updates',
+    localLogin: {
+      disable: 'Disable local username/password login',
+      disableHint: 'When enabled, only SSO providers can sign in. LDAP is unaffected. Set BAMBUDDY_LOCAL_LOGIN=true on the server to keep a recovery path.',
+    },
     // Queue
     enableRetry: 'Enable retry',
     // Home Assistant
@@ -2550,6 +2554,8 @@ export default {
         defaultGroup: 'Default Group',
         defaultGroupDesc: 'Group assigned to auto-created users. Falls back to Viewers if not set.',
         defaultGroupViewersFallback: 'Viewers (default)',
+        autologin: 'Autologin',
+        autologinDesc: 'Redirect unauthenticated visitors straight to this provider. Only one provider can carry this flag.',
       },
     },
 
@@ -2698,6 +2704,8 @@ export default {
     signingIn: 'Logging in...',
     rememberMe: 'Remember Me',
     forgotPassword: 'Forgot your password?',
+    autologinFailed: 'Automatic SSO sign-in failed. Pick a provider below to continue.',
+    localDisabledNotice: 'Local sign-in is disabled. Use one of the SSO providers below.',
     loginSuccess: 'Logged in successfully',
     loginFailed: 'Login failed',
     enterCredentials: 'Please enter username and password',

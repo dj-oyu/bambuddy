@@ -1866,6 +1866,10 @@ export default {
     checkPrinterFirmware: '检查打印机固件',
     includeBetaUpdates: '包含测试版本',
     includeBetaUpdatesDesc: '检查更新时通知测试版和预发布版本',
+    localLogin: {
+      disable: '禁用本地用户名／密码登录',
+      disableHint: '启用后，只能通过SSO提供商登录。LDAP不受影响。在服务器上设置 BAMBUDDY_LOCAL_LOGIN=true 可保留恢复通道。',
+    },
     // Queue
     enableRetry: '启用重试',
     // Home Assistant
@@ -2522,6 +2526,8 @@ export default {
         defaultGroup: '默认组',
         defaultGroupDesc: '自动创建用户时分配的组。未设置时回退到 Viewers。',
         defaultGroupViewersFallback: 'Viewers（默认）',
+        autologin: '自动登录',
+        autologinDesc: '将未认证的访问者直接重定向到该提供商。只有一个提供商可以携带此标志。',
       },
     },
 
@@ -2671,6 +2677,8 @@ export default {
     signingIn: '登录中...',
     rememberMe: '记住我',
     forgotPassword: '忘记密码？',
+    autologinFailed: '自动SSO登录失败。请在下方选择一个提供商以继续。',
+    localDisabledNotice: '本地登录已禁用。请使用下方的SSO提供商之一。',
     loginSuccess: '登录成功',
     loginFailed: '登录失败',
     enterCredentials: '请输入用户名和密码',

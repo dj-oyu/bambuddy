@@ -1864,6 +1864,10 @@ export default {
     checkPrinterFirmware: 'プリンターファームウェアの確認',
     includeBetaUpdates: 'ベータ版を含める',
     includeBetaUpdatesDesc: 'アップデート確認時にベータ版およびプレリリース版を通知する',
+    localLogin: {
+      disable: 'ローカルのユーザー名／パスワードログインを無効化',
+      disableHint: '有効にすると、SSOプロバイダーのみでサインインできます。LDAPには影響しません。復旧用のパスを残すには、サーバーで BAMBUDDY_LOCAL_LOGIN=true を設定してください。',
+    },
     // Queue
     enableRetry: 'リトライを有効化',
     // Home Assistant
@@ -2534,6 +2538,8 @@ export default {
         defaultGroup: 'デフォルトグループ',
         defaultGroupDesc: '自動作成ユーザーに割り当てられるグループ。未設定の場合はViewersにフォールバックします。',
         defaultGroupViewersFallback: 'Viewers（デフォルト）',
+        autologin: '自動サインイン',
+        autologinDesc: '未認証の訪問者をこのプロバイダーに直接リダイレクトします。このフラグを付けられるプロバイダーは1つだけです。',
       },
     },
 
@@ -2683,6 +2689,8 @@ export default {
     signingIn: 'ログイン中...',
     rememberMe: 'ログイン状態を保持する',
     forgotPassword: 'パスワードをお忘れですか？',
+    autologinFailed: 'SSOへの自動サインインに失敗しました。下から続行するプロバイダーを選択してください。',
+    localDisabledNotice: 'ローカルサインインは無効化されています。下のSSOプロバイダーをご利用ください。',
     loginSuccess: 'ログインしました',
     loginFailed: 'ログインに失敗しました',
     enterCredentials: 'ユーザー名とパスワードを入力してください',

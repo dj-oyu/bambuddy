@@ -1866,6 +1866,10 @@ export default {
     checkPrinterFirmware: '檢查印表機韌體',
     includeBetaUpdates: '包含測試版本',
     includeBetaUpdatesDesc: '檢查更新時通知測試版和預發布版本',
+    localLogin: {
+      disable: '停用本機使用者名稱／密碼登入',
+      disableHint: '啟用後，只能透過SSO提供者登入。LDAP不受影響。在伺服器上設定 BAMBUDDY_LOCAL_LOGIN=true 可保留復原途徑。',
+    },
     // Queue
     enableRetry: '啟用重試',
     // Home Assistant
@@ -2522,6 +2526,8 @@ export default {
         defaultGroup: '預設群組',
         defaultGroupDesc: '自動建立使用者時分配的群組。未設定時回退到 Viewers。',
         defaultGroupViewersFallback: 'Viewers（預設）',
+        autologin: '自動登入',
+        autologinDesc: '將未驗證的訪客直接重新導向至此提供者。此旗標僅能由一個提供者持有。',
       },
     },
 
@@ -2671,6 +2677,8 @@ export default {
     signingIn: '登入中...',
     rememberMe: '記住我',
     forgotPassword: '忘記密碼？',
+    autologinFailed: '自動SSO登入失敗。請在下方選擇一個提供者以繼續。',
+    localDisabledNotice: '本機登入已停用。請使用下方的SSO提供者之一。',
     loginSuccess: '登入成功',
     loginFailed: '登入失敗',
     enterCredentials: '請輸入使用者名稱和密碼',

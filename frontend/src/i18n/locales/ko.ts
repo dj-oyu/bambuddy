@@ -1765,6 +1765,10 @@ export default {
     checkPrinterFirmware: '프린터 펌웨어 확인',
     includeBetaUpdates: '베타 버전 포함',
     includeBetaUpdatesDesc: '업데이트 확인 시 베타 및 사전 릴리스 버전에 대해 알림',
+    localLogin: {
+      disable: '로컬 사용자명/비밀번호 로그인 비활성화',
+      disableHint: '활성화하면 SSO 공급자로만 로그인할 수 있습니다. LDAP는 영향을 받지 않습니다. 서버에서 BAMBUDDY_LOCAL_LOGIN=true 를 설정하면 복구 경로가 유지됩니다.'
+    },
     enableRetry: '재시도 활성화',
     homeAssistantDescription: 'Home Assistant를 통해 스마트 플러그 제어',
     environmentManagedLabel: '(환경 변수 관리)',
@@ -2384,7 +2388,9 @@ export default {
         requireEmailVerifiedAutoLink: '이 설정을 변경하려면 먼저 자동 연결을 비활성화하세요.',
         defaultGroup: '기본 그룹',
         defaultGroupDesc: '자동 생성된 사용자에게 할당되는 그룹. 설정되지 않으면 Viewers로 대체됩니다.',
-        defaultGroupViewersFallback: 'Viewers (기본값)'
+        defaultGroupViewersFallback: 'Viewers (기본값)',
+        autologin: '자동 로그인',
+        autologinDesc: '인증되지 않은 방문자를 이 공급자로 바로 리디렉션합니다. 이 플래그를 가질 수 있는 공급자는 하나뿐입니다.'
       },
       refreshIcon: '아이콘 새로고침',
       removeIcon: '아이콘 제거',
@@ -2526,6 +2532,8 @@ export default {
     signingIn: '로그인 중...',
     rememberMe: '로그인 유지',
     forgotPassword: '비밀번호를 잊으셨나요?',
+    autologinFailed: 'SSO 자동 로그인에 실패했습니다. 아래에서 계속할 공급자를 선택하세요.',
+    localDisabledNotice: '로컬 로그인이 비활성화되어 있습니다. 아래 SSO 공급자 중 하나를 사용하세요.',
     loginSuccess: '성공적으로 로그인되었습니다',
     loginFailed: '로그인 실패',
     enterCredentials: '사용자명과 비밀번호를 입력하세요',

@@ -339,6 +339,21 @@ class AppSettings(BaseModel):
         description="JSON array of 3 fan-speed preset values in % (0-100). Empty = use defaults [50, 75, 100]",
     )
 
+    # Local login (#1589) — when False, /auth/login rejects username+password
+    # credentials with HTTP 403 and the login page hides the credentials form,
+    # leaving only the OIDC SSO provider buttons. LDAP is governed by its own
+    # `ldap_enabled` toggle and is not affected. The env-var
+    # ``BAMBUDDY_LOCAL_LOGIN=true`` bypasses this gate at the route level so a
+    # server admin can recover an install whose SSO provider is unreachable
+    # without editing the DB.
+    local_login_enabled: bool = Field(
+        default=True,
+        description=(
+            "Allow username + password login on /auth/login. Disable when only SSO should be usable. "
+            "BAMBUDDY_LOCAL_LOGIN=true on the server overrides this to keep a recovery path open."
+        ),
+    )
+
     # LDAP authentication (#794)
     ldap_enabled: bool = Field(default=False, description="Enable LDAP authentication")
     ldap_server_url: str = Field(default="", description="LDAP server URL (e.g., ldap://ldap.example.com:389)")
@@ -423,6 +438,7 @@ class AppSettingsUpdate(BaseModel):
     check_updates: bool | None = None
     check_printer_firmware: bool | None = None
     include_beta_updates: bool | None = None
+    local_login_enabled: bool | None = None
     language: str | None = None
     notification_language: str | None = None
     bed_cooled_threshold: float | None = None

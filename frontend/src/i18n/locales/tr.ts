@@ -1868,6 +1868,10 @@ export default {
     checkPrinterFirmware: 'Yazıcı firmware\'ini kontrol et',
     includeBetaUpdates: 'Beta sürümleri dahil et',
     includeBetaUpdatesDesc: 'Güncellemeleri kontrol ederken beta ve önyayım sürümleri hakkında bildir',
+    localLogin: {
+      disable: 'Yerel kullanıcı adı/şifre ile oturum açmayı devre dışı bırak',
+      disableHint: 'Etkinleştirildiğinde yalnızca SSO sağlayıcıları ile oturum açılabilir. LDAP etkilenmez. Bir kurtarma yolu açık tutmak için sunucuda BAMBUDDY_LOCAL_LOGIN=true ayarlayın.',
+    },
     // Kuyruk
     enableRetry: 'Yeniden denemeyi etkinleştir',
     // Home Assistant
@@ -2538,6 +2542,8 @@ export default {
         defaultGroup: 'Varsayılan Grup',
         defaultGroupDesc: 'Otomatik oluşturulan kullanıcılara atanan grup. Ayarlanmazsa Viewers\'a geri döner.',
         defaultGroupViewersFallback: 'Viewers (varsayılan)',
+        autologin: 'Otomatik oturum açma',
+        autologinDesc: 'Kimlik doğrulaması yapılmamış ziyaretçileri doğrudan bu sağlayıcıya yönlendir. Bu işareti yalnızca bir sağlayıcı taşıyabilir.',
       },
     },
 
@@ -2686,6 +2692,8 @@ export default {
     signingIn: 'Giriş yapılıyor...',
     rememberMe: 'Beni Hatırla',
     forgotPassword: 'Parolanızı mı unuttunuz?',
+    autologinFailed: 'Otomatik SSO girişi başarısız oldu. Devam etmek için aşağıdan bir sağlayıcı seçin.',
+    localDisabledNotice: 'Yerel oturum açma devre dışı. Aşağıdaki SSO sağlayıcılarından birini kullanın.',
     loginSuccess: 'Başarıyla giriş yapıldı',
     loginFailed: 'Giriş başarısız',
     enterCredentials: 'Lütfen kullanıcı adı ve parola girin',
