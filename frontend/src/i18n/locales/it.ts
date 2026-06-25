@@ -535,6 +535,7 @@ export default {
       hours: 'ore',
       timeRemaining: '{{time}} rimanente',
       active: 'Essiccazione',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: 'Essiccazione non supportata',
       powerRequired: 'Collegare l\'alimentatore AMS per abilitare l\'asciugatura',
       startingDrying: 'Avvio essiccazione...',

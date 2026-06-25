@@ -535,6 +535,7 @@ export default {
       hours: 'Stunden',
       timeRemaining: '{{time}} verbleibend',
       active: 'Trocknung',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: 'Trocknung nicht unterstützt',
       powerRequired: 'AMS-Netzteil anschließen, um Trocknung zu aktivieren',
       startingDrying: 'Trocknung wird gestartet...',

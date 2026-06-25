@@ -535,6 +535,7 @@ export default {
       hours: 'heures',
       timeRemaining: '{{time}} restant',
       active: 'Séchage',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: 'Séchage non pris en charge',
       powerRequired: 'Brancher l\'adaptateur secteur AMS pour activer le séchage',
       startingDrying: 'Démarrage du séchage...',

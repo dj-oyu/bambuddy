@@ -1245,6 +1245,94 @@ class TestStatusKeyDryingDedup:
         assert result1["ams"] != result2["ams"]
 
 
+class TestDryingTargetExposure:
+    """Tests for dry_target_temp / dry_filament surfacing on AMS state dict.
+
+    Bambu does not echo the active cycle's chosen filament + target
+    temperature on the per-tick AMS push, only the dry_time countdown.
+    The badge needs the cached target so it can render "PETG @ 65°C".
+    """
+
+    def _state_with_ams(self, ams_data: dict) -> object:
+        state = MagicMock()
+        state.connected = True
+        state.state = "IDLE"
+        state.current_print = None
+        state.subtask_name = None
+        state.gcode_file = None
+        state.progress = 0
+        state.remaining_time = 0
+        state.layer_num = 0
+        state.total_layers = 0
+        state.temperatures = {"nozzle": 25, "bed": 25}
+        state.hms_errors = []
+        state.ams_status_main = 0
+        state.ams_status_sub = 0
+        state.tray_now = None
+        state.wifi_signal = -50
+        state.stg_cur = -1
+        state.raw_data = {"ams": [ams_data]}
+        return state
+
+    def test_cached_target_wins_over_tray_fallback(self):
+        """When the cache has a target for this AMS, use it verbatim — even
+        if the loaded tray's filament/recommended-drying-temp differ."""
+        state = self._state_with_ams(
+            {
+                "id": 0,
+                "dry_time": 600,
+                "tray": [
+                    {"id": 0, "tray_type": "PLA", "drying_temp": 50, "state": 11},
+                ],
+            }
+        )
+        result = printer_state_to_dict(state, drying_targets={0: {"filament": "PETG", "temp": 65}})
+        assert result["ams"][0]["dry_filament"] == "PETG"
+        assert result["ams"][0]["dry_target_temp"] == 65
+
+    def test_falls_back_to_loaded_tray_when_no_cache(self):
+        """No cached target → derive from first loaded tray's tray_type +
+        RFID-recommended drying_temp (popover seed heuristic)."""
+        state = self._state_with_ams(
+            {
+                "id": 0,
+                "dry_time": 600,
+                "tray": [
+                    {"id": 0, "tray_type": "ABS", "drying_temp": 70, "state": 11},
+                ],
+            }
+        )
+        result = printer_state_to_dict(state, drying_targets=None)
+        assert result["ams"][0]["dry_filament"] == "ABS"
+        assert result["ams"][0]["dry_target_temp"] == 70
+
+    def test_returns_none_when_no_cache_and_empty_trays(self):
+        """No cache + no loaded tray with tray_type → both fields are None."""
+        state = self._state_with_ams(
+            {
+                "id": 0,
+                "dry_time": 600,
+                "tray": [{"id": 0}],
+            }
+        )
+        result = printer_state_to_dict(state, drying_targets={})
+        assert result["ams"][0]["dry_filament"] is None
+        assert result["ams"][0]["dry_target_temp"] is None
+
+    def test_targets_for_other_ams_id_dont_leak(self):
+        """A cached target for AMS 1 must not surface on AMS 0."""
+        state = self._state_with_ams(
+            {
+                "id": 0,
+                "dry_time": 600,
+                "tray": [{"id": 0}],
+            }
+        )
+        result = printer_state_to_dict(state, drying_targets={1: {"filament": "PETG", "temp": 65}})
+        assert result["ams"][0]["dry_filament"] is None
+        assert result["ams"][0]["dry_target_temp"] is None
+
+
 class TestSupportsChamberTemp:
     """Tests for supports_chamber_temp helper function."""
 

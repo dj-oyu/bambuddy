@@ -535,6 +535,7 @@ export default {
       hours: 'horas',
       timeRemaining: '{{time}} restante',
       active: 'Secando',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: 'Secado no compatible',
       powerRequired: 'Conecte el adaptador de corriente del AMS para activar el secado',
       startingDrying: 'Iniciando el secado...',

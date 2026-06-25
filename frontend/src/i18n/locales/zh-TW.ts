@@ -535,6 +535,7 @@ export default {
       hours: '小時',
       timeRemaining: '剩餘 {{time}}',
       active: '乾燥中',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: '不支援乾燥',
       powerRequired: '連線AMS電源介面卡以啟用乾燥',
       startingDrying: '正在啟動乾燥...',

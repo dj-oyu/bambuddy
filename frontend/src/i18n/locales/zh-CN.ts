@@ -535,6 +535,7 @@ export default {
       hours: '小时',
       timeRemaining: '剩余 {{time}}',
       active: '干燥中',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: '不支持干燥',
       powerRequired: '连接AMS电源适配器以启用干燥',
       startingDrying: '正在启动干燥...',

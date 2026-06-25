@@ -535,6 +535,7 @@ export default {
       hours: 'saat',
       timeRemaining: '{{time}} kaldı',
       active: 'Kurutuluyor',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: 'Kurutma desteklenmiyor',
       powerRequired: 'Kurutmayı etkinleştirmek için AMS güç adaptörünü bağlayın',
       startingDrying: 'Kurutma başlatılıyor...',

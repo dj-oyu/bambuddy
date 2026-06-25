@@ -538,6 +538,7 @@ export default {
       hours: 'hours',
       timeRemaining: '{{time}} left',
       active: 'Drying',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: 'Drying not supported',
       powerRequired: 'Connect AMS power adapter to enable drying',
       startingDrying: 'Starting drying...',

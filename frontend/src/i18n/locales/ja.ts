@@ -534,6 +534,7 @@ export default {
       hours: '時間',
       timeRemaining: '残り {{time}}',
       active: '乾燥中',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: '乾燥非対応',
       powerRequired: 'AMS電源アダプターを接続して乾燥を有効にしてください',
       startingDrying: '乾燥を開始しています...',

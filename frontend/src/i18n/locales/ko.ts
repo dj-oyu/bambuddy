@@ -498,6 +498,7 @@ export default {
       hours: '시간',
       timeRemaining: '{{time}} 남음',
       active: '건조 중',
+      targetSummary: '{{filament}} @ {{temp}}°C',
       notSupported: '건조 지원 안 됨',
       powerRequired: '건조를 활성화하려면 AMS 전원 어댑터를 연결하세요',
       startingDrying: '건조 시작 중...',
