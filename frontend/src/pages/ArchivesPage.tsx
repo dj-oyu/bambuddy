@@ -59,6 +59,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { SliceModal } from '../components/SliceModal';
+import { RunWithPipelineModal } from '../components/RunWithPipelineModal';
 import { openInSlicer, type SlicerType } from '../utils/slicer';
 import { formatDateTime, formatDateOnly, parseUTCDate, type TimeFormat, formatDuration } from '../utils/date';
 import { getCurrencySymbol } from '../utils/currency';
@@ -183,6 +184,7 @@ function ArchiveCard({
   const navigate = useNavigate();
   const [showReprint, setShowReprint] = useState(false);
   const [showSliceModal, setShowSliceModal] = useState(false);
+  const [showRunPipeline, setShowRunPipeline] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // #1343: when true, the delete also drops the row from Quick Stats. Default
   // off — soft delete preserves the archive's filament/time/cost contribution.
@@ -438,6 +440,19 @@ function ArchiveCard({
           }
         },
       },
+      // Run-with-pipeline (#1425 PR B follow-up). Sources from archive's
+      // source 3MF (or file_path fallback). Only when slicer-api is on.
+      ...(useSlicerApi
+        ? [{
+            label: t('library.runWithPipeline.actionLabel'),
+            icon: <Play className="w-4 h-4" />,
+            onClick: () => setShowRunPipeline(true),
+            disabled: !hasPermission('pipelines:run'),
+            title: !hasPermission('pipelines:run')
+              ? t('library.runWithPipeline.noPermission')
+              : undefined,
+          }]
+        : []),
     ]),
     {
       label: archive.external_url ? t('archives.menu.externalLink') : t('archives.menu.viewOnMakerWorld'),
@@ -1277,6 +1292,15 @@ function ArchiveCard({
         />
       )}
 
+      {/* Run-with-Pipeline Modal (#1425 PR B). Sources from archive — backend
+          reads source_3mf_path, falls back to file_path. */}
+      {showRunPipeline && (
+        <RunWithPipelineModal
+          source={{ kind: 'archive', id: archive.id, filename: archive.print_name || archive.filename || 'model' }}
+          onClose={() => setShowRunPipeline(false)}
+        />
+      )}
+
       {/* Delete Confirmation */}
       {showDeleteConfirm && (
         <ConfirmModal
@@ -1582,6 +1606,7 @@ function ArchiveListRow({
   const navigate = useNavigate();
   const [showReprint, setShowReprint] = useState(false);
   const [showSliceModal, setShowSliceModal] = useState(false);
+  const [showRunPipeline, setShowRunPipeline] = useState(false);
   const [showTimelapse, setShowTimelapse] = useState(false);
   const [showTimelapseSelect, setShowTimelapseSelect] = useState(false);
   const [availableTimelapses, setAvailableTimelapses] = useState<Array<{ name: string; path: string; size: number; mtime: string | null }>>([]);
@@ -1797,6 +1822,19 @@ function ArchiveListRow({
           }
         },
       },
+      // Run-with-pipeline (#1425 PR B follow-up). Sources from archive's
+      // source 3MF (or file_path fallback). Only when slicer-api is on.
+      ...(useSlicerApi
+        ? [{
+            label: t('library.runWithPipeline.actionLabel'),
+            icon: <Play className="w-4 h-4" />,
+            onClick: () => setShowRunPipeline(true),
+            disabled: !hasPermission('pipelines:run'),
+            title: !hasPermission('pipelines:run')
+              ? t('library.runWithPipeline.noPermission')
+              : undefined,
+          }]
+        : []),
     ]),
     {
       label: archive.external_url ? t('archives.menu.externalLink') : t('archives.menu.viewOnMakerWorld'),
@@ -2277,6 +2315,15 @@ function ArchiveListRow({
         <SliceModal
           source={{ kind: 'archive', id: archive.id, filename: archive.print_name || archive.filename || 'model' }}
           onClose={() => setShowSliceModal(false)}
+        />
+      )}
+
+      {/* Run-with-Pipeline Modal (#1425 PR B). Sources from archive — backend
+          reads source_3mf_path, falls back to file_path. */}
+      {showRunPipeline && (
+        <RunWithPipelineModal
+          source={{ kind: 'archive', id: archive.id, filename: archive.print_name || archive.filename || 'model' }}
+          onClose={() => setShowRunPipeline(false)}
         />
       )}
 
