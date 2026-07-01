@@ -1,0 +1,200 @@
+2026-07-01 10:34:25,327 INFO [backend.app.services.firmware_check] [93ed4c47] Got Bambu Lab build ID: WY5LDbwsuEVwIbsHPpwjS
+2026-07-01 10:34:31,833 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Probing developer mode via ams_filament_setting (seq=3)
+2026-07-01 10:34:31,850 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Developer mode probe: ENABLED (result='success')
+2026-07-01 10:38:26,676 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 10:43:26,691 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 10:48:26,707 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 10:48:48,223 INFO [uvicorn.access] [-] [IP]:59547 - "POST /api/v1/cloud/login HTTP/1.1" 200
+2026-07-01 10:49:17,415 INFO [uvicorn.access] [-] [IP]:59563 - "POST /api/v1/cloud/verify HTTP/1.1" 200
+2026-07-01 10:52:21,424 INFO [backend.app.services.camera] [3c1c4369] Found ffmpeg at: /usr/bin/ffmpeg
+2026-07-01 10:52:22,338 INFO [backend.app.services.mqtt_relay] [6c3d38d4] MQTT relay disabled
+2026-07-01 10:52:22,347 INFO [uvicorn.access] [-] [IP]:59657 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 10:52:59,900 INFO [backend.app.services.bambu_mqtt] [9dc49ff6] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-07-01 10:52:59,917 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=4, 0 profiles, expected=0.4
+2026-07-01 10:52:59,918 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-07-01 10:52:59,919 INFO [backend.app.services.bambu_mqtt] [9dc49ff6] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-07-01 10:53:26,722 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 10:58:26,737 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:03:26,753 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:08:26,769 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:13:26,783 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:14:02,986 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Unspecified error, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-07-01 11:14:02,987 INFO [backend.app.main] [-] [#1752] Printer 1 connected→disconnected edge; scheduling offline notification in 60s
+2026-07-01 11:14:04,773 INFO [backend.app.main] [-] [#1752] Printer 1 reconnected before debounce; cancelling pending offline notification
+2026-07-01 11:18:26,798 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:23:26,814 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:28:26,833 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:31:23,902 INFO [uvicorn.access] [-] [IP]:60165 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-01 11:32:38,346 INFO [backend.app.services.mqtt_relay] [2639d2d8] MQTT relay disabled
+2026-07-01 11:32:38,353 INFO [uvicorn.access] [-] [IP]:60178 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:33:19,444 INFO [backend.app.services.mqtt_relay] [b987d378] MQTT relay disabled
+2026-07-01 11:33:19,450 INFO [uvicorn.access] [-] [IP]:60190 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:33:26,849 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:33:30,867 INFO [backend.app.services.mqtt_relay] [d3bf38f5] MQTT relay disabled
+2026-07-01 11:33:30,876 INFO [uvicorn.access] [-] [IP]:60190 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:33:35,953 INFO [backend.app.services.mqtt_relay] [4fba2494] MQTT relay disabled
+2026-07-01 11:33:35,963 INFO [uvicorn.access] [-] [IP]:60190 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:33:37,047 INFO [backend.app.services.mqtt_relay] [cf393d0c] MQTT relay disabled
+2026-07-01 11:33:37,055 INFO [uvicorn.access] [-] [IP]:60190 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:34:46,899 INFO [backend.app.services.mqtt_relay] [c1d5007d] MQTT relay disabled
+2026-07-01 11:34:46,909 INFO [uvicorn.access] [-] [IP]:60231 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:35:12,111 INFO [backend.app.services.mqtt_relay] [95de26ae] MQTT relay disabled
+2026-07-01 11:35:12,119 INFO [uvicorn.access] [-] [IP]:60241 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:35:44,301 INFO [backend.app.services.mqtt_relay] [91d25bbd] MQTT relay disabled
+2026-07-01 11:35:44,309 INFO [uvicorn.access] [-] [IP]:60245 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:26,883 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:38:27,528 INFO [backend.app.services.mqtt_relay] [1847212c] MQTT relay disabled
+2026-07-01 11:38:27,536 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:45,867 INFO [backend.app.services.mqtt_relay] [0ad2d417] MQTT relay disabled
+2026-07-01 11:38:45,876 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:47,281 INFO [backend.app.services.mqtt_relay] [c4a6670b] MQTT relay disabled
+2026-07-01 11:38:47,286 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:48,127 INFO [backend.app.services.mqtt_relay] [40634a89] MQTT relay disabled
+2026-07-01 11:38:48,135 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:51,014 INFO [backend.app.services.mqtt_relay] [3b818743] MQTT relay disabled
+2026-07-01 11:38:51,020 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:55,513 INFO [backend.app.services.mqtt_relay] [06be7f35] MQTT relay disabled
+2026-07-01 11:38:55,524 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:38:57,751 INFO [backend.app.services.mqtt_relay] [8417ec7d] MQTT relay disabled
+2026-07-01 11:38:57,760 INFO [uvicorn.access] [-] [IP]:60285 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:40:02,875 INFO [backend.app.services.mqtt_relay] [5d37a28f] MQTT relay disabled
+2026-07-01 11:40:02,883 INFO [uvicorn.access] [-] [IP]:60317 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 11:40:04,548 INFO [uvicorn.access] [-] [IP]:60317 - "POST /api/v1/smart-plugs/ha/test-connection HTTP/1.1" 200
+2026-07-01 11:41:45,857 INFO [backend.app.api.routes.smart_plugs] [79aeb369] Created Home Assistant plug 'Plug 3D Drucker' (switch.plug_3d_drucker)
+2026-07-01 11:41:45,859 INFO [uvicorn.access] [-] [IP]:60336 - "POST /api/v1/smart-plugs/ HTTP/1.1" 200
+2026-07-01 11:42:19,950 INFO [backend.app.api.routes.cloud] [d92847a9] get_filament_info called with 2 IDs: ['GFG99', 'GFL04']
+2026-07-01 11:42:20,432 WARNING [backend.app.api.routes.cloud] [d92847a9] Failed to get cloud preset GFL04 (API ID: GFSL04): Failed to get setting detail: 400
+2026-07-01 11:42:20,437 INFO [uvicorn.access] [-] [IP]:60347 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-01 11:43:26,899 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:48:26,916 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:53:21,228 INFO [backend.app.api.routes.cloud] [1a801d0f] get_filament_info called with 2 IDs: ['GFG99', 'GFL04']
+2026-07-01 11:53:21,768 WARNING [backend.app.api.routes.cloud] [1a801d0f] Failed to get cloud preset GFL04 (API ID: GFSL04): Failed to get setting detail: 400
+2026-07-01 11:53:21,773 INFO [uvicorn.access] [-] [IP]:60744 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-01 11:53:26,932 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 11:54:06,511 INFO [backend.app.services.stl_thumbnail] [6e28f24f] Generated STL thumbnail: /app/data/archive/library/thumbnails/93362dc548d64c66978a80a529e8205f.png
+2026-07-01 11:54:06,519 INFO [uvicorn.access] [-] [IP]:60778 - "POST /api/v1/library/files?generate_stl_thumbnails=true HTTP/1.1" 200
+2026-07-01 11:58:25,492 INFO [backend.app.api.routes.cloud] [dd0a6a2f] get_filament_info called with 2 IDs: ['GFG99', 'GFL04']
+2026-07-01 11:58:25,960 WARNING [backend.app.api.routes.cloud] [dd0a6a2f] Failed to get cloud preset GFL04 (API ID: GFSL04): Failed to get setting detail: 400
+2026-07-01 11:58:25,964 INFO [uvicorn.access] [-] [IP]:60890 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-01 11:58:26,948 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:02:34,608 INFO [uvicorn.access] [-] [IP]:60997 - "POST /api/v1/cloud/settings HTTP/1.1" 200
+2026-07-01 12:03:26,965 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:05:15,004 INFO [backend.app.api.routes.cloud] [39e55f29] get_filament_info called with 2 IDs: ['GFG99', 'GFL04']
+2026-07-01 12:05:15,517 WARNING [backend.app.api.routes.cloud] [39e55f29] Failed to get cloud preset GFL04 (API ID: GFSL04): Failed to get setting detail: 400
+2026-07-01 12:05:15,520 INFO [uvicorn.access] [-] [IP]:61079 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-01 12:05:35,498 INFO [backend.app.services.bambu_mqtt] [6366db8a] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-07-01 12:05:35,547 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=7, 0 profiles, expected=0.4
+2026-07-01 12:05:35,548 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-07-01 12:05:35,549 INFO [backend.app.services.bambu_mqtt] [6366db8a] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-07-01 12:08:26,980 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:13:26,995 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:18:27,017 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:21:23,951 INFO [uvicorn.access] [-] [IP]:61457 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-01 12:23:27,030 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:28:27,040 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:29:46,087 INFO [uvicorn.access] [-] [IP]:61691 - "POST /api/v1/library/files/1/slice HTTP/1.1" 202
+2026-07-01 12:33:27,054 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:36:34,227 INFO [backend.app.services.mqtt_relay] [767b82c2] MQTT relay disabled
+2026-07-01 12:36:34,234 INFO [uvicorn.access] [-] [IP]:61881 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 12:36:34,879 INFO [backend.app.services.mqtt_relay] [cfe0f48e] MQTT relay disabled
+2026-07-01 12:36:34,890 INFO [uvicorn.access] [-] [IP]:61881 - "PUT /api/v1/settings/ HTTP/1.1" 200
+2026-07-01 12:36:42,929 INFO [backend.app.api.routes.cloud] [fc57516e] get_filament_info called with 2 IDs: ['GFG99', 'GFL04']
+2026-07-01 12:36:43,449 WARNING [backend.app.api.routes.cloud] [fc57516e] Failed to get cloud preset GFL04 (API ID: GFSL04): Failed to get setting detail: 400
+2026-07-01 12:36:43,455 INFO [uvicorn.access] [-] [IP]:61884 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-01 12:38:27,070 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:38:46,116 INFO [uvicorn.access] [-] [IP]:61883 - "POST /api/v1/library/files/1/slice HTTP/1.1" 202
+2026-07-01 12:40:32,373 INFO [backend.app.services.bambu_mqtt] [1665fa24] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-07-01 12:40:32,386 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=8, 0 profiles, expected=0.4
+2026-07-01 12:40:32,387 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-07-01 12:40:32,387 INFO [backend.app.services.bambu_mqtt] [1665fa24] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-07-01 12:43:27,085 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:48:27,101 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:52:53,612 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-07-01 12:52:54,043 INFO [uvicorn.access] [-] [IP]:62295 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-01 12:52:54,253 INFO [uvicorn.access] [-] [IP]:62296 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-01 12:52:54,304 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-07-01 12:52:54,304 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-01 12:52:54,305 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-01 12:53:27,116 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 12:53:32,277 INFO [backend.app.services.bambu_mqtt] [97a8a66b] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-07-01 12:53:32,294 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=9, 0 profiles, expected=0.4
+2026-07-01 12:53:32,294 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-07-01 12:53:32,295 INFO [backend.app.services.bambu_mqtt] [97a8a66b] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-07-01 12:53:32,343 INFO [backend.app.services.bambu_mqtt] [ed5cec8f] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-07-01 12:53:32,357 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=10, 0 profiles, expected=0.4
+2026-07-01 12:53:32,358 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-07-01 12:53:32,359 INFO [backend.app.services.bambu_mqtt] [ed5cec8f] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-07-01 12:53:38,149 INFO [backend.app.services.bambu_mqtt] [02279f82] [[SERIAL]] Requesting K-profiles for nozzle_diameter=0.4 (attempt 1/3)
+2026-07-01 12:53:38,168 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] K-profile response: nozzle=0.4, seq_id=11, 0 profiles, expected=0.4
+2026-07-01 12:53:38,169 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Got 0 K-profiles for nozzle=0.4
+2026-07-01 12:53:38,170 INFO [backend.app.services.bambu_mqtt] [02279f82] [[SERIAL]] Got 0 K-profiles for nozzle=0.4 on attempt 1
+2026-07-01 12:58:27,130 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:03:27,145 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:03:48,731 INFO [uvicorn.access] [-] [IP]:62614 - "POST /api/v1/cloud/settings HTTP/1.1" 500
+2026-07-01 13:04:02,010 INFO [uvicorn.access] [-] [IP]:62614 - "POST /api/v1/cloud/settings HTTP/1.1" 500
+2026-07-01 13:04:07,380 INFO [uvicorn.access] [-] [IP]:62614 - "POST /api/v1/cloud/settings HTTP/1.1" 500
+2026-07-01 13:04:59,022 INFO [uvicorn.access] [-] [IP]:62645 - "POST /api/v1/cloud/settings HTTP/1.1" 200
+2026-07-01 13:07:34,619 INFO [uvicorn.access] [-] [IP]:62722 - "POST /api/v1/library/files/1/slice HTTP/1.1" 202
+2026-07-01 13:08:27,160 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:11:22,209 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-07-01 13:13:27,175 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:18:27,190 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:23:27,209 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:28:27,225 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:33:27,240 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:38:27,254 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:43:27,270 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:48:27,287 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:53:27,305 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 13:58:27,320 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:03:27,334 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:08:27,345 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:13:27,360 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:18:27,375 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:23:27,390 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:24:10,864 INFO [uvicorn.access] [-] [IP]:63451 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-01 14:24:11,197 INFO [uvicorn.access] [-] [IP]:63451 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-01 14:24:11,255 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-07-01 14:24:11,256 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-01 14:24:11,257 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-01 14:24:11,396 INFO [backend.app.api.routes.cloud] [25da56ab] get_filament_info called with 2 IDs: ['GFG99', 'GFL04']
+2026-07-01 14:24:11,888 WARNING [backend.app.api.routes.cloud] [25da56ab] Failed to get cloud preset GFL04 (API ID: GFSL04): Failed to get setting detail: 400
+2026-07-01 14:24:11,910 INFO [uvicorn.access] [-] [IP]:63455 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-01 14:28:27,406 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:33:27,422 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-01 14:33:27,705 INFO [backend.app.api.routes.support] [e935aa0e] Log level changed to DEBUG
+2026-07-01 14:33:27,705 INFO [backend.app.api.routes.bug_report] [e935aa0e] Bug report: enabled debug logging
+2026-07-01 14:33:27,705 DEBUG [backend.app.services.bambu_mqtt] [e935aa0e] [[SERIAL]] Requesting status update (pushall)
+2026-07-01 14:33:27,707 INFO [uvicorn.access] [-] [IP]:63825 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-07-01 14:33:27,773 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: IDLE, gcode_file: , subtask_name: 
+2026-07-01 14:33:27,774 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '255', 'tray_now': '255', 'tray_pre': '255', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 6, 'insert_flag': True, 'power_on_flag': False}
+2026-07-01 14:33:27,774 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 255
+2026-07-01 14:33:27,774 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-01 14:33:27,775 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-01 14:33:27,775 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-01 14:33:27,775 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 0 (main=0, sub=0)
+2026-07-01 14:33:27,776 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-01 14:33:27,776 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-07-01 14:33:27,777 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-07-01 14:33:27,777 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-07-01 14:33:27,778 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-07-01 14:33:27,778 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-07-01 14:33:27,779 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-07-01 14:33:27,779 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -43dBm
+2026-07-01 14:33:27,779 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-07-01 14:33:27,780 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: IDLE -> IDLE, file: , subtask: 
+2026-07-01 14:33:29,363 DEBUG [backend.app.main] [-] Recorded 3 printer sensor history entries
+2026-07-01 14:33:29,847 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-01 14:33:29,847 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-01 14:33:29,848 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-01 14:33:29,848 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-01 14:33:29,849 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -44dBm
+2026-07-01 14:33:31,943 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-01 14:33:31,943 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-01 14:33:31,944 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-01 14:33:31,944 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-01 14:33:31,945 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -43dBm
+2026-07-01 14:33:34,018 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-01 14:33:34,018 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-01 14:33:34,019 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-01 14:33:34,019 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
