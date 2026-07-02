@@ -1,0 +1,200 @@
+2026-07-02 22:26:47,830 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:26:49,980 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:26:53,004 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:26:57,624 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:00,691 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:03,081 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:06,113 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:08,814 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:11,852 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:13,044 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:16,080 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:20,234 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:23,265 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:24,520 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:27,553 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:31,292 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:34,329 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:37,058 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:40,841 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:44,781 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:47,848 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:49,337 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:52,837 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:27:54,609 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:27:57,836 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:02,248 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:05,841 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:09,598 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:12,839 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:17,589 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:20,844 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:23,538 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:26,848 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:29,957 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:33,836 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:37,066 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:40,845 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:43,276 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:46,844 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:51,363 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:28:54,835 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:28:58,725 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:29:01,847 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:29:03,599 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:29:06,839 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:29:10,478 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:29:37,922 INFO [root] [-] Logging to file: /app/logs/bambuddy.log
+2026-07-02 22:29:37,923 INFO [root] [-] Bambuddy starting - debug=False, log_level=INFO
+2026-07-02 22:29:39,909 ERROR [backend.app.core.encryption] [-] MFA_ENCRYPTION_KEY is set but is not a valid Fernet key (must decode to exactly 32 bytes). Falling back to file-based key.
+2026-07-02 22:29:40,098 INFO [backend.app.core.database] [-] Added printer_sensor_history:read to Administrators group (ALL_PERMISSIONS sync)
+2026-07-02 22:29:40,099 INFO [backend.app.core.database] [-] Added pipelines:read to Administrators group (ALL_PERMISSIONS sync)
+2026-07-02 22:29:40,099 INFO [backend.app.core.database] [-] Added pipelines:write to Administrators group (ALL_PERMISSIONS sync)
+2026-07-02 22:29:40,099 INFO [backend.app.core.database] [-] Added pipelines:run to Administrators group (ALL_PERMISSIONS sync)
+2026-07-02 22:29:40,117 INFO [backend.app.core.database] [-] Added pipelines:read to group 'Viewers' (backfill)
+2026-07-02 22:29:40,117 INFO [backend.app.core.database] [-] Added pipelines:read to Operators group (backfill)
+2026-07-02 22:29:40,117 INFO [backend.app.core.database] [-] Added pipelines:write to Operators group (backfill)
+2026-07-02 22:29:40,117 INFO [backend.app.core.database] [-] Added pipelines:run to Operators group (backfill)
+2026-07-02 22:29:40,173 INFO [backend.app.services.printer_manager] [-] Loaded 1 printer(s) awaiting plate-clear acknowledgment: [1]
+2026-07-02 22:29:40,259 INFO [backend.app.services.mqtt_relay] [-] MQTT relay connected successfully
+2026-07-02 22:29:41,181 INFO [backend.app.services.mqtt_relay] [-] MQTT relay connected to [IP]:1883
+2026-07-02 22:29:41,183 INFO [backend.app.services.mqtt_smart_plug] [-] MQTT smart plug service connected successfully
+2026-07-02 22:29:42,183 INFO [backend.app.services.mqtt_smart_plug] [-] MQTT smart plug service connected to [IP]:1883
+2026-07-02 22:29:43,209 INFO [backend.app.services.smart_plug_manager] [-] Smart plug scheduler started
+2026-07-02 22:29:43,210 INFO [backend.app.services.smart_plug_manager] [-] Smart plug energy snapshot loop started
+2026-07-02 22:29:43,212 INFO [backend.app.services.print_scheduler] [-] Print scheduler started
+2026-07-02 22:29:43,224 INFO [backend.app.services.notification_service] [-] Notification digest scheduler started
+2026-07-02 22:29:43,224 INFO [backend.app.services.github_backup] [-] Starting GitHub backup scheduler
+2026-07-02 22:29:43,224 INFO [backend.app.services.local_backup] [-] Starting local backup scheduler
+2026-07-02 22:29:43,320 INFO [backend.app.services.obico_detection] [-] Starting Obico detection service
+2026-07-02 22:29:43,321 INFO [backend.app.services.library_trash] [-] Starting library trash sweeper
+2026-07-02 22:29:43,321 INFO [backend.app.services.archive_purge] [-] Starting archive auto-purge sweeper
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] AMS history recording started
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] Printer sensor history recording started
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] Printer runtime tracking started
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] SpoolBuddy watchdog started
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] Camera stream cleanup started
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] Expected prints cleanup started
+2026-07-02 22:29:43,321 INFO [backend.app.main] [-] Auth periodic cleanup started
+2026-07-02 22:29:43,322 INFO [backend.app.services.loop_watchdog] [-] Event-loop stall watchdog started — dumps all thread stacks to stderr if the loop stalls for more than 30s
+2026-07-02 22:29:43,439 INFO [backend.app.services.virtual_printer.manager] [-] [VP [PRINTER]] Starting server-mode services on [IP]
+2026-07-02 22:29:43,441 INFO [backend.app.services.virtual_printer.certificate] [-] Deleted printer certificate (CA preserved)
+2026-07-02 22:29:43,441 INFO [backend.app.services.virtual_printer.certificate] [-] Generating certificates for virtual printer (serial: 20P90A391800001)...
+2026-07-02 22:29:43,535 INFO [backend.app.services.virtual_printer.certificate] [-] Using existing CA certificate (expires in 7250 days)
+2026-07-02 22:29:43,611 INFO [backend.app.services.virtual_printer.certificate] [-] Generating printer certificate with CN=20P90A391800001, local IP: [IP]
+2026-07-02 22:29:43,611 INFO [backend.app.services.virtual_printer.certificate] [-] Added additional SAN IP: [IP]
+2026-07-02 22:29:43,614 INFO [backend.app.services.virtual_printer.certificate] [-] Generated certificate chain at /app/data/virtual_printer/certs/1
+2026-07-02 22:29:43,614 INFO [backend.app.services.virtual_printer.certificate] [-]   CA: CN=Virtual Printer CA
+2026-07-02 22:29:43,614 INFO [backend.app.services.virtual_printer.certificate] [-]   Printer: CN=20P90A391800001
+2026-07-02 22:29:43,614 INFO [backend.app.services.virtual_printer.mqtt_bridge] [-] [[PRINTER]] MQTT bridge IP encoding armed: target=[IP] vp=[IP] (bind_address)
+2026-07-02 22:29:43,614 INFO [backend.app.services.virtual_printer.mqtt_bridge] [-] [[PRINTER]] MQTT bridge bound to printer 1 (serial=[SERIAL])
+2026-07-02 22:29:43,617 INFO [backend.app.services.virtual_printer.ftp_server] [-] [[PRINTER]] Starting virtual printer implicit FTPS on [IP]:990
+2026-07-02 22:29:43,618 INFO [backend.app.services.virtual_printer.ftp_server] [-] FTP SSL context created with standard settings
+2026-07-02 22:29:43,618 INFO [backend.app.services.virtual_printer.mqtt_server] [-] Starting simple MQTT server on port 8883
+2026-07-02 22:29:43,642 INFO [backend.app.services.virtual_printer.mqtt_server] [-] MQTT SSL cert info: subject=CN=20P90A391800001
+issuer=CN=Virtual Printer CA
+2026-07-02 22:29:43,642 INFO [backend.app.services.virtual_printer.mqtt_server] [-] MQTT SSL context: TLS 1.2+, cert=/app/data/virtual_printer/certs/1/virtual_printer.crt
+2026-07-02 22:29:43,643 INFO [backend.app.services.virtual_printer.tcp_proxy] [-] Starting Camera-322 TCP proxy: [IP]:322 → [IP]:322
+2026-07-02 22:29:43,643 INFO [backend.app.services.virtual_printer.bind_server] [-] Starting bind server on ports [3000, 3002] (serial=20P90A391800001, model=N6, tls=True)
+2026-07-02 22:29:43,644 INFO [backend.app.services.virtual_printer.ssdp_server] [-] Starting virtual printer SSDP server: [PRINTER] (20P90A391800001)
+2026-07-02 22:29:43,644 INFO [backend.app.services.virtual_printer.ssdp_server] [-] SSDP server listening on port 2021, advertising IP: [IP]
+2026-07-02 22:29:43,644 INFO [backend.app.services.virtual_printer.ssdp_server] [-] Virtual printer: [PRINTER] (20P90A391800001) model=N6
+2026-07-02 22:29:43,644 INFO [backend.app.services.virtual_printer.ssdp_server] [-] SSDP server also listening on [IP]:2021
+2026-07-02 22:29:43,644 INFO [backend.app.services.virtual_printer.ssdp_server] [-] Sent initial SSDP NOTIFY announcement
+2026-07-02 22:29:43,651 INFO [backend.app.services.virtual_printer.ftp_server] [-] Implicit FTPS server started on port 990
+2026-07-02 22:29:43,651 INFO [backend.app.services.virtual_printer.ftp_server] [-] FTP passive data port range: 50000-50009
+2026-07-02 22:29:43,651 INFO [backend.app.services.virtual_printer.mqtt_server] [-] Simple MQTT server listening on port 8883
+2026-07-02 22:29:43,651 INFO [backend.app.services.virtual_printer.tcp_proxy] [-] Camera-322 TCP proxy listening on port 322
+2026-07-02 22:29:43,651 INFO [backend.app.services.virtual_printer.bind_server] [-] Bind server listening on [IP]:3000 (plain)
+2026-07-02 22:29:43,652 INFO [backend.app.services.virtual_printer.mqtt_server] [-] Starting periodic status push task
+2026-07-02 22:29:43,655 INFO [backend.app.services.virtual_printer.bind_server] [-] Bind server listening on [IP]:3002 (TLS)
+2026-07-02 22:29:43,657 INFO [backend.app.services.virtual_printer.manager] [-] [VP [PRINTER]] Server-mode services started on [IP]
+2026-07-02 22:29:43,657 INFO [backend.app.services.virtual_printer.manager] [-] Started server-mode VP: [PRINTER] on [IP]
+2026-07-02 22:29:43,657 INFO [root] [-] Virtual printer manager synced from database
+2026-07-02 22:29:43,979 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-02 22:29:44,511 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=<anonymous>)
+2026-07-02 22:29:44,511 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-02 22:29:44,512 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-02 22:29:45,837 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:29:45,889 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:29:49,839 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:29:49,899 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:29:49,937 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-02 22:29:50,016 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=<anonymous>)
+2026-07-02 22:29:50,016 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-02 22:29:50,017 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-02 22:29:53,836 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:29:53,894 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:29:57,842 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:29:57,906 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:01,841 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:01,924 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:05,840 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:05,894 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:09,837 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:09,916 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:13,236 INFO [backend.app.services.smart_plug_manager] [-] Captured 1 energy snapshot(s)
+2026-07-02 22:30:13,834 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:13,913 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:17,838 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:17,933 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:21,843 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:21,929 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:25,838 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:26,013 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:29,839 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:30,138 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:33,836 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:34,221 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:37,836 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:39,044 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:42,837 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:44,724 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:47,839 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:51,571 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:54,840 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:30:56,329 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:30:59,836 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:02,239 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:05,853 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:08,360 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:11,845 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:15,999 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:19,840 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:22,866 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:26,838 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:31,295 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:34,852 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:36,110 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:39,835 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:43,456 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:46,838 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:49,777 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:52,839 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:31:56,424 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:31:59,837 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:32:03,403 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:32:06,840 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:32:11,116 INFO [backend.app.api.routes.websocket] [-] WebSocket connect refused: no token (auth enabled)
+2026-07-02 22:32:14,251 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 401
+2026-07-02 22:32:18,591 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/oidc/exchange HTTP/1.1" 200
+2026-07-02 22:32:19,465 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-02 22:32:22,289 INFO [backend.app.services.camera] [b967dbbd] Found ffmpeg at: /usr/bin/ffmpeg
+2026-07-02 22:32:22,295 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-02 22:32:26,001 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-07-02 22:32:26,012 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-02 22:32:26,013 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-02 22:32:55,950 INFO [uvicorn.access] [-] [IP]:0 - "DELETE /api/v1/archives/141?purge_stats=false HTTP/1.1" 403
+2026-07-02 22:32:56,009 INFO [uvicorn.access] [-] [IP]:0 - "DELETE /api/v1/archives/142?purge_stats=false HTTP/1.1" 403
+2026-07-02 22:33:28,001 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/archives/142/reprint HTTP/1.1" 422
+2026-07-02 22:33:51,316 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/maintenance/items/1/perform HTTP/1.1" 403
+2026-07-02 22:33:54,813 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/maintenance/items/1/perform HTTP/1.1" 403
+2026-07-02 22:34:46,044 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/api-keys/ HTTP/1.1" 200
+2026-07-02 22:35:21,466 INFO [uvicorn.access] [-] [IP]:0 - "DELETE /api/v1/archives/141?purge_stats=false HTTP/1.1" 403
+2026-07-02 22:35:21,543 INFO [uvicorn.access] [-] [IP]:0 - "DELETE /api/v1/archives/142?purge_stats=false HTTP/1.1" 403
+2026-07-02 22:38:52,931 INFO [backend.app.api.routes.support] [1489152b] Log level changed to DEBUG
+2026-07-02 22:38:52,931 INFO [backend.app.api.routes.bug_report] [1489152b] Bug report: enabled debug logging
+2026-07-02 22:38:52,931 WARNING [backend.app.services.bambu_mqtt] [1489152b] [[SERIAL]] request_status_update: not connected
+2026-07-02 22:38:52,932 INFO [uvicorn.access] [-] [IP]:0 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-07-02 22:38:55,191 DEBUG [backend.app.api.routes.printers] [f5777740] API returning ams_mapping: [], ams_extruder_map: {}
+2026-07-02 22:38:55,191 DEBUG [backend.app.api.routes.printers] [f5777740] Using tray_now directly as global ID: 255
