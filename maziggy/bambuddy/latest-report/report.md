@@ -1,5 +1,5 @@
 % Statistics for maziggy/bambuddy
-% Generated for [maziggy/bambuddy](https://github.com/maziggy/bambuddy) with [jgehrcke/github-repo-stats](https://github.com/jgehrcke/github-repo-stats) at 2026-07-03 23:11 UTC.
+% Generated for [maziggy/bambuddy](https://github.com/maziggy/bambuddy) with [jgehrcke/github-repo-stats](https://github.com/jgehrcke/github-repo-stats) at 2026-07-03 23:26 UTC.
 
 
 ## Views
@@ -90,7 +90,7 @@ Top 15 referrers: 01: `bambuddy.cool`, 02: `hackaday.com`, 03: `Google`, 04: `gi
 
 <div id="chart_paths_top_n_alltime" class="full-width-chart"></div>
 
-Top 15 paths: 01: `/`, 02: `/issues`, 03: `/releases`, 04: `/releases/tag/v0.2.4.7`, 05: `/blob/main/docs/images/proxy-mode-diagram.png`, 06: `/releases/tag/v0.2.4.4`, 07: `/releases/tag/v0.2.4.5`, 08: `/releases/tag/v0.2.4.6`, 09: `/releases/tag/v0.2.4.8`, 10: `/pulls`, 11: `/releases/tag/v0.2.4.3`, 12: `/releases/tag/v0.2.4`, 13: `/releases/tag/v0.2.4.1`, 14: `/releases/tag/v0.2.3.2`, 15: `/blob/main/docker-compose.yml`
+Top 15 paths: 01: `/`, 02: `/issues`, 03: `/releases`, 04: `/releases/tag/v0.2.4.7`, 05: `/blob/main/docs/images/proxy-mode-diagram.png`, 06: `/releases/tag/v0.2.4.4`, 07: `/releases/tag/v0.2.4.5`, 08: `/releases/tag/v0.2.4.6`, 09: `/releases/tag/v0.2.4.8`, 10: `/pulls`, 11: `/releases/tag/v0.2.4`, 12: `/releases/tag/v0.2.4.3`, 13: `/releases/tag/v0.2.4.1`, 14: `/releases/tag/v0.2.3.2`, 15: `/blob/main/docker-compose.yml`
 
 
 <script type="text/javascript">
