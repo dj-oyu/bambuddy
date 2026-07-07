@@ -1,0 +1,200 @@
+2026-07-07 06:48:15,733 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:48:45,737 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:48:45,738 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:49:15,742 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:49:15,743 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:49:45,747 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:49:45,747 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:50:15,752 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:50:15,752 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:50:45,756 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:50:45,757 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:51:15,761 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:51:15,761 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:51:45,766 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:51:45,766 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:52:15,770 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:52:15,771 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:52:45,776 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:52:45,776 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:53:15,780 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:53:15,781 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:53:45,786 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:53:45,786 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:54:15,791 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:54:15,791 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:54:45,795 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:54:45,795 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:55:15,801 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:55:15,802 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:55:45,806 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:55:45,807 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:56:15,812 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:56:15,812 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:56:45,816 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:56:45,817 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:57:15,821 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:57:15,821 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:57:45,825 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:57:45,826 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:58:15,831 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:58:15,831 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:58:45,836 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:58:45,836 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:59:15,839 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:59:15,840 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 06:59:45,844 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 06:59:45,845 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:00:15,849 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:00:15,850 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:00:45,854 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:00:45,855 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:01:15,859 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:01:15,860 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:01:45,864 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:01:45,864 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:02:15,870 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:02:15,870 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:02:45,875 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:02:45,875 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:02:48,526 INFO [uvicorn.access] [-] [IP]:50021 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-07 07:02:48,593 INFO [uvicorn.access] [-] [IP]:50024 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-07 07:02:48,608 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=[USER])
+2026-07-07 07:02:48,613 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-07 07:02:48,614 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 2 printers
+2026-07-07 07:02:48,706 INFO [backend.app.api.routes.cloud] [158960e6] get_filament_info called with 7 IDs: ['GFG02', 'GFA00', 'GFA06', 'GFA02', 'GFS04', 'GFL05', 'P4d64437']
+2026-07-07 07:02:48,940 WARNING [backend.app.api.routes.cloud] [158960e6] Failed to get cloud preset GFG02 (API ID: GFSG02): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:02:49,318 WARNING [backend.app.api.routes.cloud] [158960e6] Failed to get cloud preset GFA06 (API ID: GFSA06): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:02:49,704 WARNING [backend.app.api.routes.cloud] [158960e6] Failed to get cloud preset GFS04 (API ID: GFS04): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:02:49,890 WARNING [backend.app.api.routes.cloud] [158960e6] Failed to get cloud preset GFL05 (API ID: GFSL05): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:02:50,080 WARNING [backend.app.api.routes.cloud] [158960e6] Failed to get cloud preset P4d64437 (API ID: P4d64437): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:02:50,145 INFO [uvicorn.access] [-] [IP]:50024 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-07 07:03:15,880 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:03:15,880 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:03:45,885 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:03:45,885 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:04:15,890 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:04:15,890 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:04:45,895 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:04:45,895 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:05:15,900 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:05:15,900 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:05:45,905 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:05:45,905 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:06:15,910 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:06:15,911 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:06:25,821 WARNING [backend.app.services.tasmota] [dc22fc25] Failed to connect to Tasmota device at [IP]: All connection attempts failed
+2026-07-07 07:06:25,822 WARNING [backend.app.services.tasmota] [00b37614] Failed to connect to Tasmota device at [IP]: All connection attempts failed
+2026-07-07 07:06:45,915 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:06:45,916 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:07:15,920 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:07:15,920 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:07:45,924 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:07:45,924 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:08:15,928 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:08:15,929 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:08:44,298 INFO [backend.app.api.routes.cloud] [cf73766d] get_filament_info called with 7 IDs: ['GFG02', 'GFA00', 'GFA06', 'GFA02', 'GFS04', 'GFL05', 'P4d64437']
+2026-07-07 07:08:44,534 WARNING [backend.app.api.routes.cloud] [cf73766d] Failed to get cloud preset GFG02 (API ID: GFSG02): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:08:44,924 WARNING [backend.app.api.routes.cloud] [cf73766d] Failed to get cloud preset GFA06 (API ID: GFSA06): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:08:45,303 WARNING [backend.app.api.routes.cloud] [cf73766d] Failed to get cloud preset GFS04 (API ID: GFS04): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:08:45,498 WARNING [backend.app.api.routes.cloud] [cf73766d] Failed to get cloud preset GFL05 (API ID: GFSL05): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:08:45,709 WARNING [backend.app.api.routes.cloud] [cf73766d] Failed to get cloud preset P4d64437 (API ID: P4d64437): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:08:45,717 INFO [uvicorn.access] [-] [IP]:50206 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-07 07:08:45,933 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:08:45,934 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:09:15,938 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:09:15,938 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:09:45,943 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:09:45,943 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:10:15,948 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:10:15,949 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:10:45,954 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:10:45,955 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:11:15,959 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:11:15,960 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:11:29,901 WARNING [backend.app.services.tasmota] [8c1a799c] Tasmota device at [IP] timed out
+2026-07-07 07:11:45,965 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:11:45,966 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:12:15,971 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:12:15,971 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:12:45,976 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:12:45,976 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:13:15,981 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:13:15,981 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:13:45,985 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:13:45,986 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:14:15,990 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:14:15,991 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:14:45,995 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:14:45,995 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:15:16,000 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:15:16,000 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:15:46,004 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:15:46,005 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:16:16,009 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:16:16,010 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:16:46,014 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:16:46,015 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:17:16,019 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:17:16,020 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:17:46,024 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:17:46,025 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:18:16,030 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:18:16,030 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:18:46,034 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:18:46,034 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:19:16,038 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:19:16,039 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:19:46,043 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:19:46,044 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:20:16,048 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:20:16,049 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:20:46,052 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:20:46,053 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:21:16,058 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:21:16,058 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:21:46,062 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:21:46,062 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:22:16,067 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:22:16,067 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:22:46,071 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:22:46,072 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:23:16,077 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:23:16,077 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:23:46,081 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:23:46,082 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:24:16,087 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:24:16,087 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:24:24,886 INFO [backend.app.services.smart_plug_manager] [-] Captured 2 energy snapshot(s)
+2026-07-07 07:24:46,092 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:24:46,093 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:25:16,097 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:25:16,098 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:25:46,103 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:25:46,103 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:26:16,107 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:26:16,108 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:26:46,113 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:26:46,113 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:27:16,118 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:27:16,118 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:27:46,122 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:27:46,123 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:28:16,126 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:28:16,127 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:28:46,131 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:28:46,131 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:29:16,136 INFO [backend.app.services.print_scheduler] [-] Queue check: found 5 pending items: [(507, 1, 82, None), (540, 5, 82, None), (505, None, 123, None), (506, None, 123, None), (508, None, 64, None)]
+2026-07-07 07:29:16,137 INFO [backend.app.services.print_scheduler] [-] Queue skip summary: {'manual_start': 5}
+2026-07-07 07:29:31,820 INFO [backend.app.api.routes.cloud] [e16909b5] get_filament_info called with 7 IDs: ['GFG02', 'GFA00', 'GFA06', 'GFA02', 'GFS04', 'GFL05', 'P4d64437']
+2026-07-07 07:29:32,057 WARNING [backend.app.api.routes.cloud] [e16909b5] Failed to get cloud preset GFG02 (API ID: GFSG02): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:29:32,456 WARNING [backend.app.api.routes.cloud] [e16909b5] Failed to get cloud preset GFA06 (API ID: GFSA06): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:29:32,828 WARNING [backend.app.api.routes.cloud] [e16909b5] Failed to get cloud preset GFS04 (API ID: GFS04): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:29:33,035 WARNING [backend.app.api.routes.cloud] [e16909b5] Failed to get cloud preset GFL05 (API ID: GFSL05): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:29:33,248 WARNING [backend.app.api.routes.cloud] [e16909b5] Failed to get cloud preset P4d64437 (API ID: P4d64437): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-07 07:29:33,256 INFO [uvicorn.access] [-] [IP]:50363 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-07 07:29:37,963 INFO [backend.app.api.routes.support] [a4d8e48a] Log level changed to DEBUG
+2026-07-07 07:29:37,963 INFO [backend.app.api.routes.bug_report] [a4d8e48a] Bug report: enabled debug logging
+2026-07-07 07:29:37,963 WARNING [backend.app.services.bambu_mqtt] [a4d8e48a] [[SERIAL]] request_status_update: not connected
+2026-07-07 07:29:37,963 WARNING [backend.app.services.bambu_mqtt] [a4d8e48a] [[SERIAL]] request_status_update: not connected
+2026-07-07 07:29:37,964 INFO [uvicorn.access] [-] [IP]:50360 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
