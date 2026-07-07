@@ -1,0 +1,200 @@
+2026-07-07 08:14:19,756 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping=None, tray_now=255, last_loaded_tray=1
+2026-07-07 08:14:19,756 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping-related keys: {'ams_extruder_map': {'0': 0}}
+2026-07-07 08:14:19,756 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1 AMS 0: T0(type=PETG-HF, color=000000FF, now=?, tar=?), T1(type=PETG, color=FFF144FF, now=?, tar=?), T2(type=PETG, color=875718FF, now=?, tar=?), T3(type=PLA, color=F72323FF, now=?, tar=?)
+2026-07-07 08:14:19,758 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Snapshotted 1 spool assignments for printer 1: {'0-2': 2}
+2026-07-07 08:14:19,760 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Captured start remain% for printer 1 (2 trays): {'0-2': 10, '255-0': 0}
+2026-07-07 08:14:19,764 INFO [backend.app.main] [-] [PLATE CHECK] printer_id=1, plate_detection_enabled=False
+2026-07-07 08:14:19,764 INFO [backend.app.main] [-] [CALLBACK] Print start detected - filename: MtG Storage Boxes_Storage Box.gcode.3mf, subtask: MtG Storage Boxes_Storage Box
+2026-07-07 08:14:19,766 INFO [backend.app.main] [-] Trying filenames: ['MtG Storage Boxes_Storage Box.gcode.3mf', 'MtG Storage Boxes_Storage Box.3mf', 'MtG_Storage_Boxes_Storage_Box.gcode.3mf', 'MtG_Storage_Boxes_Storage_Box.3mf']
+2026-07-07 08:14:20,634 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 08:14:26,016 INFO [backend.app.services.bambu_ftp] [-] Successfully downloaded /MtG Storage Boxes_Storage Box.gcode.3mf to /opt/[user]/data/archive/temp/MtG Storage Boxes_Storage Box.gcode.3mf (584472 bytes)
+2026-07-07 08:14:26,016 INFO [backend.app.services.bambu_ftp] [-] FTP mode cached for [IP]: prot_p
+2026-07-07 08:14:26,027 INFO [backend.app.main] [-] Downloaded: /MtG Storage Boxes_Storage Box.gcode.3mf
+2026-07-07 08:14:26,055 INFO [backend.app.main] [-] Created archive 18 for MtG Storage Boxes_Storage Box.gcode.3mf
+2026-07-07 08:14:26,056 INFO [backend.app.main] [-] [ENERGY] No smart plug for printer 1 (archive 18)
+2026-07-07 08:14:26,059 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-07-07 08:14:26,059 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-07 08:14:27,686 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 18528 bytes
+2026-07-07 08:14:27,686 INFO [backend.app.services.notification_service] [-] on_print_start called for printer 1 ([PRINTER])
+2026-07-07 08:14:27,688 INFO [backend.app.services.notification_service] [-] No notification providers configured for print_start event on printer 1
+2026-07-07 08:14:27,690 INFO [backend.app.main] [-] Loaded 2 printable objects for printer 1
+2026-07-07 08:14:28,612 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 08:14:28,721 INFO [backend.app.main] [-] [TIMELAPSE] Baseline at print start: 2 video files for printer 1
+2026-07-07 08:19:09,250 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 08:24:09,256 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 08:29:09,261 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 08:29:49,102 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] PRINT COMPLETE detected - state: FAILED, status: failed, file: MtG Storage Boxes_Storage Box.gcode.3mf, subtask: MtG Storage Boxes_Storage Box, was_running: True, timelapse_during_print: False
+2026-07-07 08:29:49,102 INFO [backend.app.main] [-] [CALLBACK] on_print_complete started for printer 1
+2026-07-07 08:29:49,103 INFO [backend.app.main] [-] [TIMING] WebSocket send_print_complete: 0.000s elapsed
+2026-07-07 08:29:49,103 INFO [backend.app.main] [-] Print complete - filename: MtG Storage Boxes_Storage Box.gcode.3mf, subtask: MtG Storage Boxes_Storage Box, status: failed
+2026-07-07 08:29:49,103 INFO [backend.app.main] [-] Looking for archive in _active_prints, keys to try: [(1, 'MtG Storage Boxes_Storage Box.3mf'), (1, 'MtG Storage Boxes_Storage Box.gcode.3mf'), (1, 'MtG Storage Boxes_Storage Box'), (1, 'MtG Storage Boxes_Storage Box.gcode.3mf'), (1, 'MtG Storage Boxes_Storage Box.gcode.3mf')]...
+2026-07-07 08:29:49,103 INFO [backend.app.main] [-] Current _active_prints: [(1, 'MtG Storage Boxes_Storage Box.gcode.3mf'), (1, 'MtG Storage Boxes_Storage Box.3mf')]
+2026-07-07 08:29:49,103 INFO [backend.app.main] [-] Found archive 18 with key (1, 'MtG Storage Boxes_Storage Box.3mf')
+2026-07-07 08:29:49,962 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 08:29:50,811 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 08:29:51,688 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 08:29:51,715 INFO [backend.app.main] [-] [TIMING] SD card cleanup: 2.613s elapsed
+2026-07-07 08:29:51,717 INFO [backend.app.main] [-] [TIMING] Queue item update: 2.615s elapsed
+2026-07-07 08:29:51,719 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] on_print_complete: printer=1, archive=18, session=yes, ams_mapping=None
+2026-07-07 08:29:51,719 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT COMPLETE printer 1: mapping=None, tray_now=1, last_loaded_tray=1
+2026-07-07 08:29:51,721 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: archive 18, plate_id=None, filament_usage=[{'slot_id': 2, 'used_g': 126.06, 'type': 'PETG', 'color': '#FFF144'}, {'slot_id': 3, 'used_g': 0.84, 'type': 'PETG', 'color': '#875718'}]
+2026-07-07 08:29:51,723 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Color-matched slot_to_tray: [-1, 1, 2]
+2026-07-07 08:29:51,723 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: slot_to_tray=[-1, 1, 2] (source: color_match)
+2026-07-07 08:29:51,901 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: slot_id=2 -> global_tray=1 -> AMS0-T1 (used_g=126.1, tray_now_override=None)
+2026-07-07 08:29:51,902 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: no spool assignment at printer 1 AMS0-T1
+2026-07-07 08:29:51,903 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] 3MF: slot_id=3 -> global_tray=2 -> AMS0-T2 (used_g=0.8, tray_now_override=None)
+2026-07-07 08:29:51,906 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Spool 2 consumed 0.5g (3MF per-layer, color_match_map) on printer 1 AMS0-T2 (failed)
+2026-07-07 08:29:51,907 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] VT254: not in print mapping/tray_change_log — skipping fallback for printer 1
+2026-07-07 08:29:51,913 INFO [backend.app.main] [-] [TIMING] Usage tracker: 2.811s elapsed
+2026-07-07 08:29:51,915 INFO [backend.app.main] [-] [TIMING] Filament usage tracking: 2.813s elapsed
+2026-07-07 08:29:51,916 INFO [backend.app.main] [-] [TIMING] Archive lookup: 2.813s elapsed
+2026-07-07 08:29:51,916 INFO [backend.app.main] [-] [ARCHIVE] Updating archive 18 status...
+2026-07-07 08:29:51,920 INFO [backend.app.main] [-] [ARCHIVE] Archive 18 status updated to failed, failure_reason=None
+2026-07-07 08:29:51,920 INFO [backend.app.main] [-] [ARCHIVE] WebSocket notification sent for archive 18
+2026-07-07 08:29:51,921 INFO [backend.app.main] [-] [TIMING] Archive status update: 2.819s elapsed
+2026-07-07 08:29:51,924 INFO [backend.app.main] [-] [PRINT_LOG] Log entry written for archive 18
+2026-07-07 08:29:51,925 INFO [backend.app.main] [-] [TIMING] Print log entry: 2.822s elapsed
+2026-07-07 08:29:51,925 INFO [backend.app.main] [-] [TIMING] Background tasks scheduled (energy, photo): 2.823s elapsed
+2026-07-07 08:29:51,925 INFO [backend.app.main] [-] [TIMING] All background tasks scheduled: 2.823s elapsed
+2026-07-07 08:29:51,926 INFO [backend.app.main] [-] [CALLBACK] on_print_complete finished for printer 1, archive 18
+2026-07-07 08:29:51,926 INFO [backend.app.main] [-] [ENERGY-BG] Starting energy calculation for archive 18
+2026-07-07 08:29:51,927 INFO [backend.app.main] [-] [PHOTO-BG] Starting finish photo capture for archive 18
+2026-07-07 08:29:51,928 INFO [backend.app.main] [-] [AUTO-OFF-BG] Starting smart plug automation for printer 1
+2026-07-07 08:29:51,928 INFO [backend.app.services.smart_plug_manager] [-] Print on printer 1 ended with status 'failed', skipping auto-off to allow investigation
+2026-07-07 08:29:51,929 INFO [backend.app.main] [-] [AUTO-OFF-BG] Completed
+2026-07-07 08:29:51,929 INFO [backend.app.main] [-] [LAYER-TL] Cancelled layer timelapse for printer 1 (status: failed)
+2026-07-07 08:29:51,931 INFO [backend.app.main] [-] [ENERGY-BG] No start kWh recorded for archive 18
+2026-07-07 08:29:51,933 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-07 08:29:53,525 INFO [backend.app.services.camera] [-] Saved camera frame to: /opt/[user]/data/archive/1/20260707_081426_MtG Storage Boxes_Storage Box/photos/finish_20260707_082951_c0e272f2.jpg
+2026-07-07 08:29:53,525 INFO [backend.app.services.camera] [-] Finish photo saved: finish_20260707_082951_c0e272f2.jpg
+2026-07-07 08:29:53,527 INFO [backend.app.main] [-] [PHOTO-BG] Saved: finish_20260707_082951_c0e272f2.jpg
+2026-07-07 08:29:53,528 INFO [backend.app.main] [-] [PHOTO-NOTIFY] Photo task returned: finish_20260707_082951_c0e272f2.jpg
+2026-07-07 08:29:53,528 INFO [backend.app.main] [-] [NOTIFY-BG] Starting notifications for printer 1, photo=finish_20260707_082951_c0e272f2.jpg
+2026-07-07 08:29:53,532 INFO [backend.app.main] [-] [NOTIFY-BG] Loaded finish photo bytes: 20245 bytes
+2026-07-07 08:29:53,532 INFO [backend.app.services.notification_service] [-] on_print_complete called for printer 1 ([PRINTER]), status=failed
+2026-07-07 08:29:53,536 INFO [backend.app.services.notification_service] [-] Found 1 providers for on_print_failed: ['PIper']
+2026-07-07 08:29:53,947 INFO [backend.app.services.notification_service] [-] Sent notification via PIper
+2026-07-07 08:29:53,947 INFO [backend.app.main] [-] [NOTIFY-BG] Completed
+2026-07-07 08:34:09,266 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 08:39:09,273 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 08:44:09,279 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 08:45:04,350 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Keep alive timeout, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-07-07 08:45:04,350 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] MQTT disconnected: rc=Keep alive timeout, flags=DisconnectFlags(is_disconnect_packet_from_server=False)
+2026-07-07 08:45:04,351 INFO [backend.app.main] [-] [#1752] Printer 1 connected→disconnected edge; scheduling offline notification in 60s
+2026-07-07 08:46:04,351 INFO [backend.app.main] [-] [#1752] Printer 1 offline debounce elapsed: still_offline=True
+2026-07-07 08:46:04,353 INFO [backend.app.main] [-] [#1752] Dispatching on_printer_offline for printer 1 ([PRINTER])
+2026-07-07 16:31:47,264 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Connection stale - no message for 28064.0s, forcing reconnect
+2026-07-07 16:31:47,265 WARNING [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Connected and subscribed, but the printer has sent zero status reports. The most common cause is a wrong or mis-cased serial number — the device/<serial>/report MQTT topic is case-sensitive. Verify the serial number configured in Bambuddy exactly matches the printer.
+2026-07-07 16:31:47,266 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Disconnect callback after stale reconnect (expected), rc=Normal disconnection
+2026-07-07 16:31:47,333 INFO [backend.app.main] [-] [#1752] Printer 1 connected→disconnected edge; scheduling offline notification in 60s
+2026-07-07 16:31:48,083 INFO [backend.app.main] [-] [#1752] Printer 1 reconnected before debounce; cancelling pending offline notification
+2026-07-07 16:31:48,130 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:32:11,422 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:32:39,694 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:32:41,733 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:32:55,920 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:33:06,058 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:33:46,501 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:34:09,655 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 16:39:09,665 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 16:40:18,971 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] PRINT START detected - file: MtG Storage Boxes_Storage Box.gcode.3mf, subtask: MtG Storage Boxes_Storage Box, is_new: True, is_file_change: False
+2026-07-07 16:40:18,971 INFO [backend.app.main] [-] [CALLBACK] on_print_start called for printer 1, data keys: ['filename', 'subtask_name', 'remaining_time', 'raw_data', 'ams_mapping']
+2026-07-07 16:40:18,973 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Skipped trays with invalid remain% for printer 1: AMS0-T0(remain=-1), AMS0-T1(remain=-1), AMS0-T3(remain=-1)
+2026-07-07 16:40:18,974 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping=None, tray_now=255, last_loaded_tray=3
+2026-07-07 16:40:18,974 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1: mapping-related keys: {'ams_extruder_map': {'0': 0}}
+2026-07-07 16:40:18,974 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] PRINT START printer 1 AMS 0: T0(type=PETG-HF, color=000000FF, now=?, tar=?), T1(type=PETG, color=FFF144FF, now=?, tar=?), T2(type=PETG, color=875718FF, now=?, tar=?), T3(type=PLA, color=F72323FF, now=?, tar=?)
+2026-07-07 16:40:18,976 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Snapshotted 1 spool assignments for printer 1: {'0-2': 2}
+2026-07-07 16:40:18,978 INFO [backend.app.services.usage_tracker] [-] [UsageTracker] Captured start remain% for printer 1 (2 trays): {'0-2': 13, '255-0': 0}
+2026-07-07 16:40:18,981 INFO [backend.app.main] [-] [PLATE CHECK] printer_id=1, plate_detection_enabled=False
+2026-07-07 16:40:18,982 INFO [backend.app.main] [-] [CALLBACK] Print start detected - filename: MtG Storage Boxes_Storage Box.gcode.3mf, subtask: MtG Storage Boxes_Storage Box
+2026-07-07 16:40:18,984 INFO [backend.app.main] [-] Trying filenames: ['MtG Storage Boxes_Storage Box.gcode.3mf', 'MtG Storage Boxes_Storage Box.3mf', 'MtG_Storage_Boxes_Storage_Box.gcode.3mf', 'MtG_Storage_Boxes_Storage_Box.3mf']
+2026-07-07 16:40:19,859 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 16:40:24,077 INFO [backend.app.services.bambu_ftp] [-] Successfully downloaded /MtG Storage Boxes_Storage Box.gcode.3mf to /opt/[user]/data/archive/temp/MtG Storage Boxes_Storage Box.gcode.3mf (584472 bytes)
+2026-07-07 16:40:24,077 INFO [backend.app.services.bambu_ftp] [-] FTP mode cached for [IP]: prot_p
+2026-07-07 16:40:24,088 INFO [backend.app.main] [-] Downloaded: /MtG Storage Boxes_Storage Box.gcode.3mf
+2026-07-07 16:40:24,115 INFO [backend.app.main] [-] Created archive 19 for MtG Storage Boxes_Storage Box.gcode.3mf
+2026-07-07 16:40:24,116 INFO [backend.app.main] [-] [ENERGY] No smart plug for printer 1 (archive 19)
+2026-07-07 16:40:24,119 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-07-07 16:40:24,119 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-07 16:40:25,899 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 64190 bytes
+2026-07-07 16:40:25,900 INFO [backend.app.services.notification_service] [-] on_print_start called for printer 1 ([PRINTER])
+2026-07-07 16:40:25,902 INFO [backend.app.services.notification_service] [-] No notification providers configured for print_start event on printer 1
+2026-07-07 16:40:25,904 INFO [backend.app.main] [-] Loaded 2 printable objects for printer 1
+2026-07-07 16:40:26,841 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-07 16:40:26,963 INFO [backend.app.main] [-] [TIMELAPSE] Baseline at print start: 2 video files for printer 1
+2026-07-07 16:41:24,598 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Tray change during print: tray=1 at layer=0
+2026-07-07 16:44:09,668 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 16:49:09,673 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 16:54:09,679 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 16:57:48,427 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Tray change during print: tray=2 at layer=1
+2026-07-07 16:57:56,525 INFO [backend.app.main] [-] [Printer 1] Broadcasting AMS change via WebSocket
+2026-07-07 16:59:09,684 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 16:59:51,651 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-07-07 16:59:51,651 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-07 16:59:53,395 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 58577 bytes
+2026-07-07 16:59:53,819 INFO [backend.app.services.notification_service] [-] Sent notification via PIper
+2026-07-07 17:00:50,211 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Tray change during print: tray=1 at layer=2
+2026-07-07 17:04:09,689 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:09:09,694 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:14:09,699 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:15:05,092 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Tray change during print: tray=2 at layer=3
+2026-07-07 17:17:16,308 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Tray change during print: tray=1 at layer=4
+2026-07-07 17:19:09,704 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:24:09,710 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:26:01,276 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-07-07 17:26:01,276 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-07 17:26:03,162 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 87991 bytes
+2026-07-07 17:26:03,452 INFO [backend.app.services.notification_service] [-] Sent notification via PIper
+2026-07-07 17:29:09,715 INFO [backend.app.main] [-] Sending temperature alarm for [PRINTER] AMS-A: 35.1°C > 35.0°C
+2026-07-07 17:29:09,721 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:34:09,727 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:39:09,732 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:44:09,735 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:49:09,741 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:54:09,747 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 17:59:09,751 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 18:04:09,757 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 18:09:09,763 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 18:11:48,610 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-07-07 18:11:48,611 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-07 18:11:50,490 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 89552 bytes
+2026-07-07 18:11:50,874 INFO [backend.app.services.notification_service] [-] Sent notification via PIper
+2026-07-07 18:12:13,020 INFO [uvicorn.access] [-] [IP]:56623 - "POST /api/v1/printers/camera/stream-token HTTP/1.1" 200
+2026-07-07 18:12:13,216 INFO [uvicorn.access] [-] [IP]:56623 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-07 18:12:13,245 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=<anonymous>)
+2026-07-07 18:12:13,246 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-07 18:12:13,250 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-07 18:12:13,374 INFO [backend.app.api.routes.printers] [74cefbda] Cover using cached 3MF from /opt/[user]/data/archive/temp/MtG Storage Boxes_Storage Box.gcode.3mf (avoided duplicate FTP)
+2026-07-07 18:12:13,374 INFO [backend.app.api.routes.printers] [74cefbda] Downloaded file size: 584472 bytes
+2026-07-07 18:12:13,375 INFO [backend.app.api.routes.printers] [74cefbda] Cover: detected plate 4 from 3MF contents
+2026-07-07 18:12:13,405 INFO [backend.app.api.routes.cloud] [549e8888] get_filament_info called with 3 IDs: ['GFG02', 'GFSNL08', 'GFL99']
+2026-07-07 18:12:13,584 WARNING [backend.app.api.routes.cloud] [549e8888] Failed to get cloud preset GFG02 (API ID: GFSG02): Failed to get setting detail: 400
+2026-07-07 18:12:13,671 WARNING [backend.app.api.routes.cloud] [549e8888] Failed to get cloud preset GFSNL08 (API ID: GFSNL08): Failed to get setting detail: 400
+2026-07-07 18:12:13,765 INFO [uvicorn.access] [-] [IP]:56626 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-07 18:13:31,685 INFO [backend.app.api.routes.websocket] [-] WebSocket client disconnected normally
+2026-07-07 18:14:09,768 INFO [backend.app.main] [-] Recorded 1 AMS sensor history entries
+2026-07-07 18:14:23,171 INFO [uvicorn.access] [-] [IP]:56676 - "POST /api/v1/auth/ws-token HTTP/1.1" 200
+2026-07-07 18:14:23,312 INFO [backend.app.api.routes.websocket] [-] WebSocket client connecting (principal=<anonymous>)
+2026-07-07 18:14:23,313 INFO [backend.app.api.routes.websocket] [-] WebSocket client connected
+2026-07-07 18:14:23,313 INFO [backend.app.api.routes.websocket] [-] Sent initial status for 1 printers
+2026-07-07 18:14:41,613 INFO [backend.app.api.routes.support] [15ff7973] Log level changed to DEBUG
+2026-07-07 18:14:41,614 INFO [backend.app.api.routes.bug_report] [15ff7973] Bug report: enabled debug logging
+2026-07-07 18:14:41,615 DEBUG [backend.app.services.bambu_mqtt] [15ff7973] [[SERIAL]] Requesting status update (pushall)
+2026-07-07 18:14:41,615 INFO [uvicorn.access] [-] [IP]:56693 - "POST /api/v1/bug-report/start-logging HTTP/1.1" 200
+2026-07-07 18:14:41,676 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: RUNNING, gcode_file: MtG Storage Boxes_Storage Box.gcode.3mf, subtask_name: MtG Storage Boxes_Storage Box
+2026-07-07 18:14:41,676 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '1', 'tray_exist_bits': 'f', 'tray_is_bbl_bits': 'f', 'tray_tar': '1', 'tray_now': '1', 'tray_pre': '1', 'tray_read_done_bits': 'f', 'tray_reading_bits': '0', 'version': 52, 'insert_flag': True, 'power_on_flag': True}
+2026-07-07 18:14:41,677 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 1
+2026-07-07 18:14:41,677 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-07 18:14:41,677 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-07 18:14:41,677 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-07 18:14:41,677 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 768 (main=3, sub=0)
+2026-07-07 18:14:41,677 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-07 18:14:41,678 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-07-07 18:14:41,678 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-07-07 18:14:41,678 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-07-07 18:14:41,678 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-07-07 18:14:41,678 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-07-07 18:14:41,679 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'disable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-07-07 18:14:41,680 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -42dBm
+2026-07-07 18:14:41,680 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-07-07 18:14:41,680 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: RUNNING -> RUNNING, file: MtG Storage Boxes_Storage Box.gcode.3mf, subtask: MtG Storage Boxes_Storage Box
