@@ -101,6 +101,8 @@ export default {
     now: 'Now',
     collapse: 'Collapse',
     expand: 'Expand',
+    previous: 'Previous',
+    next: 'Next',
     viewArchive: 'View archive',
     viewInFileManager: 'View in File Manager',
     addedBy: 'Added by {{username}}',
@@ -1027,6 +1029,80 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up — restored the
+  // legacy bg-dispatch toast UI for the scheduler-driven dispatch path).
+  // Strings mirror 0b43ac0d's backgroundDispatch namespace.
+  dispatchToast: {
+    untitled: 'Print job',
+    startingPrints: 'Starting prints',
+    progressSummary: '{{complete}}/{{total}} complete • Processing: {{processing}}',
+    expandDetails: 'Expand dispatch details',
+    collapseDetails: 'Collapse dispatch details',
+    awaitingPrinter: 'Awaiting printer…',
+    status: {
+      processing: 'Processing',
+      completed: 'Completed',
+      failed: 'Failed',
+    },
+    failed: {
+      generic: 'Dispatch failed',
+      upload_failed: 'Upload to printer failed',
+      start_command_failed: 'Printer rejected start command',
+    },
+    dismiss: 'Dismiss',
+  },
+
+  // Pipeline Runs dashboard (#1425 PR C). Lists every Slicer Pipeline run
+  // across every pipeline with status + pipeline filters and pagination.
+  // Each row expands to per-copy job status; partial-failure runs get a
+  // Retry-failed button; in-flight runs get a Cancel button.
+  pipelineRuns: {
+    title: 'Pipeline Runs',
+    loading: 'Loading…',
+    empty: 'No pipeline runs yet.',
+    filter: {
+      pipeline: 'Pipeline',
+      status: 'Status',
+      target: 'Target',
+      all: 'All',
+      allPipelines: 'All pipelines',
+      allStatus: 'All statuses',
+      allTargets: 'All targets',
+      clear: 'Clear filters',
+      noMatches: 'No runs match the current filters.',
+    },
+    totalCount_one: '{{n}} run',
+    totalCount_other: '{{n}} runs',
+    copies: '{{n}} copies',
+    failedCount: '{{n}} failed',
+    copyN: 'Copy {{n}}',
+    retryFailed: 'Retry failed',
+    retryOf: 'retry of #{{n}}',
+    pagination: '{{start}}–{{end}} of {{total}}',
+    cancelledByUser: 'Cancelled by user',
+    toast: {
+      cancelled: 'Run cancelled',
+      cancelFailed: 'Cancel failed',
+      retryStarted: 'Retry started',
+      retryFailed: 'Retry failed',
+      cleared: '{{n}} runs cleared',
+      clearFailed: 'Clear failed',
+    },
+    clearLog: 'Clear log',
+    clearConfirmTitle: 'Clear log?',
+    clearConfirmBody: 'Delete every completed, failed, cancelled, and partial-failure pipeline run? In-flight runs are kept. This cannot be undone.',
+    clearConfirmAction: 'Clear',
+    jobStatus: {
+      pending: 'pending',
+      awaiting_printer: 'awaiting printer',
+      queued: 'queued',
+      printing: 'printing',
+      completed: 'completed',
+      failed: 'failed',
+      cancelled: 'cancelled',
+    },
+  },
+
   // Queue page
   queue: {
     title: 'Print Queue',
@@ -1107,6 +1183,7 @@ export default {
       queue: 'Queue',
       history: 'History',
       timeline: 'Timeline',
+      pipelines: 'Pipelines',
     },
     // Layout toggle on the Queue tab — distinct from the sort dropdown
     // (those control order; these control whether items render as one flat
@@ -1549,6 +1626,8 @@ export default {
       smartPlugs: 'Smart Plugs',
       notifications: 'Notifications',
       queue: 'Workflow',
+      queueDispatch: 'Queue & Dispatch',
+      queuePipelines: 'Pipelines',
       filament: 'Filament',
       network: 'Network',
       apiKeys: 'API Keys',
@@ -1928,8 +2007,17 @@ export default {
     manageLibraryDescription: 'Upload, rename, and delete library files; import models from MakerWorld',
     manageInventory: 'Manage Inventory',
     manageInventoryDescription: 'Create, update, and delete spools and inventory records. Required for SpoolBuddy kiosks (NFC scan, scale readings, kiosk system commands).',
+    manageMaintenance: 'Manage Maintenance',
+    manageMaintenanceDescription: 'Log completed maintenance, reset counters, edit intervals, and manage the maintenance-type catalog. Suited to Home Assistant automations that record "I cleaned the nozzle" without granting broader printer control.',
+    manageArchives: 'Manage Archives',
+    manageArchivesDescription: 'Edit and delete print archives, including removing old prints. Does not include purging their statistics contribution. Suited to automations that prune the print history.',
+    manageProjects: 'Manage Projects',
+    manageProjectsDescription: 'Create, update, and delete projects, and add archives to them. Suited to automations that organize prints into projects.',
     libraryBadge: 'Library',
     inventoryBadge: 'Inventory',
+    maintenanceBadge: 'Maintenance',
+    archivesBadge: 'Archives',
+    projectsBadge: 'Projects',
     cloudAccess: 'Allow cloud access',
     cloudAccessDescription: 'Read Bambu Cloud presets and filaments on your behalf. Requires you to be signed into Bambu Cloud.',
     cloudBadge: 'Cloud',
@@ -1998,6 +2086,25 @@ export default {
     tempFanPresetsReset: 'Reset to defaults',
     staggeredStart: 'Staggered Start',
     staggeredStartDescription: 'Default group size and interval when staggering multi-printer batch starts. Can be overridden per batch in the print modal.',
+    preheatTitle: 'Preheat & Heat Soak',
+    preheatDescription: 'Heat the bed (and chamber, if supported) and hold at temperature before each queued print starts. Helpful for engineering filaments (PA, ABS) on printers without an active chamber heater — the bed warms the chamber by radiation while the soak timer runs. The bed target is read from the print file; chamber behaviour depends on printer model.',
+    preheatEnabled: 'Enable preheat & soak',
+    preheatEnabledDesc: 'When off, queued prints dispatch immediately. Each queue item can override per print.',
+    preheatFilamentTargetsLabel: 'Per-filament chamber target (°C)',
+    preheatFilamentTargetsHint: 'Bambuddy picks the highest target across the loaded AMS slots; PLA-only prints derive 0 and skip the chamber phase automatically.',
+    preheatFilamentTargetsReset: 'Reset to defaults',
+    preheatFilamentTargetsDefaultRow: 'Other / unmapped',
+    preheatMaxWait: 'Max wait (seconds)',
+    preheatMaxWaitHelp: 'Cap on the chamber warm-up phase before falling through.',
+    preheatSoak: 'Soak (seconds)',
+    preheatSoakHelp: 'Hold time after target reached or max-wait elapsed.',
+    preheatHardwareTitle: 'Per-printer behaviour:',
+    preheatHardwareDetail: 'H2C/H2D/H2D Pro/H2S/X2D/X1E actively heat the chamber via M141. X1C/P2S read chamber temp but rely on bed-radiation heating. P1S/P1P/A1/A1 Mini have no chamber sensor — only the soak timer applies.',
+    preheatPerItemDesc: 'Heat the bed and chamber before this print starts. Defaults to the global Settings → Workflow toggle.',
+    preheatOverride_inherit: 'Inherit',
+    preheatOverride_on: 'On',
+    preheatOverride_off: 'Off',
+    preheatTargetOverride: 'Chamber target override (°C, blank = filament default)',
     plateClear: 'Plate-Clear Confirmation',
     requirePlateClear: 'Require plate-clear confirmation',
     requirePlateClearDescription: 'When enabled, the scheduler waits for per-printer plate-clear confirmation before starting queued prints on printers with finished jobs. Disabling this also hides the plate status badge and the "Mark plate as cleared" button on printer cards.',
@@ -2545,6 +2652,105 @@ export default {
       migrationErrorWarning: '{{count}} legacy row(s) failed to re-encrypt at startup. Check server logs and restart Bambuddy to retry.',
     },
 
+    // Slicer Pipeline limits (#1425 PR C). Admin-tunable cap that constrains
+    // the copies input in the Run-with-pipeline modal. Lives on the Workflow
+    // tab's Queue & Dispatch sub-tab.
+    pipelineLimits: {
+      title: 'Slicer Pipeline limits',
+      maxCopiesLabel: 'Max copies per run',
+      maxCopiesDesc: 'Upper bound on the copies operators can request when running a pipeline. Server-side hard cap is 1000.',
+    },
+
+    // Slicer Pipelines (#1425): list/edit/delete preset bundles users saved
+    // from the Slice dialog. Lives in Settings → Workflow → Pipelines sub-tab.
+    pipelines: {
+      title: 'Slicer Pipelines',
+      subtitle: 'Reusable preset bundles (printer + process + filaments + bed type). Save one from the Slice dialog and apply it with a single click on the next file.',
+      loading: 'Loading pipelines…',
+      loadError: 'Could not load pipelines.',
+      confirmDelete: 'Delete this pipeline? This cannot be undone.',
+      staleWarning: 'One or more referenced presets no longer exist. Re-save this pipeline from the Slice dialog to fix.',
+      empty: {
+        title: 'No pipelines yet.',
+        howto: 'Open the Slice dialog for any file, pick your printer / process / filaments / bed type, then click "Save as pipeline". Your saved pipelines will appear here.',
+      },
+      field: {
+        name: 'Pipeline name',
+        description: 'Description',
+        targetPrinter: 'Target printer',
+        noTarget: '— No target —',
+        // PR C
+        targetKind: 'Target type',
+        targetKindSpecific: 'Specific printer',
+        targetKindClass: 'Printer class',
+        targetModelClass: 'Printer model',
+        fanoutStrategy: 'Fanout strategy',
+        fanout: {
+          max_parallel: 'Max parallel — distribute across any idle matching printer',
+          round_robin: 'Round robin — cycle through eligible printers',
+          fill_one_first: 'Fill one first — pin all copies to one printer',
+        },
+        // Short labels for the inline target chip on each pipeline card.
+        // The verbose ones above explain the strategy in the editor; the
+        // card just needs a compact reminder of which one is in use.
+        fanoutShort: {
+          max_parallel: 'parallel',
+          round_robin: 'round robin',
+          fill_one_first: 'fill one first',
+        },
+      },
+      action: {
+        save: 'Save',
+        cancel: 'Cancel',
+        rename: 'Rename',
+        delete: 'Delete',
+      },
+      slot: {
+        printer: 'Printer',
+        process: 'Process',
+        filament: 'Filament',
+        filamentN: 'Filament {{n}}',
+        filamentAll: 'All {{n}} slots',
+        bed: 'Bed',
+      },
+      // PR C polish — grouped sections in the card body, plus the
+      // panel-level search + filter row.
+      group: {
+        profiles: 'Profiles',
+        filaments: 'Filaments',
+      },
+      searchPlaceholder: 'Search pipelines…',
+      filterTargetType: 'Filter by target type',
+      filterTarget: 'Filter by target',
+      filter: {
+        all: 'All targets',
+        noTarget: 'No target set',
+        count: '{{shown}} / {{total}}',
+        noMatches: 'No pipelines match the current filters.',
+      },
+      toast: {
+        saved: 'Pipeline saved',
+        saveFailed: 'Save failed',
+        deleted: 'Pipeline deleted',
+        deleteFailed: 'Delete failed',
+      },
+      // PR B target binding + last-run summary
+      noTargetHint: 'Set a target printer to run this',
+      noTargetWarning: 'Set a target printer before running this pipeline.',
+      runs: {
+        lastRun: 'Last run',
+        status: {
+          queued: 'queued',
+          slicing: 'slicing',
+          dispatching: 'dispatching',
+          in_progress: 'printing',
+          completed: 'completed',
+          failed: 'failed',
+          partial_failure: 'partial failure',
+          cancelled: 'cancelled',
+        },
+      },
+    },
   },
 
   // Notifications (for push notifications)
@@ -2606,6 +2812,7 @@ export default {
     title: 'Errors - {{name}}',
     noErrors: 'No errors',
     viewOnWiki: 'View on Bambu Lab Wiki',
+    unknownCode: 'Unknown HMS code — see the Bambu Lab wiki for details.',
     clearInstructions: 'Clear errors on the printer to dismiss them here.',
     clearErrors: 'Clear Errors',
     clearSuccess: 'HMS errors cleared',
@@ -2946,6 +3153,7 @@ export default {
       clearAll: 'Clear All',
       permissionsSelected: '{{count}} selected',
       noResults: 'No permissions match your search',
+      websocketHint: 'Required for live updates. Without it, the interface falls back to periodic polling.',
     },
   },
 
@@ -3774,6 +3982,46 @@ export default {
     deleteConfirm: 'Are you sure you want to delete this filament?',
     importFromPrinter: 'Import from Printer',
     exportToFile: 'Export to File',
+    // Slicer Pipelines run from the File Manager (#1425 PR B). The Run-with-pipeline
+    // modal is a two-step dialog: pick a pipeline, then either fire (eligibility ok)
+    // or confirm-and-fire (eligibility report shown). Lives in components/RunWithPipelineModal.tsx.
+    runWithPipeline: {
+      actionLabel: 'Run with pipeline',
+      noPermission: 'You do not have permission to run pipelines',
+      modalTitle: 'Run with pipeline',
+      confirmTitle: 'Confirm run',
+      confirmIntro: 'Pre-flight found issues with this run',
+      sourceHint: 'Source',
+      pipelineHint: 'Pipeline',
+      targetHint: 'Target',
+      pipelineListAria: 'Available pipelines',
+      runAnyway: 'Run anyway',
+      loading: 'Loading…',
+      empty: 'No pipelines saved yet. Open the Slice dialog and click "Save as pipeline" to create one.',
+      noTarget: 'No target printer set',
+      noTargetMessage: 'This pipeline has no target printer set. Open it in Settings to pick one.',
+      // PR C — copies input + class-targeted pipelines.
+      copies: 'Copies',
+      copiesHint: 'max {{n}}',
+      classTarget: 'Any {{model}}',
+      toast: {
+        started: 'Pipeline run started',
+        failed: 'Could not start run',
+      },
+      issue: {
+        printerNotSet: 'No target printer set on this pipeline.',
+        printerNotFound: 'Target printer no longer exists.',
+        printerDisabled: 'Target printer is disabled.',
+        printerOffline: 'Target printer is offline.',
+        filamentType: 'Filament slot {{slot}}: expected {{expected}}, AMS has {{actual}}',
+        filamentColor: 'Filament slot {{slot}}: colour differs (expected {{expected}}, AMS has {{actual}})',
+        amsSlotMissing: 'AMS slot {{slot}} not available on this printer',
+        filamentUnverified: 'Filament slot {{slot}} comes from a cloud / standard preset and could not be statically verified.',
+        // PR C — class targeting
+        noClassMatches: 'No printers in this install match the pipeline\'s target model class ({{expected}}).',
+        classNotSet: 'Pipeline target is set to a printer class but no model was chosen.',
+      },
+    },
   },
 
   // Slice (slicer-API integration via SliceModal)
@@ -3837,6 +4085,22 @@ export default {
       highTemp: 'High Temp Plate',
       texturedPEI: 'Textured PEI Plate',
       smoothPEI: 'Smooth PEI Plate',
+    },
+    // Slicer Pipelines (#1425) — apply a saved bundle or save the current pick.
+    pipelines: {
+      label: 'Pipeline',
+      applyAria: 'Apply pipeline',
+      applyPrompt: 'Apply pipeline…',
+      empty: 'No saved pipelines',
+      saveButton: 'Save as pipeline',
+      saveTitle: 'Save the current four-slot selection as a reusable pipeline',
+      namePlaceholder: 'Pipeline name',
+      nameAria: 'New pipeline name',
+      toast: {
+        applied: 'Applied "{{name}}"',
+        saved: 'Pipeline saved',
+        saveFailed: 'Save failed',
+      },
     },
   },
 
@@ -3961,6 +4225,8 @@ export default {
       title: 'Print spool labels',
       selectedCount: '{{count}} selected',
       pickSpools: 'Pick which spools to print labels for:',
+      monochrome: 'Monochrome (black & white printer)',
+      monochromeHint: 'Drops the colour swatch and widens the text',
       searchPlaceholder: 'Search name, brand, or #ID',
       filterByMaterial: 'Material:',
       allMaterials: 'All',

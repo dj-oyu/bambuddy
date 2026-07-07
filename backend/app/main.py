@@ -49,6 +49,7 @@ from backend.app.api.routes import (
     obico,
     orca_cloud,
     pending_uploads,
+    pipeline_runs,
     print_log,
     print_queue,
     printer_sensor_history,
@@ -56,6 +57,7 @@ from backend.app.api.routes import (
     projects,
     settings as settings_routes,
     slice_jobs,
+    slicer_pipelines,
     slicer_presets,
     smart_plugs,
     sponsor_prompt,
@@ -4331,38 +4333,19 @@ async def on_print_complete(printer_id: int, data: dict):
             except Exception:
                 pass  # Don't fail if notification fails
 
-            # Handle auto_off_after - power off printer if requested (after cooldown)
+            # Handle auto_off_after - power off printer if the queue item opted
+            # in. Delegates to the smart-plug manager so the off honours each
+            # plug's configured strategy (time delay or temperature threshold),
+            # is cancelled if the printer starts printing again, and never cuts
+            # power on a loaded print (#1890). Previously an inline block here
+            # hardcoded a 50°C / 600s cooldown wait and powered off on the
+            # timeout regardless of print state — cutting a touchscreen reprint.
             if queue_auto_off:
-                async with async_session() as db:
-                    result = await db.execute(select(SmartPlug).where(SmartPlug.printer_id == printer_id))
-                    plugs = list(result.scalars().all())
-                enabled_plugs = [p for p in plugs if p.enabled]
-                if enabled_plugs:
-                    logger.info("Auto-off requested for printer %s, waiting for cooldown...", printer_id)
-
-                    async def cooldown_and_poweroff(pid: int, plug_ids: list[int]):
-                        # Wait for nozzle to cool down
-                        await printer_manager.wait_for_cooldown(pid, target_temp=50.0, timeout=600)
-                        # Re-fetch plugs in new session and turn off each one
-                        async with async_session() as new_db:
-                            for plug_id in plug_ids:
-                                try:
-                                    result = await new_db.execute(select(SmartPlug).where(SmartPlug.id == plug_id))
-                                    p = result.scalar_one_or_none()
-                                    if p and p.enabled:
-                                        service = await smart_plug_manager.get_service_for_plug(p, new_db)
-                                        success = await service.turn_off(p)
-                                        if success:
-                                            logger.info("Powered off printer %s via smart plug '%s'", pid, p.name)
-                                        else:
-                                            logger.warning("Failed to power off plug '%s' for printer %s", p.name, pid)
-                                except Exception as e:
-                                    logger.warning("Failed to power off plug %s for printer %s: %s", plug_id, pid, e)
-
-                    spawn_background_task(
-                        cooldown_and_poweroff(printer_id, [p.id for p in enabled_plugs]),
-                        name=f"cooldown-poweroff-{printer_id}",
-                    )
+                try:
+                    async with async_session() as db:
+                        await smart_plug_manager.schedule_off_after_queue_job(printer_id, db)
+                except Exception as e:
+                    logger.warning("Failed to schedule queue auto-off for printer %s: %s", printer_id, e)
     except Exception as e:
         logging.getLogger(__name__).warning(f"Queue item update failed: {e}")
 
@@ -6038,8 +6021,23 @@ async def lifespan(app: FastAPI):
 
         await tl_layer_change(printer_id, layer_num)
 
-        # First layer complete notification (layer_num >= 2 means layer 1 is done)
-        if 2 <= layer_num <= 5 and not _first_layer_notified.get(printer_id, False):
+        # First layer complete notification (layer_num >= 2 means layer 1 is done).
+        # Gate on actual printing state — Bambu firmware ticks layer_num during
+        # the pre-print calibration sequence (homing / mesh-level / bed scan /
+        # nozzle clean), so a bare layer_num check can fire minutes before the
+        # first real extrusion. We require gcode_state == RUNNING and
+        # mc_print_sub_stage in (0 = "Printing", None) so calibration sub-stages
+        # (1, 9, 14, ...) are excluded. The window widens to [2, 10] because if
+        # the layer counter advanced past 2 during PREPARE, the next on_layer_change
+        # edge fires later; _first_layer_notified stays clear until we actually send
+        # so a deferred re-evaluation can win. See issue #1837.
+        if 2 <= layer_num <= 10 and not _first_layer_notified.get(printer_id, False):
+            client = printer_manager.get_client(printer_id)
+            state = client.state if client else None
+            if not state or state.state != "RUNNING":
+                return
+            if state.mc_print_sub_stage not in (None, 0):
+                return
             _first_layer_notified[printer_id] = True
             try:
                 async with async_session() as db:
@@ -6050,8 +6048,6 @@ async def lifespan(app: FastAPI):
                     if not printer:
                         return
                     printer_name = printer.name
-                    client = printer_manager.get_client(printer_id)
-                    state = client.state if client else None
                     filename = (state.subtask_name or state.gcode_file or "Unknown") if state else "Unknown"
                     total_layers = state.total_layers if state else 0
 
@@ -6750,6 +6746,9 @@ app.include_router(library.router, prefix=app_settings.api_prefix)
 app.include_router(library_tags.router, prefix=app_settings.api_prefix)
 app.include_router(library_trash.router, prefix=app_settings.api_prefix)
 app.include_router(slice_jobs.router, prefix=app_settings.api_prefix)
+app.include_router(slicer_pipelines.router, prefix=app_settings.api_prefix)
+app.include_router(pipeline_runs.pipeline_run_create_router, prefix=app_settings.api_prefix)
+app.include_router(pipeline_runs.pipeline_run_router, prefix=app_settings.api_prefix)
 app.include_router(slicer_presets.router, prefix=app_settings.api_prefix)
 app.include_router(archive_purge.router, prefix=app_settings.api_prefix)
 app.include_router(makerworld.router, prefix=app_settings.api_prefix)

@@ -122,6 +122,51 @@ def supports_chamber_heater(model: str | None) -> bool:
     return model.strip().upper() in CHAMBER_HEATER_MODELS
 
 
+# Models with a cooling / heating airduct flap. Same set as the frontend
+# PrintersPage airduct-toggle whitelist (P2S, X2D, H2D, H2C, H2S, H2D Pro).
+# X1E has a chamber heater but NO airduct flap — the warm-air recirculation
+# happens via the fixed front-door inlet, so no `set_airduct` command is
+# needed (and the firmware ignores it). P2S has an airduct but no heater —
+# the flap manages chamber airflow even without an active heater. The
+# intersection (chamber heater AND airduct) is what the preheat stage cares
+# about: when M141 fires we also need to assert heating mode, otherwise the
+# default cooling mode actively fights the chamber heater.
+CHAMBER_AIRDUCT_MODELS = frozenset(
+    [
+        # Display names
+        "P2S",
+        "X2D",
+        "H2C",
+        "H2D",
+        "H2DPRO",
+        "H2S",
+        # Internal codes (from MQTT/SSDP)
+        "N7",  # P2S
+        "N6",  # X2D
+        "O1C",  # H2C
+        "O1C2",  # H2C dual-nozzle variant
+        "O1D",  # H2D
+        "O1E",  # H2D Pro
+        "O2D",  # H2D Pro alternate code
+        "O1S",  # H2S
+    ]
+)
+
+
+def supports_airduct(model: str | None) -> bool:
+    """Check if a printer model has a cooling / heating airduct mode toggle.
+
+    Mirrors the frontend PrintersPage `['P2S', 'X2D', 'H2D', 'H2C', 'H2S']`
+    + H2D Pro whitelist. Distinct from `supports_chamber_heater` — P2S has
+    the airduct toggle but no active heater, and X1E has the heater but no
+    airduct. The preheat stage cares about the intersection (heater AND
+    airduct) so it can flip the flap to heating before energising M141.
+    """
+    if not model:
+        return False
+    return model.strip().upper() in CHAMBER_AIRDUCT_MODELS
+
+
 def has_stg_cur_idle_bug(model: str | None) -> bool:
     """Check if a printer model may incorrectly report stg_cur=0 when idle.
 
@@ -556,6 +601,24 @@ class PrinterManager:
             client.check_staleness()
             return client.state
         return None
+
+    # Gcode states in which a job is loaded / in progress and cutting power
+    # would ruin the print. PAUSE is included on purpose — a paused print is
+    # still loaded on the bed. Used by the smart-plug auto-off guard (#1890) so
+    # a re-print started from the touchscreen isn't killed mid-print.
+    ACTIVE_PRINT_STATES = ("RUNNING", "PAUSE", "PREPARE", "SLICING")
+
+    def is_print_active(self, printer_id: int) -> bool:
+        """True when the printer currently has a print loaded / in progress.
+
+        Returns False when disconnected or in any idle/terminal state
+        (IDLE / FINISH / FAILED / unknown), so callers fail *open* only for
+        the safe "nothing is printing" case. #1890.
+        """
+        state = self.get_status(printer_id)
+        if not state or not state.connected:
+            return False
+        return state.state in self.ACTIVE_PRINT_STATES
 
     def get_model(self, printer_id: int) -> str | None:
         """Get the cached model for a printer."""
