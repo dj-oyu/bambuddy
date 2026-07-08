@@ -412,16 +412,10 @@ _HMS_AUTO_CLEAR_WINDOW_SECONDS = 600.0
 _hms_auto_clear_attempts: dict[tuple[int, str], list[float]] = {}
 
 
-def _hms_short_code(error) -> str:
-    """Build a short code like "0500_409D" from an HMSError."""
-    error_code_int = int(error.code.replace("0x", ""), 16) if error.code else 0
-    return f"{(error.attr >> 16) & 0xFFFF:04X}_{error_code_int & 0xFFFF:04X}"
-
-
 def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
     """Auto-clear configured HMS codes (e.g. BMCU firmware-mismatch warnings)."""
     log = logging.getLogger(__name__)
-    matched = [c for c in (_hms_short_code(e) for e in new_errors) if c in _HMS_AUTO_CLEAR_CODES]
+    matched = [c for c in (_hms_short_code(e.attr, e.code) for e in new_errors) if c in _HMS_AUTO_CLEAR_CODES]
     if not matched:
         return
 
