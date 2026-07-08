@@ -446,6 +446,47 @@ def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
             "[HMS] Auto-cleared %s on printer %s (cleared=%s, resumed=%s, attempt %d/%d)",
             short_code, printer_id, cleared, resumed, len(attempts), _HMS_AUTO_CLEAR_MAX_ATTEMPTS,
         )
+        if cleared and not resumed:
+            # The BMCU 409D fires during print start and the printer rejects the
+            # job while staying IDLE — nothing to resume. Requeue the stuck item
+            # so the scheduler re-sends the print now that the error is cleared.
+            asyncio.create_task(_requeue_print_rejected_by_hms(printer_id, short_code))
+
+
+async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> None:
+    """Flip a queue item stuck in 'printing' back to 'pending' after an HMS
+    auto-clear, but only if the printer is still idle once things settle."""
+    log = logging.getLogger(__name__)
+    await asyncio.sleep(8.0)
+
+    from backend.app.services.printer_manager import printer_manager
+
+    client = printer_manager.get_client(printer_id)
+    state = getattr(getattr(client, "state", None), "gcode_state", None)
+    if state not in (None, "IDLE", "FAILED", "FINISH"):
+        return  # print actually started (or is paused) — leave it alone
+
+    from sqlalchemy import select as _select
+
+    from backend.app.models.print_queue import PrintQueueItem
+
+    async with async_session() as db:
+        result = await db.execute(
+            _select(PrintQueueItem).where(
+                PrintQueueItem.printer_id == printer_id,
+                PrintQueueItem.status == "printing",
+            )
+        )
+        items = result.scalars().all()
+        for item in items:
+            item.status = "pending"
+            item.started_at = None
+        if items:
+            await db.commit()
+            log.info(
+                "[HMS] Requeued %d stuck queue item(s) on printer %s after auto-clearing %s (printer state=%s)",
+                len(items), printer_id, short_code, state,
+            )
 
 # Track timelapse file baselines at print start: {printer_id: set of video filenames}
 # Used for snapshot-diff detection at print completion
