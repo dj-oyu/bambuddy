@@ -394,6 +394,65 @@ _notified_hms_errors: dict[int, set[str]] = {}
 _hms_last_seen: dict[int, float] = {}
 _HMS_CLEAR_GRACE_SECONDS = 30.0
 
+# HMS short codes to automatically clear on the printer when they appear.
+# Default covers 0500_409D ("AMS firmware does not match the printer"), a
+# spurious handshake warning from third-party AMS units (e.g. BMCU 370C)
+# that blocks printing but resolves once dismissed.
+_HMS_AUTO_CLEAR_CODES = {
+    c.strip().upper()
+    for c in os.environ.get(
+        "BAMBUDDY_HMS_AUTO_CLEAR_CODES", "0500_409D,0501_409D,0502_409D,0503_409D"
+    ).split(",")
+    if c.strip()
+}
+# Rate-limit auto-clear so a persistent error can't cause a clear/reappear loop
+_HMS_AUTO_CLEAR_MAX_ATTEMPTS = 3
+_HMS_AUTO_CLEAR_WINDOW_SECONDS = 600.0
+# {(printer_id, short_code): [attempt timestamps]}
+_hms_auto_clear_attempts: dict[tuple[int, str], list[float]] = {}
+
+
+def _hms_short_code(error) -> str:
+    """Build a short code like "0500_409D" from an HMSError."""
+    error_code_int = int(error.code.replace("0x", ""), 16) if error.code else 0
+    return f"{(error.attr >> 16) & 0xFFFF:04X}_{error_code_int & 0xFFFF:04X}"
+
+
+def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
+    """Auto-clear configured HMS codes (e.g. BMCU firmware-mismatch warnings)."""
+    log = logging.getLogger(__name__)
+    matched = [c for c in (_hms_short_code(e) for e in new_errors) if c in _HMS_AUTO_CLEAR_CODES]
+    if not matched:
+        return
+
+    from backend.app.services.printer_manager import printer_manager
+
+    client = printer_manager.get_client(printer_id)
+    if not client:
+        return
+
+    now = time.time()
+    for short_code in matched:
+        key = (printer_id, short_code)
+        attempts = [t for t in _hms_auto_clear_attempts.get(key, []) if now - t < _HMS_AUTO_CLEAR_WINDOW_SECONDS]
+        if len(attempts) >= _HMS_AUTO_CLEAR_MAX_ATTEMPTS:
+            log.warning(
+                "[HMS] Auto-clear for %s on printer %s rate-limited (%d attempts in %.0fs) — leaving error for manual handling",
+                short_code, printer_id, len(attempts), _HMS_AUTO_CLEAR_WINDOW_SECONDS,
+            )
+            continue
+        attempts.append(now)
+        _hms_auto_clear_attempts[key] = attempts
+
+        cleared = client.clear_hms_errors()
+        resumed = False
+        if cleared and getattr(client.state, "gcode_state", None) == "PAUSE":
+            resumed = client.resume_print()
+        log.info(
+            "[HMS] Auto-cleared %s on printer %s (cleared=%s, resumed=%s, attempt %d/%d)",
+            short_code, printer_id, cleared, resumed, len(attempts), _HMS_AUTO_CLEAR_MAX_ATTEMPTS,
+        )
+
 # Track timelapse file baselines at print start: {printer_id: set of video filenames}
 # Used for snapshot-diff detection at print completion
 _timelapse_baselines: dict[int, set[str]] = {}
@@ -1272,6 +1331,15 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
             # Get the actual new errors for the notification
             # Filter to severity >= 2 (skip informational/status messages like H2D sends)
             new_errors = [e for e in current_hms_errors if f"{e.attr:08x}" in new_error_codes and e.severity >= 2]
+
+            # Auto-clear configured codes regardless of severity (warnings like
+            # the BMCU firmware mismatch still block printing)
+            try:
+                _maybe_auto_clear_hms(
+                    printer_id, [e for e in current_hms_errors if f"{e.attr:08x}" in new_error_codes]
+                )
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"HMS auto-clear failed: {e}")
 
             try:
                 async with async_session() as db:
