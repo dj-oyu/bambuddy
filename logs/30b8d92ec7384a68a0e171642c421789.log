@@ -1,0 +1,200 @@
+2026-07-08 12:31:27,206 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-08 12:31:27,206 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:27,207 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -16dBm
+2026-07-08 12:31:27,207 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: IDLE -> PREPARE, file: base_para_frutas_onepiece_stand_base_Almohadon.3mf, subtask: base_para_frutas_onepiece_stand_base_Almohadon
+2026-07-08 12:31:27,423 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:27,423 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -25dBm
+2026-07-08 12:31:29,484 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:29,484 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -26dBm
+2026-07-08 12:31:30,580 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:31:31,313 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-08 12:31:31,314 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-08 12:31:31,314 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-08 12:31:31,314 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:31,315 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -18dBm
+2026-07-08 12:31:31,515 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:31,516 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -25dBm
+2026-07-08 12:31:31,980 DEBUG [backend.app.services.camera] [-] Chamber image: received 55539 bytes
+2026-07-08 12:31:31,999 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 2: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2FEbCqtJoN_i6v4VCkGiSgBPDDwVn82kds8K9BsEqkRKQ'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:31:34,879 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: added 30s, total=132570s (36.83h)
+2026-07-08 12:31:34,881 DEBUG [backend.app.main] [-] Updated runtime for 1 printer(s)
+2026-07-08 12:31:35,628 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:35,628 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -26dBm
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: RUNNING, gcode_file: None, subtask_name: None
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 1 new units, 1 total
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0}
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] stg_cur changed: 14 -> 255 (Unknown stage (255))
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -19dBm
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: PREPARE -> RUNNING, file: base_para_frutas_onepiece_stand_base_Almohadon.3mf, subtask: base_para_frutas_onepiece_stand_base_Almohadon
+2026-07-08 12:31:36,088 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Now tracking RUNNING state for base_para_frutas_onepiece_stand_base_Almohadon.3mf
+2026-07-08 12:31:36,089 INFO [backend.app.services.bambu_mqtt] [-] [[SERIAL]] PRINT START detected - file: base_para_frutas_onepiece_stand_base_Almohadon.3mf, subtask: base_para_frutas_onepiece_stand_base_Almohadon, is_new: True, is_file_change: False
+2026-07-08 12:31:36,089 INFO [backend.app.main] [-] [CALLBACK] on_print_start called for printer 1, data keys: ['filename', 'subtask_name', 'remaining_time', 'raw_data', 'ams_mapping']
+2026-07-08 12:31:36,091 DEBUG [backend.app.services.smart_plug_manager] [-] Smart plug '[PRINTER] Energía' auto_on is disabled
+2026-07-08 12:31:36,092 INFO [backend.app.main] [-] [PLATE CHECK] printer_id=1, plate_detection_enabled=False
+2026-07-08 12:31:36,092 INFO [backend.app.main] [-] [CALLBACK] Print start detected - filename: base_para_frutas_onepiece_stand_base_Almohadon.3mf, subtask: base_para_frutas_onepiece_stand_base_Almohadon
+2026-07-08 12:31:36,092 INFO [backend.app.main] [-] Using expected archive 25 for print (skipping duplicate)
+2026-07-08 12:31:36,211 INFO [backend.app.main] [-] [ENERGY] Recorded starting energy (expected-print) for archive 25: 58727.28052495514 kWh
+2026-07-08 12:31:36,212 INFO [backend.app.main] [-] [SNAPSHOT] Capturing fresh frame for printer 1
+2026-07-08 12:31:36,212 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:31:37,625 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:37,626 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -27dBm
+2026-07-08 12:31:39,713 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:39,714 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -25dBm
+2026-07-08 12:31:42,007 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:31:43,793 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:45,706 DEBUG [backend.app.services.camera] [-] Chamber image: received 83650 bytes
+2026-07-08 12:31:45,793 INFO [backend.app.main] [-] [SNAPSHOT] Fresh camera frame: 83650 bytes
+2026-07-08 12:31:45,794 INFO [backend.app.services.notification_service] [-] on_print_start called for printer 1 ([PRINTER])
+2026-07-08 12:31:45,797 INFO [backend.app.services.notification_service] [-] No notification providers configured for print_start event on printer 1
+2026-07-08 12:31:45,799 DEBUG [backend.app.services.notification_service] [-] [EMAIL] Skipping user print email (user_print_start): advanced_auth not enabled
+2026-07-08 12:31:45,828 INFO [backend.app.main] [-] Loaded 4 printable objects for printer 1
+2026-07-08 12:31:45,867 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:45,867 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -26dBm
+2026-07-08 12:31:46,473 DEBUG [backend.app.services.spoolman_tracking] [-] [SPOOLMAN] Parsed 153 layers from G-code
+2026-07-08 12:31:46,475 INFO [backend.app.services.spoolman_tracking] [-] [SPOOLMAN] Stored tracking data for print: printer=1, archive=25 (3mf=yes, remain_snapshot=1 slot(s))
+2026-07-08 12:31:46,476 DEBUG [backend.app.services.spoolman_tracking] [-] [SPOOLMAN] Filament usage: [{'slot_id': 1, 'used_g': 28.74, 'type': 'PLA', 'color': '#F72323'}]
+2026-07-08 12:31:46,476 DEBUG [backend.app.services.spoolman_tracking] [-] [SPOOLMAN] AMS trays: [0, 1, 2, 3, 254]
+2026-07-08 12:31:46,476 DEBUG [backend.app.services.spoolman_tracking] [-] [SPOOLMAN] Custom slot mapping: [2]
+2026-07-08 12:31:46,476 DEBUG [backend.app.services.spoolman_tracking] [-] [SPOOLMAN] Layer usage data available for partial tracking
+2026-07-08 12:31:46,476 DEBUG [backend.app.services.bambu_ftp] [-] FTP connecting to [IP]:990 (timeout=30s, model=P1S, prot_c=False, cap_tls_v1_2=False)
+2026-07-08 12:31:47,347 DEBUG [backend.app.services.bambu_ftp] [-] FTP connected, logging in as bblp
+2026-07-08 12:31:47,500 DEBUG [backend.app.services.bambu_ftp] [-] FTP logged in, setting prot_p (protected) and passive mode
+2026-07-08 12:31:47,714 DEBUG [backend.app.services.bambu_ftp] [-] FTP server welcome: 220 BBL-P003 FTP Server
+2026-07-08 12:31:47,714 INFO [backend.app.services.bambu_ftp] [-] FTP connected successfully to [IP] (model=P1S, prot_c=False)
+2026-07-08 12:31:47,906 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:47,907 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -30dBm
+2026-07-08 12:31:49,439 DEBUG [backend.app.services.bambu_ftp] [-] Listed 67 files in /timelapse
+2026-07-08 12:31:49,490 INFO [backend.app.main] [-] [TIMELAPSE] Baseline at print start: 66 video files for printer 1
+2026-07-08 12:31:52,080 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 2 new units, 2 total
+2026-07-08 12:31:52,080 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-08 12:31:52,080 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 1 info=0x1001 -> extruder 0
+2026-07-08 12:31:52,080 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0, '1': 0}
+2026-07-08 12:31:52,080 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:52,080 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -25dBm
+2026-07-08 12:31:52,300 DEBUG [backend.app.services.camera] [-] Chamber image: received 84973 bytes
+2026-07-08 12:31:52,314 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 1: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2FZxVtzcmHrZBHFL8yo6p-sol0CUcCX8Ak2Zvcqk4poZY'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:31:52,315 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:31:54,026 DEBUG [backend.app.services.camera] [-] Chamber image: received 56261 bytes
+2026-07-08 12:31:54,038 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 2: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2FV9eX43eIgtcLPAimVvDKpPHe2yyhIFSzdyQPNamBMPA'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:31:54,141 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:54,141 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -29dBm
+2026-07-08 12:31:56,234 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 2 new units, 2 total
+2026-07-08 12:31:56,234 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-08 12:31:56,234 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 1 info=0x1001 -> extruder 0
+2026-07-08 12:31:56,234 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0, '1': 0}
+2026-07-08 12:31:56,234 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:31:56,234 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -30dBm
+2026-07-08 12:31:59,735 DEBUG [backend.app.main] [-] Recorded 6 printer sensor history entries
+2026-07-08 12:32:00,300 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:00,300 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -28dBm
+2026-07-08 12:32:02,025 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:02,025 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] mc_print_sub_stage changed: 0 -> 1
+2026-07-08 12:32:02,025 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] stg_cur changed: 255 -> 2 (Heatbed preheating)
+2026-07-08 12:32:02,025 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -20dBm
+2026-07-08 12:32:02,349 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:02,349 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -29dBm
+2026-07-08 12:32:04,040 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:32:04,430 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 2 new units, 2 total
+2026-07-08 12:32:04,430 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-08 12:32:04,430 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 1 info=0x1001 -> extruder 0
+2026-07-08 12:32:04,430 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0, '1': 0}
+2026-07-08 12:32:04,430 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:04,430 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -26dBm
+2026-07-08 12:32:04,883 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: first active detection
+2026-07-08 12:32:04,884 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: added 30s, total=132600s (36.83h)
+2026-07-08 12:32:04,885 DEBUG [backend.app.main] [-] Updated runtime for 1 printer(s)
+2026-07-08 12:32:06,334 DEBUG [backend.app.services.camera] [-] Chamber image: received 78234 bytes
+2026-07-08 12:32:06,374 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 1: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2Fjcko5TCbfkW1CPUzIjELgYCDnFWkGEUDnSp-qIeVN0g'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:32:06,375 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:32:07,899 DEBUG [backend.app.services.camera] [-] Chamber image: received 56133 bytes
+2026-07-08 12:32:07,910 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 2: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2F5AU033OGWXQfz1WH7ScAiBqDAM1kdX1TkxSs31GXFOQ'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:32:08,509 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:08,509 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -28dBm
+2026-07-08 12:32:10,581 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:12,628 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:12,628 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -26dBm
+2026-07-08 12:32:16,681 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received gcode_state: RUNNING, gcode_file: gomu_gomu_no_mi_gum_gum_fruit_-_cortada_Bambu.3mf, subtask_name: gomu_gomu_no_mi_gum_gum_fruit_-_cortada_Bambu
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS dict fields: {'ams_exist_bits': '3', 'tray_exist_bits': 'ff', 'tray_is_bbl_bits': 'ff', 'tray_tar': '1', 'tray_now': '1', 'tray_pre': '1', 'tray_read_done_bits': 'ff', 'tray_reading_bits': '0', 'version': 23, 'insert_flag': False, 'power_on_flag': False}
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] tray_now updated: 1
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Merged AMS data: 2 new units, 2 total
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 0 info=0x1001 -> extruder 0
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] AMS 1 info=0x1001 -> extruder 0
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_extruder_map: {'0': 0, '1': 0}
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ams_status: 768 (main=3, sub=0)
+2026-07-08 12:32:17,895 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper raw value: 5.0
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] chamber_temper direct value: 5.0°C (heater OFF)
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber heating calculated: target=0.0, current=5.0, heating=False, respect_local=False
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Chamber temp updated to: 5.0, target: 0.0, heating: False
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] HMS data received: []
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] ipcam field: {'ipcam_dev': '1', 'ipcam_record': 'enable', 'timelapse': 'disable', 'resolution': '', 'tutk_server': 'disable', 'mode_bits': 3}
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -29dBm
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] lights_report: [{'node': 'chamber_light', 'mode': 'on'}]
+2026-07-08 12:32:17,896 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] gcode_state: RUNNING -> RUNNING, file: gomu_gomu_no_mi_gum_gum_fruit_-_cortada_Bambu.3mf, subtask: gomu_gomu_no_mi_gum_gum_fruit_-_cortada_Bambu
+2026-07-08 12:32:17,912 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:32:18,546 DEBUG [backend.app.api.routes.printers] [86c6bb85] API returning ams_mapping: [], ams_extruder_map: {'0': 0}
+2026-07-08 12:32:18,546 DEBUG [backend.app.api.routes.printers] [86c6bb85] Using tray_now directly as global ID: 2
+2026-07-08 12:32:19,907 DEBUG [backend.app.services.camera] [-] Chamber image: received 82872 bytes
+2026-07-08 12:32:19,969 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 1: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2FWzhgvEE_C4szUIwol4HCABI9FfBOqWmHd8hYzvrZXhU'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:32:19,970 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:32:21,400 DEBUG [backend.app.services.camera] [-] Chamber image: received 50684 bytes
+2026-07-08 12:32:21,414 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 2: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2F4adni-3Q1_EYluEu4IvwWixGMxagZ6L8VxtOXMqcNVY'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:32:21,983 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:21,983 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -30dBm
+2026-07-08 12:32:23,062 INFO [backend.app.api.routes.printers] [602fc3bd] Cover: resolved plate 2 before download (subtask=base_para_frutas_onepiece_stand_base_Almohadon)
+2026-07-08 12:32:23,063 INFO [backend.app.api.routes.printers] [602fc3bd] Cover using cached 3MF from /opt/[user]/data/archive/library/files/7d27222e01384632ac44f83137d21182.3mf (avoided duplicate FTP)
+2026-07-08 12:32:23,063 INFO [backend.app.api.routes.printers] [602fc3bd] Downloaded file size: 50671524 bytes
+2026-07-08 12:32:23,064 INFO [backend.app.api.routes.printers] [0a39eaad] Cover: resolved plate 3 before download (subtask=gomu_gomu_no_mi_gum_gum_fruit_-_cortada_Bambu)
+2026-07-08 12:32:23,108 INFO [backend.app.api.routes.cloud] [fb9267ea] get_filament_info called with 2 IDs: ['GFG99', 'GFL95']
+2026-07-08 12:32:23,216 INFO [backend.app.api.routes.cloud] [6e744079] get_filament_info called with 4 IDs: ['GFL95', 'BPLB20', 'GFA18', 'GFL96']
+2026-07-08 12:32:23,355 INFO [backend.app.api.routes.printers] [e5496994] Cover: resolved plate 2 before download (subtask=base_para_frutas_onepiece_stand_base_Almohadon)
+2026-07-08 12:32:23,450 WARNING [backend.app.api.routes.cloud] [6e744079] Failed to get cloud preset GFL95 (API ID: GFSL95): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-08 12:32:23,652 WARNING [backend.app.api.routes.cloud] [fb9267ea] Failed to get cloud preset GFL95 (API ID: GFSL95): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-08 12:32:23,654 INFO [uvicorn.access] [-] [IP]:60156 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-08 12:32:23,697 WARNING [backend.app.api.routes.cloud] [6e744079] Failed to get cloud preset BPLB20 (API ID: BPLB20): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-08 12:32:23,896 WARNING [backend.app.api.routes.cloud] [6e744079] Failed to get cloud preset GFA18 (API ID: GFSA18): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-08 12:32:24,047 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:24,048 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -27dBm
+2026-07-08 12:32:24,103 WARNING [backend.app.api.routes.cloud] [6e744079] Failed to get cloud preset GFL96 (API ID: GFSL96): Failed to get setting detail: 400 {"message":"missing","code":2,"error":"Please check specified resource exist or not.","public":null,"version":null,"type":null,"name":null,"update_time":null,"nickname":null,"base_id":null,"setting":n
+2026-07-08 12:32:24,105 INFO [uvicorn.access] [-] [IP]:60130 - "POST /api/v1/cloud/filament-info HTTP/1.1" 200
+2026-07-08 12:32:26,092 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:26,092 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -28dBm
+2026-07-08 12:32:28,513 INFO [backend.app.api.routes.printers] [666a835a] Cover: resolved plate 2 before download (subtask=base_para_frutas_onepiece_stand_base_Almohadon)
+2026-07-08 12:32:28,514 INFO [backend.app.api.routes.printers] [666a835a] Cover using cached 3MF from /opt/[user]/data/archive/library/files/7d27222e01384632ac44f83137d21182.3mf (avoided duplicate FTP)
+2026-07-08 12:32:28,514 INFO [backend.app.api.routes.printers] [666a835a] Downloaded file size: 50671524 bytes
+2026-07-08 12:32:30,189 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:30,189 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -26dBm
+2026-07-08 12:32:31,418 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:32:32,240 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:32,240 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -25dBm
+2026-07-08 12:32:33,888 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:33,889 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] mc_print_sub_stage changed: 1 -> 2
+2026-07-08 12:32:33,889 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -18dBm
+2026-07-08 12:32:34,291 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:34,292 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -27dBm
+2026-07-08 12:32:34,887 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: added 30s, total=123060s (34.18h)
+2026-07-08 12:32:34,890 DEBUG [backend.app.main] [-] [[PRINTER]] Runtime tracking: added 30s, total=132630s (36.84h)
+2026-07-08 12:32:34,893 DEBUG [backend.app.main] [-] Updated runtime for 2 printer(s)
+2026-07-08 12:32:38,185 DEBUG [backend.app.api.routes.printers] [f81d927f] API returning ams_mapping: [], ams_extruder_map: {'0': 0}
+2026-07-08 12:32:38,185 DEBUG [backend.app.api.routes.printers] [f81d927f] Using tray_now directly as global ID: 2
+2026-07-08 12:32:38,186 DEBUG [backend.app.services.camera] [-] Chamber image: received 83000 bytes
+2026-07-08 12:32:38,301 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 1: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2FmPzixRpBStZMmAX1IVDE2mpIXRXn0SJ0Pk-zr6hPPjw'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:32:38,303 INFO [backend.app.services.camera] [-] Capturing camera frame bytes from [IP] using chamber image protocol (model: P1S)
+2026-07-08 12:32:38,359 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:38,360 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -30dBm
+2026-07-08 12:32:40,030 DEBUG [backend.app.services.camera] [-] Chamber image: received 56794 bytes
+2026-07-08 12:32:40,063 WARNING [backend.app.services.obico_detection] [-] ML API call failed for printer 2: Client error '401 UNAUTHORIZED' for url 'http://[IP]:3333/p/?img=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fv1%2Fobico%2Fcached-frame%2Ft07j-fZYVX2t0nhM2E8HZ_ouisPTSN3yR4ZiBEgFlsc'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-07-08 12:32:40,412 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] Received command response: push_status
+2026-07-08 12:32:40,412 DEBUG [backend.app.services.bambu_mqtt] [-] [[SERIAL]] wifi_signal received: -29dBm
