@@ -566,6 +566,155 @@ class TestPrePrintFailureCompletion:
         assert any(e.get("code") == "0x4038" for e in errs)
 
 
+class TestIdleCompletionFallback:
+    """Tests for the `_was_running` fallback on the IDLE completion branch.
+
+    On-device cancels can route RUNNING -> PAUSE -> IDLE, and a reconnect can
+    drop the RUNNING -> IDLE edge entirely. The legacy IDLE branch required
+    `_previous_gcode_state == "RUNNING"` exactly, so those prints stayed stuck
+    at 'printing'. The fallback (symmetric with the FINISH/FAILED branch)
+    fires when `_was_running` is latched and the state actually changed.
+    """
+
+    @pytest.fixture
+    def mqtt_client(self):
+        from backend.app.services.bambu_mqtt import BambuMQTTClient
+
+        return BambuMQTTClient(
+            ip_address="192.168.1.100",
+            serial_number="TEST123",
+            access_code="12345678",
+        )
+
+    def _msg(self, state: str) -> dict:
+        return {
+            "print": {
+                "gcode_state": state,
+                "gcode_file": "/data/Metadata/test.gcode",
+                "subtask_name": "Test",
+            }
+        }
+
+    def test_running_pause_idle_fires_aborted(self, mqtt_client):
+        """On-device cancel routed RUNNING -> PAUSE -> IDLE must fire aborted."""
+        complete_data = {}
+        mqtt_client.on_print_start = lambda data: None
+        mqtt_client.on_print_complete = lambda data: complete_data.update(data)
+
+        mqtt_client._process_message(self._msg("RUNNING"))
+        mqtt_client._process_message(self._msg("PAUSE"))
+        assert complete_data == {}, "PAUSE alone must not fire completion"
+        mqtt_client._process_message(self._msg("IDLE"))
+
+        assert complete_data.get("status") == "aborted"
+
+    def test_reconnect_missed_edge_idle_fires_aborted(self, mqtt_client):
+        """RUNNING observed, then disconnect; first push after reconnect is IDLE.
+
+        `_was_running` is still latched on the client while
+        `_previous_gcode_state` is whatever was last seen (RUNNING here would
+        hit the normal branch, so simulate a fully missed edge with prev=None).
+        """
+        complete_data = {}
+        mqtt_client.on_print_start = lambda data: None
+        mqtt_client.on_print_complete = lambda data: complete_data.update(data)
+
+        mqtt_client._process_message(self._msg("RUNNING"))
+        assert mqtt_client._was_running is True
+
+        # Simulate the reconnect losing the prev-state edge
+        mqtt_client._previous_gcode_state = None
+        mqtt_client._process_message(self._msg("IDLE"))
+
+        assert complete_data.get("status") == "aborted"
+
+    def test_idle_without_prior_running_does_not_fire(self, mqtt_client):
+        """Stale IDLE on first connect (never RUNNING) must not fire completion."""
+        calls = []
+        mqtt_client.on_print_start = lambda data: None
+        mqtt_client.on_print_complete = lambda data: calls.append(data)
+
+        mqtt_client._process_message(self._msg("IDLE"))
+        mqtt_client._process_message(self._msg("IDLE"))
+
+        assert calls == []
+
+    def test_repeated_idle_fires_only_once(self, mqtt_client):
+        """Completion must fire exactly once even if IDLE keeps being reported."""
+        calls = []
+        mqtt_client.on_print_start = lambda data: None
+        mqtt_client.on_print_complete = lambda data: calls.append(data)
+
+        mqtt_client._process_message(self._msg("RUNNING"))
+        mqtt_client._process_message(self._msg("PAUSE"))
+        mqtt_client._process_message(self._msg("IDLE"))
+        mqtt_client._process_message(self._msg("IDLE"))
+
+        assert len(calls) == 1
+
+
+class TestDiagnosticBranchDoesNotLatch:
+    """The diagnostics-only 'terminal state seen but completion NOT triggered'
+    branch used to set `_completion_triggered = True` as a side effect,
+    permanently suppressing a genuine completion that arrived later. It must
+    log only."""
+
+    @pytest.fixture
+    def mqtt_client(self):
+        from backend.app.services.bambu_mqtt import BambuMQTTClient
+
+        return BambuMQTTClient(
+            ip_address="192.168.1.100",
+            serial_number="TEST123",
+            access_code="12345678",
+        )
+
+    def _msg(self, state: str) -> dict:
+        return {
+            "print": {
+                "gcode_state": state,
+                "gcode_file": "/data/Metadata/test.gcode",
+                "subtask_name": "Test",
+            }
+        }
+
+    def test_stale_finish_then_real_finish_fires(self, mqtt_client):
+        """Stale FINISH at connect (diag-only) must not block the next real
+        print's FINISH from firing completion."""
+        calls = []
+        mqtt_client.on_print_start = lambda data: None
+        mqtt_client.on_print_complete = lambda data: calls.append(data)
+
+        # First push after connect: stale FINISH — diagnostics branch only.
+        mqtt_client._process_message(self._msg("FINISH"))
+        assert calls == []
+        assert mqtt_client._completion_triggered is False, (
+            "diagnostics branch must not latch _completion_triggered"
+        )
+
+        # A real print runs and finishes.
+        mqtt_client._process_message(self._msg("RUNNING"))
+        mqtt_client._process_message(self._msg("FINISH"))
+
+        assert len(calls) == 1
+        assert calls[0].get("status") == "completed"
+
+    def test_diag_branch_then_running_edge_recovers_within_same_state(self, mqtt_client):
+        """Even without a new print start resetting flags, a genuine
+        completion condition arising later (RUNNING then FAILED) must fire."""
+        calls = []
+        mqtt_client.on_print_start = lambda data: None
+        mqtt_client.on_print_complete = lambda data: calls.append(data)
+
+        mqtt_client._process_message(self._msg("FAILED"))  # stale, diag only
+        assert calls == []
+
+        mqtt_client._process_message(self._msg("RUNNING"))
+        mqtt_client._process_message(self._msg("FAILED"))
+        assert len(calls) == 1
+        assert calls[0].get("status") == "failed"
+
+
 class TestAMSDataMerging:
     """Tests for AMS data merging, particularly handling empty slots."""
 

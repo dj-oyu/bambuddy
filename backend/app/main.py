@@ -3942,6 +3942,49 @@ async def reconcile_stale_active_prints(printer_id: int) -> int:
     return reconciled
 
 
+# Periodic safety net on top of the edge-triggered reconciles above: the
+# connect-edge and startup reconciles miss completions whose MQTT terminal
+# state itself was dropped (e.g. on-device cancel that never produced a
+# detectable transition). A 5-minute sweep bounds how long an archive can
+# stay stuck at "printing". Safe to run on a timer: reconcile skips
+# disconnected printers, and `_is_active_archive_stale` treats an empty /
+# "unknown" state (connected but no push_status applied yet, #1679) as not
+# stale, so a bare connect can't cause a false positive.
+_RECONCILE_SWEEP_INTERVAL = 300  # seconds
+_reconcile_sweep_task: asyncio.Task | None = None
+
+
+async def _reconcile_sweep_loop() -> None:
+    """Periodic background task: reconcile stale active prints for all printers."""
+    while True:
+        await asyncio.sleep(_RECONCILE_SWEEP_INTERVAL)
+        try:
+            for printer_id in list(printer_manager.get_all_statuses().keys()):
+                # Only INFO-logs when a stale archive is actually found
+                # (inside reconcile_stale_active_prints), so the sweep is
+                # silent in the steady state.
+                await reconcile_stale_active_prints(printer_id)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.getLogger(__name__).warning("[RECONCILE] periodic sweep error: %s", e)
+
+
+def start_reconcile_sweep() -> None:
+    global _reconcile_sweep_task
+    if _reconcile_sweep_task is None:
+        _reconcile_sweep_task = asyncio.create_task(_reconcile_sweep_loop())
+        logging.getLogger(__name__).info("Stale-print reconcile sweep started")
+
+
+def stop_reconcile_sweep() -> None:
+    global _reconcile_sweep_task
+    if _reconcile_sweep_task:
+        _reconcile_sweep_task.cancel()
+        _reconcile_sweep_task = None
+        logging.getLogger(__name__).info("Stale-print reconcile sweep stopped")
+
+
 async def on_finish_photo_moment(printer_id: int, data: dict):
     """Pre-capture a finish photo when the printer enters stage 22 / FINISH (#1721).
 
@@ -6338,6 +6381,10 @@ async def lifespan(app: FastAPI):
     # L-2: Start periodic auth cleanup (stale TOTP + expired revoked JTIs)
     start_auth_cleanup()
 
+    # Periodic stale-print reconcile sweep (safety net for missed MQTT
+    # completion events; edge-triggered reconciles on connect remain)
+    start_reconcile_sweep()
+
     # Event-loop stall watchdog: dumps all thread stacks to stderr if the loop
     # freezes (#1486 — silent "container hangs after adding a printer" reports).
     from backend.app.services.loop_watchdog import start_loop_watchdog
@@ -6384,6 +6431,7 @@ async def lifespan(app: FastAPI):
         logging.warning("Failed to shut down camera broadcasters: %s", e)
     stop_expected_prints_cleanup()
     stop_auth_cleanup()
+    stop_reconcile_sweep()
     printer_manager.disconnect_all()
     await close_spoolman_client()
 

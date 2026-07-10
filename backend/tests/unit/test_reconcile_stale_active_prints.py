@@ -264,3 +264,51 @@ class TestReconcileStaleActivePrints:
         # Only the second archive is recorded as reconciled (first raised).
         assert count == 1
         assert mock_complete.await_count == 2
+
+
+class TestReconcileSweep:
+    """Periodic reconcile sweep (safety net for missed MQTT completion
+    events that even the connect-edge reconcile can't see)."""
+
+    @pytest.mark.asyncio
+    async def test_start_creates_task_and_stop_cancels_it(self):
+        import backend.app.main as main_mod
+
+        assert main_mod._reconcile_sweep_task is None
+        main_mod.start_reconcile_sweep()
+        task = main_mod._reconcile_sweep_task
+        assert task is not None and not task.done()
+        # Idempotent: second start must not replace the task.
+        main_mod.start_reconcile_sweep()
+        assert main_mod._reconcile_sweep_task is task
+        main_mod.stop_reconcile_sweep()
+        assert main_mod._reconcile_sweep_task is None
+        assert task.cancelled() or task.cancelling()
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_reconciles_all_printers(self, monkeypatch):
+        """One sweep iteration calls reconcile for every known printer."""
+        import backend.app.main as main_mod
+
+        called: list[int] = []
+
+        async def fake_reconcile(printer_id: int) -> int:
+            called.append(printer_id)
+            return 0
+
+        monkeypatch.setattr(main_mod, "reconcile_stale_active_prints", fake_reconcile)
+        monkeypatch.setattr(main_mod, "_RECONCILE_SWEEP_INTERVAL", 0)
+        with patch("backend.app.main.printer_manager") as mock_pm:
+            mock_pm.get_all_statuses.return_value = {1: object(), 2: object()}
+            task = __import__("asyncio").get_event_loop().create_task(main_mod._reconcile_sweep_loop())
+            # Let the loop run at least one iteration, then cancel.
+            import asyncio as _asyncio
+
+            for _ in range(20):
+                await _asyncio.sleep(0)
+                if called:
+                    break
+            task.cancel()
+            with pytest.raises(_asyncio.CancelledError):
+                await task
+        assert called[:2] == [1, 2]

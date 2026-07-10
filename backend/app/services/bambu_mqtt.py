@@ -3365,12 +3365,20 @@ class BambuMQTTClient:
                 or (self.state.state == "FAILED" and self._previous_gcode_state in ("PREPARE", "SLICING"))
             )
         )
-        # For IDLE, only trigger if we just came from RUNNING (explicit abort/cancel)
+        # For IDLE, trigger if we came from RUNNING (explicit abort/cancel).
+        # Also accept the `_was_running` fallback — symmetric with the
+        # FINISH/FAILED branch above — so on-device cancels that route
+        # RUNNING -> PAUSE -> IDLE, and reconnects where the RUNNING -> IDLE
+        # edge was missed (prev state stale/None but _was_running latched),
+        # still mark the print as aborted instead of leaving it "printing".
         if (
             self.state.state == "IDLE"
-            and self._previous_gcode_state == "RUNNING"
             and not self._completion_triggered
             and self.on_print_complete
+            and (
+                self._previous_gcode_state == "RUNNING"  # Normal abort transition
+                or (self._was_running and self._previous_gcode_state != self.state.state)  # PAUSE-routed cancel / missed edge
+            )
         ):
             should_trigger_completion = True
 
@@ -3386,8 +3394,10 @@ class BambuMQTTClient:
                 f"prev={self._previous_gcode_state}, was_running={self._was_running}, "
                 f"already_triggered={self._completion_triggered}, has_callback={bool(self.on_print_complete)}"
             )
-            # Mark as triggered so state is clean for the next print cycle
-            self._completion_triggered = True
+            # NOTE: do NOT set self._completion_triggered here — this branch is
+            # diagnostics only. Latching the flag without firing the callback
+            # permanently suppressed a genuine completion event that arrived
+            # later in the same cycle (flag is only reset on a new print start).
 
         if should_trigger_completion:
             if self.state.state == "FINISH":
