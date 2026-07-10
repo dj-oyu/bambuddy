@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1566,6 +1567,90 @@ class PrintScheduler:
         setting = result.scalar_one_or_none()
         return setting.value if setting else None
 
+    async def _set_setting(self, db: AsyncSession, key: str, value: str) -> None:
+        """Write a setting value to the database (insert or update)."""
+        result = await db.execute(select(Settings).where(Settings.key == key))
+        setting = result.scalar_one_or_none()
+        if setting:
+            setting.value = value
+        else:
+            db.add(Settings(key=key, value=value))
+        await db.commit()
+
+    # Deferred-unload patch: the sliced machine end G-code always pulls the
+    # filament back to the AMS, so back-to-back queue jobs with the same
+    # filament waste a full unload+load cycle (and, with a BMCU whose rewind
+    # is broken, push slack into the drybox until the spool unspools).
+    # Instead of predicting the next job, the unload is *deferred*: stripped
+    # from every injected job and recorded here; the NEXT dispatch decides
+    # what the pending unload meant (same filament → nothing was needed;
+    # different filament → the new job's own start G-code performs the swap).
+    # One settings row per printer ("deferred_unload_state:<printer_id>") so
+    # concurrent dispatches for different printers never read-modify-write a
+    # shared blob. A row value of "null" means no unload is withheld.
+    _DEFERRED_UNLOAD_KEY_PREFIX = "deferred_unload_state:"
+
+    @staticmethod
+    def _normalize_ams_mapping(raw: str | None) -> list[int] | None:
+        """Canonicalize an ams_mapping JSON string to the set of trays actually used.
+
+        Placeholder entries (-1 / 255 = "no filament on this extruder slot")
+        are dropped so `[0]` and `[0, -1]` — physically the same single spool —
+        compare equal. Returns None when the mapping is absent or unparseable,
+        and None never compares equal to a real mapping.
+        """
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+            if not isinstance(parsed, list):
+                return None
+            return sorted({int(t) for t in parsed if isinstance(t, (int, float)) and 0 <= int(t) < 255})
+        except (ValueError, TypeError):
+            return None
+
+    async def _resolve_deferred_unload(self, db: AsyncSession, item: PrintQueueItem, stripped_block: str | None) -> None:
+        """Bookkeeping for the deferred-unload patch, called only after the
+        print command was accepted (so a failed upload/start never consumes or
+        rewrites state that still describes physical reality).
+
+        Consumes the unload withheld by the previous job on this printer
+        (same filament → it was never needed; different → the job we just
+        started performs the swap in its own start G-code), then records this
+        job's withheld unload, if its tail block was stripped.
+        """
+        key = f"{self._DEFERRED_UNLOAD_KEY_PREFIX}{item.printer_id}"
+        raw = await self._get_setting(db, key)
+        try:
+            entry = json.loads(raw) if raw else None
+        except ValueError:
+            entry = None
+
+        if entry:
+            prev_mapping = self._normalize_ams_mapping(entry.get("ams_mapping"))
+            cur_mapping = self._normalize_ams_mapping(item.ams_mapping)
+            if prev_mapping is not None and prev_mapping == cur_mapping:
+                logger.info(
+                    "Queue item %s: deferred unload from item %s discarded — same filament, no swap needed",
+                    item.id, entry.get("item_id"),
+                )
+            else:
+                logger.info(
+                    "Queue item %s: filament differs from item %s (trays %s → %s) — "
+                    "start G-code performs the swap from the still-loaded filament",
+                    item.id, entry.get("item_id"), prev_mapping, cur_mapping,
+                )
+
+        new_entry = None
+        if stripped_block:
+            new_entry = {
+                "item_id": item.id,
+                "ams_mapping": item.ams_mapping or None,
+                "block": stripped_block,
+            }
+        if entry is not None or new_entry is not None:
+            await self._set_setting(db, key, json.dumps(new_entry))
+
     async def _get_bool_setting(self, db: AsyncSession, key: str, default: bool = False) -> bool:
         """Read a boolean setting from the database."""
         result = await db.execute(select(Settings).where(Settings.key == key))
@@ -2638,24 +2723,30 @@ class PrintScheduler:
 
         # G-code injection for auto-print systems (#422)
         injected_path = None
+        deferred_unload_block: str | None = None
+        defer_unload = bool(item.gcode_injection) and os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
         if item.gcode_injection:
             try:
                 snippets_raw = await self._get_setting(db, "gcode_snippets")
-                if snippets_raw:
-                    snippets = json.loads(snippets_raw)
+                if snippets_raw or defer_unload:
+                    snippets = json.loads(snippets_raw) if snippets_raw else {}
                     model_snippets = snippets.get(printer.model, {})
                     start_gc = (model_snippets.get("start_gcode") or "").strip()
                     end_gc = (model_snippets.get("end_gcode") or "").strip()
-                    if start_gc or end_gc:
+                    if start_gc or end_gc or defer_unload:
                         from backend.app.utils.threemf_tools import inject_gcode_into_3mf
 
+                        strip_result: dict | None = {} if defer_unload else None
                         injected_path = inject_gcode_into_3mf(
-                            file_path, item.plate_id or 1, start_gc or None, end_gc or None
+                            file_path, item.plate_id or 1, start_gc or None, end_gc or None,
+                            strip_tail_unload=strip_result,
                         )
                         if injected_path:
                             file_path = injected_path
                             logger.info("Queue item %s: G-code injected for model %s", item.id, printer.model)
-                        else:
+                            if defer_unload:
+                                deferred_unload_block = strip_result.get("block")
+                        elif start_gc or end_gc:
                             logger.warning(
                                 "Queue item %s: G-code injection returned no result, using original", item.id
                             )
@@ -2925,6 +3016,15 @@ class PrintScheduler:
 
         if started:
             logger.info("Queue item %s: Print started successfully - %s", item.id, filename)
+
+            # Deferred-unload bookkeeping happens only now that the printer
+            # accepted the job — a failed upload/start leaves the previous
+            # job's withheld-unload record untouched (review finding #3).
+            if defer_unload:
+                try:
+                    await self._resolve_deferred_unload(db, item, deferred_unload_block)
+                except Exception as e:
+                    logger.warning("Queue item %s: deferred-unload bookkeeping failed: %s", item.id, e)
             # No dispatch-toast event here: the legacy bg-dispatch path kept
             # status='processing' from upload start until the printer acked
             # (or timed out). The frontend derives "Awaiting printer…" purely

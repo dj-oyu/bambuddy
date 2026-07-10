@@ -760,11 +760,43 @@ def _inject_end_before_marker(content: str, snippet: str) -> str:
     return content[:line_start] + snippet.rstrip("\n") + "\n" + content[line_start:]
 
 
+def _strip_tail_unload(gcode_content: str) -> tuple[str, str | None]:
+    """Remove the machine-end "pull back filament to AMS" block (deferred-unload patch).
+
+    Only touches the region after `; MACHINE_END_GCODE_START` and only when a
+    single well-formed block is found: starts at the `; pull back filament to
+    AMS` comment, contains `T255`, and ends at the first `M621 S255` line.
+    Returns (new_content, stripped_block) or (original, None) when the pattern
+    is absent or ambiguous — failing safe means keeping the unload.
+    """
+    import re
+
+    marker = "; MACHINE_END_GCODE_START"
+    marker_idx = gcode_content.rfind(marker)
+    if marker_idx == -1:
+        return gcode_content, None
+    tail = gcode_content[marker_idx:]
+
+    pattern = re.compile(
+        r"[^\S\n]*;\s*pull back filament to AMS[^\n]*\n"
+        r"(?:(?!M621 S255)[^\n]*\n)*?"
+        r"M621 S255[^\n]*\n"
+    )
+    matches = list(pattern.finditer(tail))
+    if len(matches) != 1 or "T255" not in matches[0].group(0):
+        return gcode_content, None
+
+    block = matches[0].group(0)
+    new_tail = tail[: matches[0].start()] + tail[matches[0].end():]
+    return gcode_content[:marker_idx] + new_tail, block
+
+
 def inject_gcode_into_3mf(
     source_path: Path,
     plate_id: int,
     start_gcode: str | None,
     end_gcode: str | None,
+    strip_tail_unload: dict | None = None,
 ):
     """Create a temp copy of a 3MF with G-code injected at start/end.
 
@@ -783,6 +815,9 @@ def inject_gcode_into_3mf(
         plate_id: Plate number (1-indexed) to inject into.
         start_gcode: G-code to insert after printer startup, or None.
         end_gcode: G-code to append, or None.
+        strip_tail_unload: If a dict is passed, also remove the machine-end
+            "pull back filament to AMS" block (deferred-unload patch). On
+            success the removed block is stored under key "block".
 
     Returns:
         Path to temp file with injected G-code, or None if injection failed.
@@ -790,7 +825,7 @@ def inject_gcode_into_3mf(
     """
     import tempfile
 
-    if not start_gcode and not end_gcode:
+    if not start_gcode and not end_gcode and strip_tail_unload is None:
         return None
 
     try:
@@ -815,6 +850,17 @@ def inject_gcode_into_3mf(
             # Read and modify gcode content
             gcode_content = zf.read(target_gcode).decode("utf-8", errors="ignore")
             header = _parse_3mf_gcode_header(gcode_content)
+
+            if strip_tail_unload is not None:
+                gcode_content, stripped_block = _strip_tail_unload(gcode_content)
+                if stripped_block:
+                    strip_tail_unload["block"] = stripped_block
+                    logger.info("G-code injection [%s]: tail AMS unload stripped (deferred)", target_gcode)
+                else:
+                    logger.info("G-code injection [%s]: tail unload pattern not found — leaving as-is", target_gcode)
+                    if not start_gcode and not end_gcode:
+                        # Nothing to change at all — skip the pointless re-zip
+                        return None
 
             if start_gcode:
                 resolved = _substitute_placeholders(start_gcode, header)
