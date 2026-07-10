@@ -9,6 +9,8 @@ import { getCurrencySymbol, SUPPORTED_CURRENCIES } from '../utils/currency';
 import { checkPasswordComplexity } from '../utils/password';
 import { PRESET_CATEGORIES, parsePresetTriple } from '../utils/temperatureFanPresets';
 import { PreheatFilamentTargetsEditor } from '../components/PreheatFilamentTargetsEditor';
+import { templatesForModel } from '../gcodeTemplates';
+import { GcodeMotionPreviewButton } from '../components/GcodeMotionPreviewModal';
 import type { APIKey, AppSettings, AppSettingsUpdate, SmartPlug, SmartPlugStatus, NotificationProvider, NotificationTemplate, UpdateStatus, GitHubBackupStatus, CloudAuthStatus, UserCreate, UserUpdate, UserResponse, StorageUsageResponse } from '../api/client';
 import { Card, CardContent, CardDensityProvider, CardHeader } from '../components/Card';
 import { SlicerBundlesPanel } from '../components/SlicerBundlesPanel';
@@ -154,6 +156,67 @@ const STORAGE_FALLBACK_COLORS = [
 
 const getStorageColor = (key: string, index: number) =>
   STORAGE_CATEGORY_COLORS[key] || STORAGE_FALLBACK_COLORS[index % STORAGE_FALLBACK_COLORS.length];
+
+// G-code template inserter (#422): lets users drop a known-good snippet
+// (e.g. Chitu PlateCycler plate-eject) into a printer model's start/end
+// G-code field instead of hand-typing it.
+function GcodeTemplateInserter({
+  model,
+  field,
+  currentValue,
+  onInsert,
+}: {
+  model: string;
+  field: 'start_gcode' | 'end_gcode';
+  currentValue: string;
+  onInsert: (gcode: string) => void;
+}) {
+  const { t } = useTranslation();
+  const templates = templatesForModel(model, field);
+  const [selectedId, setSelectedId] = useState(templates[0]?.id ?? '');
+
+  useEffect(() => {
+    if (templates.length > 0 && !templates.some((tpl) => tpl.id === selectedId)) {
+      setSelectedId(templates[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, field]);
+
+  if (templates.length === 0) return null;
+
+  const handleInsert = () => {
+    const template = templates.find((tpl) => tpl.id === selectedId);
+    if (!template) return;
+    if (currentValue.trim() && !confirm(t('settings.gcodeTemplateOverwriteConfirm', 'This will overwrite the existing G-code in this field. Continue?'))) {
+      return;
+    }
+    onInsert(template.gcode);
+  };
+
+  const selectedTemplate = templates.find((tpl) => tpl.id === selectedId);
+
+  return (
+    <div className="flex items-center gap-2 mb-1.5">
+      <select
+        value={selectedId}
+        onChange={(e) => setSelectedId(e.target.value)}
+        title={selectedTemplate?.description}
+        className="flex-1 px-2 py-1 bg-bambu-dark border border-bambu-dark-tertiary rounded text-white text-xs focus:outline-none focus:border-bambu-green"
+      >
+        {templates.map((tpl) => (
+          <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={handleInsert}
+        className="px-2 py-1 text-xs rounded bg-bambu-dark-tertiary text-white hover:bg-bambu-green/20 hover:text-bambu-green transition-colors whitespace-nowrap"
+      >
+        {t('settings.gcodeTemplateInsert', 'Insert template')}
+      </button>
+    </div>
+  );
+}
 
 export function SettingsPage() {
   const queryClient = useQueryClient();
@@ -4544,9 +4607,21 @@ export function SettingsPage() {
                     >
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-xs text-bambu-gray mb-1">
-                            {t('settings.gcodeStartLabel', 'Start G-code')}
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs text-bambu-gray">
+                              {t('settings.gcodeStartLabel', 'Start G-code')}
+                            </label>
+                            <GcodeMotionPreviewButton model={model} gcode={snippet.start_gcode} />
+                          </div>
+                          <GcodeTemplateInserter
+                            model={model}
+                            field="start_gcode"
+                            currentValue={snippet.start_gcode}
+                            onInsert={(gcode) => {
+                              updateSnippet(model, 'start_gcode', gcode);
+                              saveGcodeSnippets();
+                            }}
+                          />
                           <textarea
                             value={snippet.start_gcode}
                             onChange={(e) => updateSnippet(model, 'start_gcode', e.target.value)}
@@ -4557,9 +4632,21 @@ export function SettingsPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-bambu-gray mb-1">
-                            {t('settings.gcodeEndLabel', 'End G-code')}
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs text-bambu-gray">
+                              {t('settings.gcodeEndLabel', 'End G-code')}
+                            </label>
+                            <GcodeMotionPreviewButton model={model} gcode={snippet.end_gcode} />
+                          </div>
+                          <GcodeTemplateInserter
+                            model={model}
+                            field="end_gcode"
+                            currentValue={snippet.end_gcode}
+                            onInsert={(gcode) => {
+                              updateSnippet(model, 'end_gcode', gcode);
+                              saveGcodeSnippets();
+                            }}
+                          />
                           <textarea
                             value={snippet.end_gcode}
                             onChange={(e) => updateSnippet(model, 'end_gcode', e.target.value)}

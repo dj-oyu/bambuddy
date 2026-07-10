@@ -1977,6 +1977,8 @@ export default {
     gcodeEndLabel: '종료 G코드',
     gcodeStartPlaceholder: '인쇄 시작 전 앞에 추가되는 G코드...',
     gcodeEndPlaceholder: '인쇄 종료 후 뒤에 추가되는 G코드...',
+    gcodeTemplateInsert: '템플릿 삽입',
+    gcodeTemplateOverwriteConfirm: '이 필드의 기존 G코드를 덮어씁니다. 계속할까요?',
     staggerGroupSize: '그룹 크기',
     staggerGroupSizeHelp: '그룹당 동시에 시작할 프린터 수',
     staggerInterval: '간격 (분)',
@@ -5973,6 +5975,19 @@ export default {
     back: '뒤로',
     backToArchives: '인쇄 아카이브로 돌아가기',
     backToFiles: '파일 관리자로 돌아가기'
+  },
+  gcodeMotion: {
+    title: 'G코드 모션 미리보기',
+    previewButton: '모션 미리보기',
+    play: '재생',
+    pause: '일시정지',
+    scrubber: '타임라인',
+    speed: '속도',
+    frontOverhang: '앞쪽 돌출',
+    backOverhang: '뒤쪽 돌출',
+    corexyNoSwing: 'CoreXY: 베드가 앞뒤로 움직이지 않음(Z만)',
+    unknownGeometry: '형상 미확인 — 일반 256mm 프린터로 표시',
+    accelDisclaimer: '시간은 가감속을 무시한 추정치이며 실제 동작은 더 느립니다.',
   },
   libraryTrash: {
     title: '휴지통',
