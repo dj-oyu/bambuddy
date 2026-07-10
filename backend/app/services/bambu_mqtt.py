@@ -617,6 +617,18 @@ class BambuMQTTClient:
         self._last_ams_cmd_time: float = 0.0  # monotonic time of last published command
         self._ams_cmd_unanswered: int = 0  # consecutive commands with no response
 
+        # A1-mini total_layers workaround: some firmware never includes
+        # `total_layer_num` in incremental report pushes (only in pushall
+        # responses), leaving state.total_layers stuck at 0 for the whole
+        # print and breaking the last-layer finish-photo trigger.
+        # `seed_total_layers()` lets the dispatch path (print_scheduler)
+        # provide the slicer's total from the 3MF gcode header; the pending
+        # value is applied *after* the print-start reset in _process_message
+        # so the reset can't wipe it (race-safe). The pushall timestamp
+        # rate-limits a fallback re-request while RUNNING with total==0.
+        self._pending_total_layers_seed: int = 0
+        self._total_layers_pushall_time: float = 0.0  # monotonic time of last fallback pushall
+
     @property
     def topic_subscribe(self) -> str:
         return f"device/{self.serial_number}/report"
@@ -2215,6 +2227,9 @@ class BambuMQTTClient:
             new_total = int(data["total_layer_num"])
             if new_total > 0:
                 self.state.total_layers = new_total
+                # Firmware value is authoritative — drop any metadata seed
+                # still pending so it can't bleed into a later print.
+                self._pending_total_layers_seed = 0
 
         # Fan speeds (MQTT sends as string "0"-"15" representing speed levels, or percentage)
         # Convert to 0-100 percentage for display
@@ -3166,6 +3181,22 @@ class BambuMQTTClient:
                     # Allow retry on next full status message
                     self._dev_mode_probed = False
 
+        # total_layers pushall fallback (A1 mini): incremental report pushes
+        # never include total_layer_num on some firmware — it only appears in
+        # pushall responses. While RUNNING with total_layers still 0, request
+        # a pushall: once on the RUNNING transition (timestamp is reset to 0
+        # at print start), then every ~120s until a positive value arrives.
+        # Short-interval repeats are ignored by the firmware, hence the gap.
+        if self.state.state == "RUNNING" and (self.state.total_layers or 0) <= 0:
+            now_mono = time.monotonic()
+            if now_mono - self._total_layers_pushall_time >= 120.0:
+                self._total_layers_pushall_time = now_mono
+                logger.info(
+                    "[%s] total_layers still 0 while RUNNING; requesting pushall",
+                    self.serial_number,
+                )
+                self._request_push_all()
+
         # Zombie session detection: if an ams_filament_setting command has been
         # pending for >10s with no response, the publish path is likely dead (#887).
         if self._last_ams_cmd_time > 0:
@@ -3242,6 +3273,20 @@ class BambuMQTTClient:
             # above at line ~2135 — the guard now ignores firmware-reset 0s, so
             # the explicit reset has to happen here instead).
             self.state.total_layers = 0
+            # Apply the pending metadata seed AFTER the reset above so the
+            # print-start reset can't wipe it (A1 mini: incremental pushes
+            # never carry total_layer_num — see seed_total_layers()). A
+            # positive total_layer_num from MQTT still overwrites this later.
+            if self._pending_total_layers_seed > 0:
+                self.state.total_layers = self._pending_total_layers_seed
+                logger.info(
+                    "[%s] Applied pending total_layers seed=%d at print start",
+                    self.serial_number,
+                    self._pending_total_layers_seed,
+                )
+                self._pending_total_layers_seed = 0
+            # Allow the RUNNING pushall fallback to fire promptly for this print
+            self._total_layers_pushall_time = 0.0
             # Reset completion tracking for new print
             self._was_running = True
             self._completion_triggered = False
@@ -3412,6 +3457,32 @@ class BambuMQTTClient:
 
         if self.on_state_change:
             self.on_state_change(self.state)
+
+    def seed_total_layers(self, total: int) -> None:
+        """Seed total_layers from file metadata (A1 mini workaround).
+
+        A1 mini firmware omits `total_layer_num` from incremental report
+        pushes, so state.total_layers stays 0 all print and the last-layer
+        finish-photo trigger never fires. The dispatch path calls this with
+        the `; total layer number: NN` value parsed from the 3MF gcode
+        header right after sending the print command.
+
+        The value is stored as a pending seed and applied at print-start
+        detection (after _process_message resets total_layers to 0) so the
+        reset can't clobber it. It is also applied immediately when no MQTT
+        value is present yet. A positive `total_layer_num` arriving later
+        via MQTT always overwrites the seed (firmware is authoritative).
+        """
+        if total <= 0:
+            return
+        self._pending_total_layers_seed = int(total)
+        if self.state.total_layers == 0:
+            self.state.total_layers = int(total)
+            logger.info(
+                "[%s] Seeded total_layers=%d from file metadata",
+                self.serial_number,
+                total,
+            )
 
     def _request_push_all(self):
         """Request full status update from printer."""

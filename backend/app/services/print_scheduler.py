@@ -2939,6 +2939,28 @@ class PrintScheduler:
             if file_path is not None:
                 cache_3mf_download(item.printer_id, remote_filename, file_path)
 
+            # Seed total_layers from the 3MF gcode header (A1 mini: incremental
+            # MQTT reports omit total_layer_num, so the last-layer finish-photo
+            # trigger in bambu_mqtt.py never fires without this). The seed is
+            # held pending on the client and applied after the print-start
+            # reset; a positive MQTT total_layer_num always overrides it.
+            try:
+                if file_path is not None:
+                    from backend.app.utils.threemf_tools import extract_total_layers_from_3mf
+
+                    seeded_total = extract_total_layers_from_3mf(file_path, item.plate_id or 1)
+                    if seeded_total:
+                        client = printer_manager.get_client(item.printer_id)
+                        if client is not None:
+                            client.seed_total_layers(seeded_total)
+            except Exception:
+                logger.debug(
+                    "Queue item %s: could not seed total_layers from %s",
+                    item.id,
+                    file_path,
+                    exc_info=True,
+                )
+
             # Hold the printer against further dispatches until the watchdog
             # confirms the printer transitioned (or until the hard timeout).
             # Prevents multi-plate batches from triple-dispatching onto the

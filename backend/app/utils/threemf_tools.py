@@ -610,6 +610,48 @@ def extract_bed_type_from_3mf(file_path: Path, plate_id: int | None = None) -> s
     return None
 
 
+def extract_total_layers_from_3mf(file_path: Path, plate_id: int | None = None) -> int | None:
+    """Extract the slicer's total layer count from a 3MF's gcode header.
+
+    Reads only the first 4KB of the plate gcode (the `; HEADER_BLOCK_START`
+    block sits at the very top) and reuses `_parse_3mf_gcode_header` to find
+    `; total layer number: NN`. Used to seed BambuMQTTClient.total_layers on
+    dispatch for printers (A1 mini) whose incremental MQTT reports never
+    carry `total_layer_num`.
+
+    Args:
+        file_path: Path to the local 3MF file.
+        plate_id: Preferred plate; falls back to the first gcode entry when
+            `Metadata/plate_N.gcode` isn't present.
+
+    Returns:
+        Total layer count, or None if unavailable/unparseable.
+    """
+    try:
+        with zipfile.ZipFile(file_path, "r") as zf:
+            gcode_files = [n for n in zf.namelist() if n.endswith(".gcode")]
+            if not gcode_files:
+                return None
+            gcode_name = None
+            if plate_id is not None:
+                for name in gcode_files:
+                    if name.endswith(f"plate_{plate_id}.gcode"):
+                        gcode_name = name
+                        break
+            if gcode_name is None:
+                gcode_name = gcode_files[0]
+            with zf.open(gcode_name) as f:
+                header_text = f.read(4096).decode("utf-8", errors="ignore")
+        header = _parse_3mf_gcode_header(header_text)
+        value = header.get("total_layer_number")
+        if value:
+            total = int(float(value))
+            return total if total > 0 else None
+    except Exception:
+        logger.debug("Failed to extract total layers from %s", file_path, exc_info=True)
+    return None
+
+
 # Header values exposed as `{placeholder}` substitutions inside snippets.
 # Aliases let users write Prusa-style names (`{max_layer_z}`) that map onto
 # Bambu/Orca header keys (`max_z_height`).
