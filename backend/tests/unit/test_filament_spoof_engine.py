@@ -395,3 +395,42 @@ async def test_pending_timeout_fires_without_ams_messages(session_maker, monkeyp
     await asyncio.sleep(0.05)  # let the deferred task run
     rows = await _rows(session_maker)
     assert rows[0].state == "FAILED"
+
+
+@pytest.mark.asyncio
+async def test_engage_uses_versioned_setting_id_from_slot_preset(session_maker):
+    # BMCU drops writes whose setting_id lacks the version suffix; when the
+    # primary slot has a persisted cloud preset mapping, use it verbatim.
+    from backend.app.models.slot_preset import SlotPresetMapping
+
+    async with session_maker() as db:
+        db.add(SlotPresetMapping(
+            printer_id=1, ams_id=0, tray_id=0,
+            preset_id="GFSA00_05", preset_name="PLA Basic", preset_source="cloud",
+        ))
+        await db.commit()
+
+    client = _fake_client()
+    eng = _engine_with(client)
+    await eng.engage(1, (0, 0), (0, 1))
+    call = client.ams_set_filament_setting.call_args
+    assert call.kwargs["setting_id"] == "GFSA00_05"
+
+
+@pytest.mark.asyncio
+async def test_engage_ignores_mismatched_slot_preset(session_maker):
+    # A stale mapping for a DIFFERENT preset must not leak into the write.
+    from backend.app.models.slot_preset import SlotPresetMapping
+
+    async with session_maker() as db:
+        db.add(SlotPresetMapping(
+            printer_id=1, ams_id=0, tray_id=0,
+            preset_id="GFSZ99_07", preset_name="Other", preset_source="cloud",
+        ))
+        await db.commit()
+
+    client = _fake_client()
+    eng = _engine_with(client)
+    await eng.engage(1, (0, 0), (0, 1))
+    call = client.ams_set_filament_setting.call_args
+    assert call.kwargs["setting_id"] == "GFSA00"  # fallback derivation

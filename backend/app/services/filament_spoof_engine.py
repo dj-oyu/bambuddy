@@ -40,7 +40,10 @@ from backend.app.services.filament_spoof import (
     _normalize_color,
     _spoof_enabled,
 )
-from backend.app.utils.filament_ids import filament_id_to_setting_id
+from backend.app.utils.filament_ids import (
+    filament_id_to_setting_id,
+    setting_id_to_filament_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -418,15 +421,19 @@ class FilamentSpoofEngine:
         spoof_tmin = primary_live.get("nozzle_temp_min")
         spoof_tmax = primary_live.get("nozzle_temp_max")
 
+        # Versioned setting_id from the primary slot's persisted preset —
+        # BMCU drops writes without it (see _setting_id_for_slot).
+        async with async_session() as db:
+            spoof_setting_id = await self._setting_id_for_slot(
+                db, printer_id, p_ams, p_tray, spoof_idx or ""
+            )
+
         ok = client.ams_set_filament_setting(
             b_ams, b_tray,
             spoof_idx or "", spoof_type or "", spoof_sub or "", spoof_color or "",
             int(spoof_tmin) if spoof_tmin is not None else 0,
             int(spoof_tmax) if spoof_tmax is not None else 0,
-            # BMCU firmware silently drops ams_filament_setting without a
-            # setting_id (observed 2026-07-12: identical write with the id
-            # applied, without it was ignored). Derive it from the preset.
-            setting_id=filament_id_to_setting_id(spoof_idx or ""),
+            setting_id=spoof_setting_id,
             bypass_spoof_guard=True,
         )
         if not ok:
@@ -543,7 +550,9 @@ class FilamentSpoofEngine:
                         row.real_tray_sub_brands or "", row.real_tray_color or "",
                         int(row.real_nozzle_temp_min) if row.real_nozzle_temp_min is not None else 0,
                         int(row.real_nozzle_temp_max) if row.real_nozzle_temp_max is not None else 0,
-                        setting_id=filament_id_to_setting_id(row.real_tray_info_idx or ""),
+                        setting_id=await self._setting_id_for_slot(
+                            db, printer_id, b_ams, b_tray, row.real_tray_info_idx or ""
+                        ),
                         bypass_spoof_guard=True,
                     )
                     if row.real_cali_idx is not None:
@@ -625,6 +634,40 @@ class FilamentSpoofEngine:
             self._pm()._schedule_async(self._reconcile(printer_id))
         except Exception:
             logger.debug("[%s] failed to schedule spoof reconcile", printer_id, exc_info=True)
+
+    async def _setting_id_for_slot(
+        self, db, printer_id: int, ams_id: int, tray_id: int, tray_info_idx: str
+    ) -> str:
+        """Best VERSIONED setting_id for a slot's preset.
+
+        BMCU firmware silently drops ams_filament_setting whose setting_id
+        lacks the version suffix (observed 2026-07-12: "GFSG00_03" applied,
+        "GFSG00" and "" were ignored). The versioned id is only known from
+        cloud presets; bambuddy persists the last one written per slot in
+        slot_preset_mappings. Fall back to the unversioned derivation.
+        """
+        try:
+            from backend.app.models.slot_preset import SlotPresetMapping
+
+            result = await db.execute(
+                select(SlotPresetMapping.preset_id).where(
+                    SlotPresetMapping.printer_id == printer_id,
+                    SlotPresetMapping.ams_id == ams_id,
+                    SlotPresetMapping.tray_id == tray_id,
+                )
+            )
+            preset_id = result.scalar_one_or_none()
+            if preset_id:
+                base = preset_id.split("_")[0]
+                # Only trust the mapping if it belongs to the same preset.
+                if setting_id_to_filament_id(base) == (tray_info_idx or ""):
+                    return preset_id
+        except Exception:
+            logger.debug(
+                "[%s] slot preset lookup failed for AMS %s tray %s",
+                printer_id, ams_id, tray_id, exc_info=True,
+            )
+        return filament_id_to_setting_id(tray_info_idx or "")
 
     def _schedule_deferred_reconcile(self, printer_id: int, delay_s: float) -> None:
         """Reconcile after a delay, independent of AMS message arrival.
