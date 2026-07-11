@@ -379,22 +379,40 @@ async def test_pending_timeout_fires_without_ams_messages(session_maker, monkeyp
     # Regression: PENDING must resolve via the deferred timer even when the
     # printer pushes no AMS updates (observed stuck-PENDING on idle BMCU).
     monkeypatch.setenv("BAMBUDDY_SPOOF_CONFIRM_TIMEOUT_S", "0")
+    monkeypatch.setenv("BAMBUDDY_SPOOF_RESEND_INTERVAL_S", "1")
     client = _fake_client()
     eng = _engine_with(client)
 
-    delays = []
-    orig = eng._schedule_deferred_reconcile
-
-    def _capture(pid, delay_s):
-        delays.append(delay_s)
-        orig(pid, 0)  # run immediately in the test loop
-
-    eng._schedule_deferred_reconcile = _capture
-    await eng.engage(1, (0, 0), (0, 1))
-    assert delays, "engage must schedule a deferred reconcile"
-    await asyncio.sleep(0.05)  # let the deferred task run
+    row = await eng.engage(1, (0, 0), (0, 1))
+    assert row.state == "PENDING"
+    await asyncio.sleep(1.3)  # let the confirm loop's first tick reconcile
     rows = await _rows(session_maker)
     assert rows[0].state == "FAILED"
+
+
+@pytest.mark.asyncio
+async def test_pending_resends_write_until_confirmed(session_maker, monkeypatch):
+    # BMCU drops writes probabilistically; while PENDING the confirm loop must
+    # re-fire the spoof write (not just wait for the timeout).
+    monkeypatch.setenv("BAMBUDDY_SPOOF_CONFIRM_TIMEOUT_S", "60")
+    monkeypatch.setenv("BAMBUDDY_SPOOF_RESEND_INTERVAL_S", "1")
+    client = _fake_client()
+    eng = _engine_with(client)
+
+    await eng.engage(1, (0, 0), (0, 1))
+    initial_calls = client.ams_set_filament_setting.call_count
+    await asyncio.sleep(1.3)
+    assert client.ams_set_filament_setting.call_count > initial_calls
+    resend = client.ams_set_filament_setting.call_args
+    assert resend.args[2] == "GFA00"  # spoofed preset
+    assert resend.kwargs["bypass_spoof_guard"] is True
+    # Firmware finally accepts → next tick confirms ENGAGED and the loop stops.
+    b = client.state.raw_data["ams"][0]["tray"][1]
+    b["tray_info_idx"] = "GFA00"
+    b["tray_color"] = "FF0000FF"
+    await asyncio.sleep(1.3)
+    rows = await _rows(session_maker)
+    assert rows[0].state == "ENGAGED"
 
 
 @pytest.mark.asyncio

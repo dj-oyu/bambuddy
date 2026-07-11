@@ -48,6 +48,15 @@ from backend.app.utils.filament_ids import (
 logger = logging.getLogger(__name__)
 
 
+def _resend_interval_s() -> float:
+    """Seconds between spoof-write resends while PENDING (BMCU drops writes
+    probabilistically — observed 2026-07-12: 5 identical writes needed)."""
+    try:
+        return float(os.environ.get("BAMBUDDY_SPOOF_RESEND_INTERVAL_S", "20"))
+    except (ValueError, TypeError):
+        return 20.0
+
+
 def _confirm_timeout_s() -> float:
     """Seconds to wait for firmware to confirm a spoof write before FAILED."""
     try:
@@ -446,7 +455,7 @@ class FilamentSpoofEngine:
             client.request_status_update()
         except Exception:
             logger.debug("[%s] post-engage pushall request failed", printer_id, exc_info=True)
-        self._schedule_deferred_reconcile(printer_id, _confirm_timeout_s() + 5.0)
+        self._schedule_confirm_loop(printer_id, b_ams, b_tray)
 
         # design rule C: re-assert the backup slot's real K profile so the
         # identity write doesn't clobber it (best-effort).
@@ -668,6 +677,75 @@ class FilamentSpoofEngine:
                 printer_id, ams_id, tray_id, exc_info=True,
             )
         return filament_id_to_setting_id(tray_info_idx or "")
+
+    def _schedule_confirm_loop(self, printer_id: int, b_ams: int, b_tray: int) -> None:
+        """Resend the spoof write every interval until confirmed or timed out.
+
+        BMCU acceptance of ams_filament_setting is probabilistic (an identical
+        write can be silently dropped several times before applying), so a
+        single write + timeout would spuriously FAIL engagements that a couple
+        of resends would have landed. The message-driven reconcile still does
+        the actual PENDING→ENGAGED/FAILED transitions; this loop only re-fires
+        the write and reconciles between messages.
+        """
+
+        async def _loop() -> None:
+            interval = max(_resend_interval_s(), 1.0)
+            try:
+                while True:
+                    await asyncio.sleep(interval)
+                    await self._reconcile(printer_id)
+                    async with async_session() as db:
+                        result = await db.execute(
+                            select(FilamentSpoof).where(
+                                FilamentSpoof.printer_id == printer_id,
+                                FilamentSpoof.backup_ams_id == b_ams,
+                                FilamentSpoof.backup_tray_id == b_tray,
+                                FilamentSpoof.state == "PENDING",
+                            )
+                        )
+                        row = result.scalars().first()
+                        if row is None:
+                            return  # ENGAGED / FAILED / released — done.
+                        setting_id = await self._setting_id_for_slot(
+                            db, printer_id, row.primary_ams_id, row.primary_tray_id,
+                            row.spoof_tray_info_idx or "",
+                        )
+                    client = self._get_client(printer_id)
+                    if client is None:
+                        continue
+                    primary_live = self._fw_identity(client, row.primary_ams_id, row.primary_tray_id)
+                    if primary_live is None:
+                        continue  # no data — keep waiting, timeout will handle it
+                    tmin = row.real_nozzle_temp_min
+                    tmax = row.real_nozzle_temp_max
+                    logger.info(
+                        "[%s] Resending spoof write for AMS %s tray %s (still PENDING)",
+                        printer_id, b_ams, b_tray,
+                    )
+                    client.ams_set_filament_setting(
+                        b_ams, b_tray,
+                        row.spoof_tray_info_idx or "", row.real_tray_type or "",
+                        row.real_tray_sub_brands or "", row.spoof_tray_color or "",
+                        int(tmin) if tmin is not None else 0,
+                        int(tmax) if tmax is not None else 0,
+                        setting_id=setting_id,
+                        bypass_spoof_guard=True,
+                    )
+                    try:
+                        client.request_status_update()
+                    except Exception:
+                        pass
+            except Exception:
+                logger.debug("[%s] spoof confirm loop aborted", printer_id, exc_info=True)
+
+        try:
+            asyncio.get_running_loop().create_task(_loop())
+        except RuntimeError:
+            try:
+                self._pm()._schedule_async(_loop())
+            except Exception:
+                logger.debug("[%s] failed to schedule confirm loop", printer_id, exc_info=True)
 
     def _schedule_deferred_reconcile(self, printer_id: int, delay_s: float) -> None:
         """Reconcile after a delay, independent of AMS message arrival.
