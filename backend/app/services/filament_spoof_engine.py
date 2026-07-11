@@ -26,6 +26,7 @@ pre-overlay identity captured by ``client.get_fw_tray_identity(ams, tray)``.
 Fail-safe throughout: any uncertainty → do nothing (keep rows, skip writes).
 """
 
+import asyncio
 import logging
 import os
 from datetime import datetime, timezone
@@ -39,6 +40,7 @@ from backend.app.services.filament_spoof import (
     _normalize_color,
     _spoof_enabled,
 )
+from backend.app.utils.filament_ids import filament_id_to_setting_id
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,9 @@ class FilamentSpoofEngine:
             for pid in printer_ids:
                 await self.revalidate(pid)
                 await self.refresh_client(pid)
+                # Ensure reloaded PENDING rows resolve even if the printer
+                # pushes no AMS updates (confirmation-timeout safety net).
+                self._schedule_deferred_reconcile(pid, _confirm_timeout_s() + 5.0)
         except Exception:
             logger.warning("FilamentSpoofEngine.start revalidation failed", exc_info=True)
 
@@ -418,10 +423,23 @@ class FilamentSpoofEngine:
             spoof_idx or "", spoof_type or "", spoof_sub or "", spoof_color or "",
             int(spoof_tmin) if spoof_tmin is not None else 0,
             int(spoof_tmax) if spoof_tmax is not None else 0,
+            # BMCU firmware silently drops ams_filament_setting without a
+            # setting_id (observed 2026-07-12: identical write with the id
+            # applied, without it was ignored). Derive it from the preset.
+            setting_id=filament_id_to_setting_id(spoof_idx or ""),
             bypass_spoof_guard=True,
         )
         if not ok:
             raise FilamentSpoofError("Failed to send spoof identity to printer", status=502)
+
+        # Elicit a prompt firmware echo so PENDING confirms (or fails) quickly,
+        # and guarantee the confirmation timeout is evaluated even if the idle
+        # printer pushes no AMS updates on its own.
+        try:
+            client.request_status_update()
+        except Exception:
+            logger.debug("[%s] post-engage pushall request failed", printer_id, exc_info=True)
+        self._schedule_deferred_reconcile(printer_id, _confirm_timeout_s() + 5.0)
 
         # design rule C: re-assert the backup slot's real K profile so the
         # identity write doesn't clobber it (best-effort).
@@ -525,6 +543,7 @@ class FilamentSpoofEngine:
                         row.real_tray_sub_brands or "", row.real_tray_color or "",
                         int(row.real_nozzle_temp_min) if row.real_nozzle_temp_min is not None else 0,
                         int(row.real_nozzle_temp_max) if row.real_nozzle_temp_max is not None else 0,
+                        setting_id=filament_id_to_setting_id(row.real_tray_info_idx or ""),
                         bypass_spoof_guard=True,
                     )
                     if row.real_cali_idx is not None:
@@ -606,6 +625,30 @@ class FilamentSpoofEngine:
             self._pm()._schedule_async(self._reconcile(printer_id))
         except Exception:
             logger.debug("[%s] failed to schedule spoof reconcile", printer_id, exc_info=True)
+
+    def _schedule_deferred_reconcile(self, printer_id: int, delay_s: float) -> None:
+        """Reconcile after a delay, independent of AMS message arrival.
+
+        The message-driven hook is the primary confirmation path, but an idle
+        printer (or a quiet BMCU) may push nothing for minutes — without this
+        timer a PENDING row would never hit its confirmation timeout.
+        """
+
+        async def _later() -> None:
+            try:
+                await asyncio.sleep(delay_s)
+                await self._reconcile(printer_id)
+            except Exception:
+                logger.debug("[%s] deferred spoof reconcile failed", printer_id, exc_info=True)
+
+        try:
+            asyncio.get_running_loop().create_task(_later())
+        except RuntimeError:
+            # No running loop (sync caller) — fall back to the manager's loop.
+            try:
+                self._pm()._schedule_async(_later())
+            except Exception:
+                logger.debug("[%s] failed to schedule deferred reconcile", printer_id, exc_info=True)
 
     async def _reconcile(self, printer_id: int) -> None:
         """Confirm PENDING rows and revalidate ENGAGED rows off firmware truth.

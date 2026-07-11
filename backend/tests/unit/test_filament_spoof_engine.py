@@ -6,6 +6,7 @@ overlaid ``raw_data``). The fake client below exposes that from its raw_data,
 which — with no overlay running in the test — equals firmware truth.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -332,3 +333,65 @@ async def test_revalidate_drops_on_positive_evidence(session_maker):
     changed = await eng.revalidate(1)
     assert changed == 1
     assert (await _rows(session_maker))[0].state == "RELEASED"
+
+
+# ---- BMCU write acceptance (setting_id) + confirmation timer ------------
+
+@pytest.mark.asyncio
+async def test_engage_write_includes_setting_id(session_maker):
+    # BMCU silently drops ams_filament_setting without a setting_id; engage
+    # must derive it from the spoofed preset (GFA00 -> GFSA00).
+    client = _fake_client()
+    eng = _engine_with(client)
+    await eng.engage(1, (0, 0), (0, 1))
+    call = client.ams_set_filament_setting.call_args
+    assert call.kwargs["setting_id"] == "GFSA00"
+
+
+@pytest.mark.asyncio
+async def test_engage_requests_prompt_firmware_echo(session_maker):
+    client = _fake_client()
+    client.request_status_update = MagicMock(return_value=True)
+    eng = _engine_with(client)
+    await eng.engage(1, (0, 0), (0, 1))
+    client.request_status_update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_release_restore_includes_setting_id(session_maker):
+    client = _fake_client()
+    eng = _engine_with(client)
+    await eng.engage(1, (0, 0), (0, 1))
+    # Firmware echoes the spoofed identity so restore's fail-safe passes.
+    b = client.state.raw_data["ams"][0]["tray"][1]
+    b["tray_info_idx"] = "GFA00"
+    b["tray_color"] = "FF0000FF"
+    await eng._reconcile(1)
+    client.ams_set_filament_setting.reset_mock()
+    await eng.release(1, (0, 1), restore=True)
+    call = client.ams_set_filament_setting.call_args
+    assert call is not None
+    assert call.kwargs["setting_id"] == "GFSB11"  # real preset GFB11
+
+
+@pytest.mark.asyncio
+async def test_pending_timeout_fires_without_ams_messages(session_maker, monkeypatch):
+    # Regression: PENDING must resolve via the deferred timer even when the
+    # printer pushes no AMS updates (observed stuck-PENDING on idle BMCU).
+    monkeypatch.setenv("BAMBUDDY_SPOOF_CONFIRM_TIMEOUT_S", "0")
+    client = _fake_client()
+    eng = _engine_with(client)
+
+    delays = []
+    orig = eng._schedule_deferred_reconcile
+
+    def _capture(pid, delay_s):
+        delays.append(delay_s)
+        orig(pid, 0)  # run immediately in the test loop
+
+    eng._schedule_deferred_reconcile = _capture
+    await eng.engage(1, (0, 0), (0, 1))
+    assert delays, "engage must schedule a deferred reconcile"
+    await asyncio.sleep(0.05)  # let the deferred task run
+    rows = await _rows(session_maker)
+    assert rows[0].state == "FAILED"
