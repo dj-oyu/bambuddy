@@ -367,6 +367,12 @@ export interface AmsTrayLike {
   tray_sub_brands: string | null | undefined;
   tray_color: string | null | undefined;
   tray_info_idx: string | null | undefined;
+  // Filament spoof runout backup (additive, absent on older backends): the
+  // printer firmware knows this tray under the primary slot's colour so it
+  // auto-switches to it on runout, while bambuddy displays the REAL colour.
+  is_spoofed_backup?: boolean;
+  spoof_primary?: { ams_id: number; tray_id: number } | null;
+  spoof_state?: 'active' | 'pending' | null;
 }
 
 export interface AmsUnitLike {
@@ -390,7 +396,17 @@ export interface BackupGroup {
   /** Tray colour from the first slot, for the swatch in the modal. */
   trayColor: string | null;
   /** Member slots, in (ams_id, slot_idx) order. */
-  members: Array<{ amsId: number; slotIdx: number; globalTrayId: number }>;
+  members: Array<{
+    amsId: number;
+    slotIdx: number;
+    globalTrayId: number;
+    /**
+     * Real tray colour of THIS member when it differs from the group's
+     * `trayColor` — only set for spoofed backup slots, whose firmware-side
+     * colour matches the primary but whose real spool colour differs.
+     */
+    trayColor?: string | null;
+  }>;
 }
 
 /**
@@ -424,6 +440,12 @@ function normalizeColorForId(raw: string | null | undefined): string {
  * On dual-extruder printers (H2D / H2C / X2D), pairs are scoped per extruder
  * side — the firmware can't cross extruders even with the global backup bit
  * set.
+ *
+ * Explicit-pair exception (filament spoof runout backup): a tray whose status
+ * carries spoof metadata (`is_spoofed_backup` + `spoof_primary`) is forced
+ * into its primary slot's group even though its displayed colour differs —
+ * the firmware groups by the spoofed (identical) colour, bambuddy shows the
+ * real one. Non-spoofed trays keep the strict colour-key logic above.
  */
 export function computeBackupGroups(
   amsUnits: AmsUnitLike[] | undefined,
@@ -447,44 +469,98 @@ export function computeBackupGroups(
   }
 
   const byKey = new Map<string, BackupGroup>();
+  // Slot → group index for the explicit-pair pass below.
+  const groupBySlot = new Map<string, BackupGroup>();
+  // Spoofed backup slots deferred to the second pass: the firmware groups by
+  // identical colour, but bambuddy displays the backup's REAL colour, so the
+  // colour-key logic below would never place them next to their primary.
+  const spoofed: Array<{
+    ams: AmsUnitLike;
+    tray: AmsTrayLike;
+    slotIdx: number;
+    extruder: number;
+  }> = [];
+
+  const addByColorKey = (
+    ams: AmsUnitLike,
+    tray: AmsTrayLike,
+    slotIdx: number,
+    extruder: number,
+  ) => {
+    const preset = (tray.tray_info_idx || '').trim();
+    const globalTrayId = getGlobalTrayId(ams.id, slotIdx, false);
+    const member = { amsId: ams.id, slotIdx, globalTrayId };
+
+    let key: string;
+    let presetId: string | null;
+    if (preset) {
+      // Same Bambu profile is necessary but NOT sufficient — different colours
+      // of the same PETG HF profile can't back each other up. Bake the colour
+      // into the identity key, normalised to strip alpha and case.
+      const color = normalizeColorForId(tray.tray_color);
+      key = `preset:${preset}|color:${color}#${extruder}`;
+      presetId = preset;
+    } else {
+      // No preset → never group with anything else. Unique-per-slot key.
+      key = `unmatched:${ams.id}:${slotIdx}#${extruder}`;
+      presetId = null;
+    }
+
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.members.push(member);
+      groupBySlot.set(`${ams.id}:${slotIdx}`, existing);
+    } else {
+      const group: BackupGroup = {
+        key,
+        presetId,
+        extruder,
+        displayName: tray.tray_sub_brands || tray.tray_type || '',
+        trayColor: tray.tray_color ?? null,
+        members: [member],
+      };
+      byKey.set(key, group);
+      groupBySlot.set(`${ams.id}:${slotIdx}`, group);
+    }
+  };
 
   for (const ams of uniqueAms) {
     const extruder = isDualNozzle ? Number(amsExtruderMap?.[String(ams.id)] ?? 0) : 0;
     ams.tray.forEach((tray, slotIdx) => {
       if (!tray?.tray_type) return; // empty slot
-      const preset = (tray.tray_info_idx || '').trim();
-      const globalTrayId = getGlobalTrayId(ams.id, slotIdx, false);
-      const member = { amsId: ams.id, slotIdx, globalTrayId };
-
-      let key: string;
-      let presetId: string | null;
-      if (preset) {
-        // Same Bambu profile is necessary but NOT sufficient — different colours
-        // of the same PETG HF profile can't back each other up. Bake the colour
-        // into the identity key, normalised to strip alpha and case.
-        const color = normalizeColorForId(tray.tray_color);
-        key = `preset:${preset}|color:${color}#${extruder}`;
-        presetId = preset;
-      } else {
-        // No preset → never group with anything else. Unique-per-slot key.
-        key = `unmatched:${ams.id}:${slotIdx}#${extruder}`;
-        presetId = null;
+      if (tray.is_spoofed_backup && tray.spoof_primary) {
+        // Defer: joins its primary's group in the explicit-pair pass.
+        spoofed.push({ ams, tray, slotIdx, extruder });
+        return;
       }
-
-      const existing = byKey.get(key);
-      if (existing) {
-        existing.members.push(member);
-      } else {
-        byKey.set(key, {
-          key,
-          presetId,
-          extruder,
-          displayName: tray.tray_sub_brands || tray.tray_type || '',
-          trayColor: tray.tray_color ?? null,
-          members: [member],
-        });
-      }
+      addByColorKey(ams, tray, slotIdx, extruder);
     });
+  }
+
+  // Explicit-pair pass: a spoofed backup slot is registered on the printer as
+  // the primary's colour, so the firmware WILL rotate to it on runout even
+  // though its displayed (real) colour differs. Force it into the primary's
+  // group, carrying its real colour for rendering. If the primary slot isn't
+  // grouped (empty / missing — stale spoof metadata), fall back to the normal
+  // colour-key logic so the slot is never dropped.
+  for (const { ams, tray, slotIdx, extruder } of spoofed) {
+    const primary = tray.spoof_primary!;
+    const primaryGroup = groupBySlot.get(`${primary.ams_id}:${primary.tray_id}`);
+    // Never cross extruders (#13, H2D-class): the firmware can't rotate a
+    // backup on the other nozzle side even with an explicit spoof pair, so a
+    // cross-extruder primary falls back to a lone group instead of joining.
+    if (primaryGroup && primaryGroup.extruder === extruder) {
+      const globalTrayId = getGlobalTrayId(ams.id, slotIdx, false);
+      primaryGroup.members.push({
+        amsId: ams.id,
+        slotIdx,
+        globalTrayId,
+        trayColor: tray.tray_color ?? null,
+      });
+      groupBySlot.set(`${ams.id}:${slotIdx}`, primaryGroup);
+    } else {
+      addByColorKey(ams, tray, slotIdx, extruder);
+    }
   }
 
   // Stable sort: extruder first (so the modal can section per side on

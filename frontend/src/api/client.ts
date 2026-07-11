@@ -365,6 +365,33 @@ export interface AMSTray {
   drying_temp: number | null;      // RFID-recommended drying temp
   drying_time: number | null;      // RFID-recommended drying time (hours)
   state: number | null;            // AMS tray state: 9=empty, 10=spool present not loaded, 11=loaded
+  // Filament spoof runout backup: this tray is registered on the printer as
+  // the primary slot's colour (so the firmware auto-switches to it on runout)
+  // while bambuddy displays its REAL colour. Additive — absent on older backends.
+  is_spoofed_backup?: boolean;
+  // Which slot this spoofed backup covers. Only set when is_spoofed_backup.
+  // NOTE: keys are ams_id/tray_id to mirror the backend status contract.
+  spoof_primary?: { ams_id: number; tray_id: number } | null;
+  // Write-confirmation state of the runout backup: "pending" while the
+  // firmware write is in flight, "active" once confirmed, null/absent when
+  // the tray is not a backup. The badge dims while pending.
+  spoof_state?: 'active' | 'pending' | null;
+}
+
+// Filament Spoof Runout Backup types
+export interface FilamentSpoofSlotRef {
+  ams_id: number;
+  tray_id: number;
+}
+
+// Engage response. Two success shapes on 200:
+//  - a spoof row (`state` is "PENDING" or "ENGAGED"), or
+//  - `{ native: true }` when the spools already share a firmware identity so
+//    no row is created (design rule A — identical-identity short-circuit).
+export interface FilamentSpoofEngageResult {
+  native?: boolean;
+  state?: string;
+  [key: string]: unknown;
 }
 
 export interface AMSUnit {
@@ -3837,6 +3864,36 @@ export const api = {
     request<{ status: string; ams_id: number }>(
       `/printers/${printerId}/drying/stop?ams_id=${amsId}`,
       { method: 'POST' }
+    ),
+
+  // Filament Spoof Runout Backup: register a backup slot on the printer under
+  // the primary slot's colour so the firmware auto-switches to it on runout,
+  // while bambuddy keeps displaying the backup's real colour.
+  // `force` re-sends after a 409 native-group lock (design rule B) to reassign
+  // a backup slot that currently backs up another spool.
+  engageFilamentSpoof: (
+    printerId: number,
+    primary: FilamentSpoofSlotRef,
+    backup: FilamentSpoofSlotRef,
+    force?: boolean,
+  ) =>
+    request<FilamentSpoofEngageResult>(
+      `/printers/${printerId}/filament-spoof`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          primary_ams_id: primary.ams_id,
+          primary_tray_id: primary.tray_id,
+          backup_ams_id: backup.ams_id,
+          backup_tray_id: backup.tray_id,
+          ...(force ? { force: true } : {}),
+        }),
+      }
+    ),
+  releaseFilamentSpoof: (printerId: number, backupAmsId: number, backupTrayId: number) =>
+    request<{ success: boolean; message?: string }>(
+      `/printers/${printerId}/filament-spoof/${backupAmsId}/${backupTrayId}`,
+      { method: 'DELETE' }
     ),
 
   // AMS Filament Backup (auto-switch to a backup spool when one runs out)

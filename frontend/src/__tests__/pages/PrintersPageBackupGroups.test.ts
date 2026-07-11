@@ -15,6 +15,8 @@ function ams(id: number, tray: Array<{
   tray_sub_brands?: string | null;
   tray_color?: string | null;
   tray_info_idx?: string | null;
+  is_spoofed_backup?: boolean;
+  spoof_primary?: { ams_id: number; tray_id: number } | null;
 }>) {
   return {
     id,
@@ -24,6 +26,8 @@ function ams(id: number, tray: Array<{
       tray_sub_brands: t.tray_sub_brands ?? null,
       tray_color: t.tray_color ?? null,
       tray_info_idx: t.tray_info_idx ?? null,
+      is_spoofed_backup: t.is_spoofed_backup,
+      spoof_primary: t.spoof_primary,
     })),
   };
 }
@@ -219,5 +223,162 @@ describe('computeBackupGroups', () => {
     );
     expect(groups[0].displayName).toBe('PLA Basic');
     expect(groups[0].trayColor).toBe('#1A1A1A');
+  });
+
+  // Explicit-pair pass — filament spoof runout backup. The firmware groups by
+  // identical (spoofed) colour; bambuddy shows the backup's REAL colour, so a
+  // tray with spoof metadata must be forced into its primary's group even
+  // though the displayed colours differ.
+  describe('explicit spoofed-backup pairs', () => {
+    it('forces a spoofed backup into its primary group despite a different colour', () => {
+      const groups = computeBackupGroups(
+        [
+          ams(0, [
+            { tray_type: 'PLA', tray_color: '#000000', tray_info_idx: 'GFA00' },
+            {
+              tray_type: 'PLA',
+              tray_color: '#FF0000', // real colour ≠ primary's
+              tray_info_idx: 'GFA00',
+              is_spoofed_backup: true,
+              spoof_primary: { ams_id: 0, tray_id: 0 },
+            },
+          ]),
+        ],
+        {},
+        false,
+      );
+      expect(groups).toHaveLength(1);
+      expect(groups[0].members.map((m) => m.globalTrayId)).toEqual([0, 1]);
+      // Group swatch keeps the primary's colour; the spoofed member carries
+      // its real colour for per-member rendering.
+      expect(groups[0].trayColor).toBe('#000000');
+      expect(groups[0].members[1].trayColor).toBe('#FF0000');
+    });
+
+    it('pairs across AMS units, with the backup listed even when it precedes the primary', () => {
+      const groups = computeBackupGroups(
+        [
+          ams(0, [{
+            tray_type: 'PETG',
+            tray_color: '#00FF00',
+            tray_info_idx: 'GFG00',
+            is_spoofed_backup: true,
+            spoof_primary: { ams_id: 1, tray_id: 0 },
+          }]),
+          ams(1, [{ tray_type: 'PETG', tray_color: '#0000FF', tray_info_idx: 'GFG00' }]),
+        ],
+        {},
+        false,
+      );
+      expect(groups).toHaveLength(1);
+      expect(groups[0].members.map((m) => m.globalTrayId).sort((a, b) => a - b)).toEqual([0, 4]);
+    });
+
+    it('falls back to colour-key logic when the spoofed primary slot is empty/missing', () => {
+      const groups = computeBackupGroups(
+        [
+          ams(0, [
+            { tray_type: null, tray_color: null, tray_info_idx: null }, // stale primary
+            {
+              tray_type: 'PLA',
+              tray_color: '#FF0000',
+              tray_info_idx: 'GFA00',
+              is_spoofed_backup: true,
+              spoof_primary: { ams_id: 0, tray_id: 0 },
+            },
+          ]),
+        ],
+        {},
+        false,
+      );
+      // Not dropped — comes back as a lone 1-member entry.
+      expect(groups).toHaveLength(1);
+      expect(groups[0].members).toHaveLength(1);
+      expect(groups[0].members[0].globalTrayId).toBe(1);
+    });
+
+    it('is_spoofed_backup without spoof_primary keeps the strict colour-key behaviour', () => {
+      const groups = computeBackupGroups(
+        [
+          ams(0, [
+            { tray_type: 'PLA', tray_color: '#000000', tray_info_idx: 'GFA00' },
+            {
+              tray_type: 'PLA',
+              tray_color: '#FF0000',
+              tray_info_idx: 'GFA00',
+              is_spoofed_backup: true,
+              spoof_primary: null,
+            },
+          ]),
+        ],
+        {},
+        false,
+      );
+      // Different colours, no explicit pair → two lone entries, unchanged.
+      expect(groups).toHaveLength(2);
+      expect(groups.every((g) => g.members.length === 1)).toBe(true);
+    });
+
+    it('#13: does NOT force a spoofed backup into a primary group on the other extruder side', () => {
+      // ams 0 = right (0), ams 1 = left (1). The backup on the right side names
+      // a primary on the left — the firmware can't rotate across extruders, so
+      // it must fall back to a lone group rather than joining.
+      const groups = computeBackupGroups(
+        [
+          ams(0, [{
+            tray_type: 'PLA',
+            tray_color: '#FF0000',
+            tray_info_idx: 'GFA00',
+            is_spoofed_backup: true,
+            spoof_primary: { ams_id: 1, tray_id: 0 },
+          }]),
+          ams(1, [{ tray_type: 'PLA', tray_color: '#000000', tray_info_idx: 'GFA00' }]),
+        ],
+        { '0': 0, '1': 1 },
+        true,
+      );
+      // Two lone groups on different extruder sides — no cross-extruder join.
+      expect(groups).toHaveLength(2);
+      expect(groups.every((g) => g.members.length === 1)).toBe(true);
+      const right = groups.find((g) => g.extruder === 0);
+      const left = groups.find((g) => g.extruder === 1);
+      expect(right).toBeDefined();
+      expect(left).toBeDefined();
+    });
+
+    it('#13: still forces a spoofed backup into its primary group on the SAME extruder side', () => {
+      const groups = computeBackupGroups(
+        [
+          ams(0, [{ tray_type: 'PLA', tray_color: '#000000', tray_info_idx: 'GFA00' }]),
+          ams(2, [{
+            tray_type: 'PLA',
+            tray_color: '#FF0000',
+            tray_info_idx: 'GFA00',
+            is_spoofed_backup: true,
+            spoof_primary: { ams_id: 0, tray_id: 0 },
+          }]),
+        ],
+        { '0': 0, '2': 0 },
+        true,
+      );
+      expect(groups).toHaveLength(1);
+      expect(groups[0].members).toHaveLength(2);
+      expect(groups[0].members[1].trayColor).toBe('#FF0000');
+    });
+
+    it('no spoof metadata → behaviour identical to the strict colour-key rule', () => {
+      const groups = computeBackupGroups(
+        [
+          ams(0, [
+            { tray_type: 'PLA', tray_color: '#000000', tray_info_idx: 'GFA00' },
+            { tray_type: 'PLA', tray_color: '#FF0000', tray_info_idx: 'GFA00' },
+          ]),
+        ],
+        {},
+        false,
+      );
+      expect(groups).toHaveLength(2);
+      expect(groups.every((g) => g.members.length === 1)).toBe(true);
+    });
   });
 });

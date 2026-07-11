@@ -5,6 +5,7 @@ from backend.app.models.archive import PrintArchive
 from backend.app.models.auth_ephemeral import AuthEphemeralToken, AuthRateLimitEvent
 from backend.app.models.color_catalog import ColorCatalogEntry
 from backend.app.models.filament import Filament
+from backend.app.models.filament_spoof import FilamentSpoof
 from backend.app.models.github_backup import GitHubBackupConfig, GitHubBackupLog
 from backend.app.models.group import Group, user_groups
 from backend.app.models.kprofile_note import KProfileNote
@@ -43,6 +44,7 @@ __all__ = [
     "Printer",
     "PrintArchive",
     "Filament",
+    "FilamentSpoof",
     "Settings",
     "SmartPlug",
     "SmartPlugEnergySnapshot",

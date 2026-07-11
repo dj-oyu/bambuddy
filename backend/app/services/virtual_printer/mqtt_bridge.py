@@ -44,6 +44,20 @@ from typing import TYPE_CHECKING
 from backend.app.services.bambu_mqtt import apply_tray_exist_bits
 from backend.app.services.virtual_printer._debug import append_event, dump_wire
 
+# Filament-spoof overlay helpers are an optional local patch. Import at module
+# level (moved off the former per-push lazy import inside `_on_printer_raw`) so
+# the import cost is paid once at load rather than on every push_status, while
+# still degrading gracefully to no-op if the module is absent. Both are set to
+# None when unavailable and the overlay path guards on that.
+try:
+    from backend.app.services.filament_spoof import (
+        apply_spoof_overlay,
+        strip_spoof_meta,
+    )
+except ImportError:  # pragma: no cover - optional local patch
+    apply_spoof_overlay = None  # type: ignore[assignment]
+    strip_spoof_meta = None  # type: ignore[assignment]
+
 if TYPE_CHECKING:
     from backend.app.services.bambu_mqtt import BambuMQTTClient
     from backend.app.services.printer_manager import PrinterManager
@@ -274,6 +288,12 @@ class MQTTBridge:
         self._stopping = False
         self._latest_print_state: dict | None = None
         self._latest_version_modules: list | None = None
+        # Active filament-spoof snapshots (see filament_spoof.apply_spoof_overlay).
+        # Written from the asyncio thread via `set_active_spoofs`, read from the
+        # paho thread in `_on_printer_raw`. Race-free by construction: the setter
+        # replaces the list reference atomically (never mutates in place), so the
+        # reader always sees either the old or the new complete snapshot.
+        self._active_spoofs: list[dict] = []
 
     @property
     def is_active(self) -> bool:
@@ -281,10 +301,72 @@ class MQTTBridge:
         client = self._target_client
         return bool(client is not None and getattr(client, "state", None) and client.state.connected)
 
+    def set_active_spoofs(self, spoofs: list[dict]) -> None:
+        """Replace the active filament-spoof snapshot list.
+
+        Called by the spoof engine whenever spoofs engage/disengage. Stores a
+        shallow copy and swaps the reference atomically so the paho-thread
+        reader in `_on_printer_raw` never observes a half-updated list.
+        """
+        self._active_spoofs = list(spoofs)
+
+    def is_guarded_backup_slot(self, ams_id: int, tray_id: int) -> bool:
+        """True iff (ams_id, tray_id) is a backup slot guarded by an active spoof.
+
+        Reads the atomically-swapped `_active_spoofs` snapshot. Ids are
+        compared as ints (spoof dicts store them as ints per the engine's
+        `_row_to_spoof_dict`); the caller normalizes the command payload's
+        ams/tray ids before calling.
+        """
+        for spoof in self._active_spoofs:
+            try:
+                if int(spoof.get("backup_ams_id")) == ams_id and int(spoof.get("backup_tray_id")) == tray_id:
+                    return True
+            except (TypeError, ValueError):
+                continue
+        return False
+
+    def _pull_active_spoofs_from_engine(self) -> None:
+        """Seed `_active_spoofs` from the spoof engine's current snapshot.
+
+        A freshly (re)started bridge begins with an empty `_active_spoofs` and
+        would otherwise only learn about ENGAGED spoofs when the engine next
+        calls `set_active_spoofs` (via `refresh_client`), which may be far in
+        the future. Pull the current snapshot on start so the overlay + the
+        slicer-write guard are correct immediately after a VP restart while a
+        spoof is already engaged (Finding #4).
+
+        Defensive: the engine is an optional local patch and
+        `get_active_snapshot` may not exist yet — any import/attribute/call
+        failure leaves `_active_spoofs` as-is (empty) and the bridge still
+        starts. Fail-safe = no overlay, which is the pre-patch behaviour.
+        """
+        try:
+            from backend.app.services.filament_spoof_engine import filament_spoof_engine
+        except ImportError:  # pragma: no cover - optional local patch
+            return
+        try:
+            snapshot = filament_spoof_engine.get_active_snapshot(self.target_printer_id)
+        except Exception:
+            logger.debug(
+                "[%s] MQTT bridge: get_active_snapshot unavailable — starting with no spoofs",
+                self.vp_name,
+                exc_info=True,
+            )
+            return
+        if snapshot:
+            self.set_active_spoofs(list(snapshot))
+            logger.info(
+                "[%s] MQTT bridge seeded %d active filament spoof(s) from engine on start",
+                self.vp_name,
+                len(snapshot),
+            )
+
     async def start(self) -> None:
         """Bind to the target printer (if connected) and start the refresh loop."""
         self._loop = asyncio.get_running_loop()
         self._stopping = False
+        self._pull_active_spoofs_from_engine()
         self._resolve_client()
         self._refresh_task = asyncio.create_task(self._refresh_loop())
 
@@ -668,6 +750,23 @@ class MQTTBridge:
                     power_on_flag=merged_ams_dict.get("power_on_flag", True),
                     log_label=self.vp_name,
                 )
+                # Filament-spoof overlay: while a runout-backup spoof is
+                # ENGAGED the printer reports the backup slot with the spoofed
+                # (primary) identity. Rewrite the slicer-facing cache back to
+                # the tray's real color/brand so the slicer UI keeps showing
+                # the truth. Fail-safe: any error leaves the merged data
+                # untouched, and the non-wire "_spoof" metadata is stripped
+                # before caching so it can never leak onto the wire.
+                if self._active_spoofs and isinstance(units, list) and apply_spoof_overlay is not None:
+                    try:
+                        apply_spoof_overlay(units, self._active_spoofs)
+                        if strip_spoof_meta is not None:
+                            strip_spoof_meta(units)
+                    except Exception:
+                        logger.exception(
+                            "[VP %s] filament spoof overlay failed — caching un-overlaid state",
+                            self.vp_name,
+                        )
             self._latest_print_state = new_state
             dump_wire(self.vp_name, "in", new_state)
             return

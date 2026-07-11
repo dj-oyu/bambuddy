@@ -102,6 +102,7 @@ import { HMSErrorModal, filterKnownHMSErrors } from '../components/HMSErrorModal
 import { PrinterQueueWidget } from '../components/PrinterQueueWidget';
 import { AMSHistoryModal } from '../components/AMSHistoryModal';
 import { AmsBackupModal } from '../components/AmsBackupModal';
+import { FilamentSpoofModal, type SpoofSlotPick } from '../components/FilamentSpoofModal';
 import { HeaterHistoryModal } from '../components/HeaterHistoryModal';
 import type { HeaterSensorKind } from '../api/client';
 import { FilamentHoverCard, EmptySlotHoverCard } from '../components/FilamentHoverCard';
@@ -115,7 +116,7 @@ import { SkipObjectsModal, SkipObjectsIcon } from '../components/SkipObjectsModa
 import { FileUploadModal } from '../components/FileUploadModal';
 import { PrintModal } from '../components/PrintModal';
 import { PrinterInfoModal } from '../components/PrinterInfoModal';
-import { getAmsLabel, getGlobalTrayId, getFillBarColor, getSpoolmanFillLevel, getFallbackSpoolTag, isBambuLabSpool } from '../utils/amsHelpers';
+import { getAmsLabel, getGlobalTrayId, getFillBarColor, getSpoolmanFillLevel, getFallbackSpoolTag, isBambuLabSpool, formatSlotLabel } from '../utils/amsHelpers';
 import { getPrinterImage, getWifiStrength, filterCompatibleQueueItems } from '../utils/printer';
 import { FilamentSlotCircle } from '../components/FilamentSlotCircle';
 import { Collapsible } from '../components/Collapsible';
@@ -740,6 +741,53 @@ function AmsBackupBadge({ state, onClick }: AmsBackupBadgeProps) {
     >
       {known ? <Repeat className="w-3 h-3" /> : <span>?</span>}
     </button>
+  );
+}
+
+// Runout backup (filament spoof) badge labels for the covered PRIMARY slot.
+// Short form goes on the slot pill ("A2" / "HT-A"), long form in the tooltip
+// ("AMS-A 2"). Copy deliberately says nothing about the underlying
+// colour-spoof mechanism — user-facing concept is just "takes over on runout".
+// Short pill form ("A2" / "HT-A") reuses formatSlotLabel; long tooltip form
+// ("AMS-A 2") composes getAmsLabel. Both from amsHelpers — no local duplicates.
+function spoofPrimaryShortLabel(amsId: number, trayId: number): string {
+  return formatSlotLabel(amsId, trayId, amsId >= 128, false);
+}
+
+function spoofPrimaryLongLabel(amsId: number, trayId: number): string {
+  return `${getAmsLabel(amsId, amsId >= 128 ? 1 : 4)} ${trayId + 1}`;
+}
+
+// Small pill on a runout-backup slot pointing at the slot it covers. Dimmed
+// while the firmware write is still pending (write-confirmation UI); rendered
+// normally once active. Caller gates on is_spoofed_backup + spoof_primary.
+function SpoofBackupBadge({
+  primary,
+  state,
+}: {
+  primary: { ams_id: number; tray_id: number };
+  state?: 'active' | 'pending' | null;
+}) {
+  const { t } = useTranslation();
+  const isPending = state === 'pending';
+  const title = isPending
+    ? t('printers.filamentSpoof.badgePending', {
+        slot: spoofPrimaryLongLabel(primary.ams_id, primary.tray_id),
+      })
+    : t('printers.filamentSpoof.badgeTitle', {
+        slot: spoofPrimaryLongLabel(primary.ams_id, primary.tray_id),
+      });
+  return (
+    <span
+      aria-label={title}
+      title={title}
+      className={`absolute top-0.5 left-0.5 px-1 py-px text-[8px] font-bold text-white rounded leading-none flex items-center gap-0.5 ${
+        isPending ? 'bg-blue-600/50 opacity-70 animate-pulse' : 'bg-blue-600/90'
+      }`}
+    >
+      <Repeat className="w-2 h-2" />
+      {spoofPrimaryShortLabel(primary.ams_id, primary.tray_id)}
+    </span>
   );
 }
 
@@ -1813,6 +1861,14 @@ function PrinterCard({
   const [showHMSModal, setShowHMSModal] = useState(false);
   // #1762: AMS Filament Backup status / control modal — opens from the badge.
   const [amsBackupModalOpen, setAmsBackupModalOpen] = useState(false);
+  // Runout backup (filament spoof) modal — opens from a slot's action menu.
+  // Holds the PRIMARY slot (the nearly-empty spool) the backup will cover.
+  const [spoofModalPrimary, setSpoofModalPrimary] = useState<SpoofSlotPick | null>(null);
+  // Design rule B: a 409 native-group lock parks the attempt here to re-send
+  // with force:true after the user confirms reassigning the backup slot.
+  const [spoofReassignConfirm, setSpoofReassignConfirm] = useState<
+    { primary: SpoofSlotPick; backup: SpoofSlotPick; detail: string } | null
+  >(null);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState<number | null>(null);
@@ -2233,6 +2289,60 @@ function PrinterCard({
       queryClient.invalidateQueries({ queryKey: ['printerStatus', printer.id] });
       queryClient.invalidateQueries({ queryKey: ['printer-status', printer.id] });
       showToast(t(enabled ? 'printers.amsBackup.toastEnabled' : 'printers.amsBackup.toastDisabled'), 'success');
+    },
+    onError: (error: Error) => showToast(error.message || t('printers.toast.failedToSendCommand'), 'error'),
+  });
+
+  // Runout backup (filament spoof): designate a backup slot that takes over
+  // when the primary runs out. Same double cache-key invalidation as
+  // setAmsBackupMutation above.
+  const engageFilamentSpoofMutation = useMutation({
+    mutationFn: ({ primary, backup, force }: { primary: SpoofSlotPick; backup: SpoofSlotPick; force?: boolean }) =>
+      api.engageFilamentSpoof(
+        printer.id,
+        { ams_id: primary.amsId, tray_id: primary.slotIdx },
+        { ams_id: backup.amsId, tray_id: backup.slotIdx },
+        force,
+      ),
+    onSuccess: (result) => {
+      setSpoofModalPrimary(null);
+      setSpoofReassignConfirm(null);
+      queryClient.invalidateQueries({ queryKey: ['printerStatus', printer.id] });
+      queryClient.invalidateQueries({ queryKey: ['printer-status', printer.id] });
+      if (result?.native) {
+        // Design rule A: spools already share a firmware identity, no row.
+        showToast(t('printers.filamentSpoof.toastEngagedNative'), 'success');
+      } else if (typeof result?.state === 'string' && result.state.toUpperCase() === 'FAILED') {
+        // Defensive: the firmware rejected the write (also manifests later as
+        // the badge disappearing, which we can't push-detect).
+        showToast(t('printers.filamentSpoof.toastFailed'), 'error');
+      } else {
+        showToast(t('printers.filamentSpoof.toastEngaged'), 'success');
+      }
+    },
+    onError: (error: Error, variables) => {
+      // Design rule B: a 409 native-group lock means the chosen backup slot
+      // already backs up another spool. Offer a force-reassign confirmation
+      // instead of surfacing it as a hard failure (unless we already forced).
+      if (error instanceof ApiError && error.status === 409 && !variables.force) {
+        setSpoofReassignConfirm({
+          primary: variables.primary,
+          backup: variables.backup,
+          detail: error.message,
+        });
+        return;
+      }
+      showToast(error.message || t('printers.toast.failedToSendCommand'), 'error');
+    },
+  });
+
+  const releaseFilamentSpoofMutation = useMutation({
+    mutationFn: ({ amsId, slotIdx }: SpoofSlotPick) =>
+      api.releaseFilamentSpoof(printer.id, amsId, slotIdx),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['printerStatus', printer.id] });
+      queryClient.invalidateQueries({ queryKey: ['printer-status', printer.id] });
+      showToast(t('printers.filamentSpoof.toastReleased'), 'success');
     },
     onError: (error: Error) => showToast(error.message || t('printers.toast.failedToSendCommand'), 'error'),
   });
@@ -2978,6 +3088,52 @@ function PrinterCard({
           <LogOut className="w-3 h-3" />
           {t('printers.ams.unload')}
         </button>
+        {(() => {
+          // Runout backup (filament spoof) actions. Not gated on printerBusy —
+          // engaging a backup mid-print for a nearly-empty spool is the whole
+          // point of the feature.
+          const unit = amsData?.find((a: AMSUnit) => a.id === amsId);
+          const tray = unit?.tray?.[slotId];
+          if (!tray?.tray_type) return null;
+          const allowed = hasPermission('printers:control');
+          const buttonClass = `w-full px-2 py-1.5 text-left text-xs flex items-center gap-2 rounded transition-colors ${
+            allowed
+              ? 'text-white hover:bg-bambu-dark-tertiary'
+              : 'text-bambu-gray/50 cursor-not-allowed'
+          }`;
+          if (tray.is_spoofed_backup && tray.spoof_primary) {
+            return (
+              <button
+                className={buttonClass}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!allowed || releaseFilamentSpoofMutation.isPending) return;
+                  releaseFilamentSpoofMutation.mutate({ amsId, slotIdx: slotId });
+                }}
+                disabled={!allowed || releaseFilamentSpoofMutation.isPending}
+                title={!allowed ? t('printers.permission.noControl') : undefined}
+              >
+                <Repeat className="w-3 h-3" />
+                {t('printers.filamentSpoof.menuRelease')}
+              </button>
+            );
+          }
+          return (
+            <button
+              className={buttonClass}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!allowed) return;
+                setSpoofModalPrimary({ amsId, slotIdx: slotId });
+              }}
+              disabled={!allowed}
+              title={!allowed ? t('printers.permission.noControl') : undefined}
+            >
+              <Repeat className="w-3 h-3" />
+              {t('printers.filamentSpoof.menuEngage')}
+            </button>
+          );
+        })()}
       </>
     );
   };
@@ -4662,6 +4818,9 @@ function PrinterCard({
                                         {activePrintSlotLabel}
                                       </span>
                                     )}
+                                    {tray?.is_spoofed_backup && tray?.spoof_primary && (
+                                      <SpoofBackupBadge primary={tray.spoof_primary} state={tray.spoof_state} />
+                                    )}
                                     {/* Filament color circle with 1-based slot number centered inside */}
                                     <FilamentSlotCircle
                                       trayColor={tray?.tray_color}
@@ -4933,6 +5092,9 @@ function PrinterCard({
                               >
                                 {htActivePrintSlotLabel}
                               </span>
+                            )}
+                            {tray?.is_spoofed_backup && tray?.spoof_primary && (
+                              <SpoofBackupBadge primary={tray.spoof_primary} state={tray.spoof_state} />
                             )}
                             {/* Filament color circle with 1-based slot number centered inside */}
                             <FilamentSlotCircle
@@ -6193,6 +6355,47 @@ function PrinterCard({
           onToggle={(next) => setAmsBackupMutation.mutate(next)}
           onClose={() => setAmsBackupModalOpen(false)}
         />
+      )}
+
+      {/* Runout backup (filament spoof) modal — pick which spool takes over */}
+      {spoofModalPrimary && (
+        <FilamentSpoofModal
+          isOpen={!!spoofModalPrimary}
+          primary={spoofModalPrimary}
+          amsUnits={amsData}
+          amsExtruderMap={status?.ams_extruder_map}
+          isDualNozzle={printer.nozzle_count === 2 || status?.temperatures?.nozzle_2 !== undefined}
+          extruderAgnostic={!!status?.fila_switch}
+          pending={engageFilamentSpoofMutation.isPending}
+          onConfirm={(backup) =>
+            engageFilamentSpoofMutation.mutate({ primary: spoofModalPrimary, backup })
+          }
+          onClose={() => setSpoofModalPrimary(null)}
+        />
+      )}
+
+      {/* Design rule B: native-group lock — confirm reassigning the backup. */}
+      {spoofReassignConfirm && (
+        <ConfirmModal
+          title={t('printers.filamentSpoof.reassignTitle')}
+          message={t('printers.filamentSpoof.reassignBody')}
+          confirmText={t('printers.filamentSpoof.reassignConfirm')}
+          variant="warning"
+          overlayZIndex="z-[110]"
+          isLoading={engageFilamentSpoofMutation.isPending}
+          onConfirm={() =>
+            engageFilamentSpoofMutation.mutate({
+              primary: spoofReassignConfirm.primary,
+              backup: spoofReassignConfirm.backup,
+              force: true,
+            })
+          }
+          onCancel={() => setSpoofReassignConfirm(null)}
+        >
+          {spoofReassignConfirm.detail && (
+            <p className="text-xs mt-2 opacity-70">{spoofReassignConfirm.detail}</p>
+          )}
+        </ConfirmModal>
       )}
 
       {/* AMS History Modal */}

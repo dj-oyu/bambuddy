@@ -593,6 +593,28 @@ export default {
       stateOff: 'Disabled',
       stateUnknown: 'Unsupported on this printer',
     },
+    // Runout backup (filament spoof) — a designated slot takes over when the
+    // primary runs out. UI copy deliberately never mentions the mechanism.
+    filamentSpoof: {
+      badgeTitle: 'Takes over automatically when {{slot}} runs out',
+      menuEngage: 'Set runout backup',
+      menuRelease: 'Remove runout backup',
+      modalTitle: 'Runout Backup',
+      primaryLabel: 'Backup for {{slot}}',
+      modalHelp: 'Pick which spool takes over automatically when this slot runs out.',
+      sameTypeOnly: 'Only spools of the same material type ({{type}}) can take over.',
+      noCandidates: 'No compatible spools — the backup must be the same material type ({{type}}).',
+      confirm: 'Set backup',
+      toastEngaged: 'Runout backup set',
+      toastEngagedNative: 'Backup enabled — the spools already match.',
+      toastReleased: 'Runout backup removed',
+      toastFailed: 'Could not enable runout backup — the printer did not accept the change. Try again, or power-cycle the printer.',
+      kDiffWarning: 'This spool\'s flow behavior differs slightly; print quality may vary after switchover.',
+      badgePending: 'Enabling runout backup for {{slot}}…',
+      reassignTitle: 'Reassign backup?',
+      reassignBody: 'This spool currently backs up another spool of the same color. Reassign it?',
+      reassignConfirm: 'Reassign',
+    },
     activeJobSlot: {
       title: 'This slot is filament {{n}} in the active print',
       ariaLabel: 'Active print slot {{n}}',

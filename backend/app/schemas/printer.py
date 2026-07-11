@@ -164,6 +164,17 @@ class HMSErrorResponse(BaseModel):
     full_code: str = ""
 
 
+class SpoofPrimaryRef(BaseModel):
+    """The primary slot a spoofed backup impersonates.
+
+    Typed (rather than a loose dict) so the backend↔frontend key contract
+    (ams_id / tray_id) is enforced and drift is caught (finding #3).
+    """
+
+    ams_id: int | None = None
+    tray_id: int | None = None
+
+
 class AMSTray(BaseModel):
     id: int
     tray_color: str | None = None
@@ -181,6 +192,9 @@ class AMSTray(BaseModel):
     drying_temp: int | None = None  # RFID-recommended drying temp
     drying_time: int | None = None  # RFID-recommended drying time (hours)
     state: int | None = None  # AMS tray state: 9=empty, 10=spool present not loaded, 11=loaded
+    is_spoofed_backup: bool = False  # True when this slot backs up another (pending or active)
+    spoof_primary: SpoofPrimaryRef | None = None  # the impersonated primary slot
+    spoof_state: str | None = None  # "pending" (write unconfirmed) | "active" (confirmed) | None
 
 
 class AMSUnit(BaseModel):

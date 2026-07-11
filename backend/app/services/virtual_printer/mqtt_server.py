@@ -1359,6 +1359,21 @@ class SimpleMQTTServer:
             # Forward anything the synthetic flow didn't handle to the real
             # printer. AMS load / dry / xcam / system / extrusion_cali_get etc.
             if not handled_locally and self._bridge is not None and self._bridge.is_active:
+                # Filament-spoof guard (Finding #9b): while a runout-backup
+                # spoof is ENGAGED the backup slot's firmware identity is
+                # deliberately spoofed to the primary's. A slicer that writes
+                # its own `ams_filament_setting` to that slot would clobber the
+                # spoof (the same class of foreign write bambu_mqtt's
+                # `_spoof_write_guard` blocks on the real-client side). Drop the
+                # forward so the slicer write never reaches the printer.
+                # Fail-safe: if the target can't be parsed, forward as before.
+                if self._is_spoof_guarded_write(data):
+                    logger.warning(
+                        "[VP %s] Suppressed slicer ams_filament_setting to runout-backup slot "
+                        "(spoof-guarded); not forwarded to printer",
+                        self.vp_name,
+                    )
+                    return
                 # Remember which client originated this command so the
                 # printer's response goes back only to them (not fanned
                 # out to every connected slicer).
@@ -1367,6 +1382,38 @@ class SimpleMQTTServer:
 
         except (IndexError, ValueError, OSError) as e:
             logger.debug("MQTT PUBLISH error: %s", e)
+
+    def _is_spoof_guarded_write(self, data: dict) -> bool:
+        """True iff `data` is an ams_filament_setting targeting a spoof-guarded slot.
+
+        Parses the (ams_id, tray_id) of a slicer-originated
+        ``ams_filament_setting`` from the print payload the same way the
+        forward path ships it (see bambu_mqtt.set_ams_filament_setting: for a
+        regular AMS the wire ``ams_id`` / ``tray_id`` are the logical 0-3 ids
+        matched by the engine's write-guard). Returns False (→ forward as
+        before) when this isn't an ams_filament_setting, the bridge exposes no
+        guard, or the target ids can't be parsed. Fail-safe: any uncertainty
+        leaves the forward path untouched.
+        """
+        bridge = self._bridge
+        if bridge is None:
+            return False
+        guard = getattr(bridge, "is_guarded_backup_slot", None)
+        if not callable(guard):
+            return False
+        print_data = data.get("print")
+        if not isinstance(print_data, dict) or print_data.get("command") != "ams_filament_setting":
+            return False
+        try:
+            ams_id = int(print_data["ams_id"])
+            tray_id = int(print_data["tray_id"])
+        except (KeyError, TypeError, ValueError):
+            return False
+        try:
+            return bool(guard(ams_id, tray_id))
+        except Exception:
+            logger.debug("[VP %s] spoof guard check raised; forwarding", self.vp_name, exc_info=True)
+            return False
 
     async def _notify_print_command(self, filename: str, data: dict) -> None:
         """Notify callback of print command."""

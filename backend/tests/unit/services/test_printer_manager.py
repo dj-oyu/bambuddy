@@ -876,6 +876,40 @@ class TestPrinterStateToDict:
         assert len(result["ams"][0]["tray"]) == 1
         assert result["ams"][0]["tray"][0]["tray_color"] == "FF0000"
 
+    def test_spoof_active_status_shape_matches_frontend_contract(self, mock_state):
+        """Finding #3: a confirmed (overlay-marked) backup emits spoof_primary
+        with ams_id/tray_id keys and spoof_state='active'."""
+        mock_state.raw_data = {
+            "ams": [
+                {
+                    "id": 0,
+                    "tray": [
+                        {
+                            "id": 1,
+                            "tray_color": "002E96FF",
+                            "tray_type": "PLA",
+                            # overlay marker (post apply_spoof_overlay)
+                            "_spoof": {"ams_id": 0, "tray_id": 0, "state": "active"},
+                        }
+                    ],
+                }
+            ]
+        }
+        result = printer_state_to_dict(mock_state)
+        tray = result["ams"][0]["tray"][0]
+        assert tray["is_spoofed_backup"] is True
+        assert tray["spoof_state"] == "active"
+        assert tray["spoof_primary"] == {"ams_id": 0, "tray_id": 0}
+
+    def test_no_spoof_status_is_null(self, mock_state):
+        mock_state.raw_data = {
+            "ams": [{"id": 0, "tray": [{"id": 0, "tray_color": "FF0000", "tray_type": "PLA"}]}]
+        }
+        tray = printer_state_to_dict(mock_state)["ams"][0]["tray"][0]
+        assert tray["is_spoofed_backup"] is False
+        assert tray["spoof_state"] is None
+        assert tray["spoof_primary"] is None
+
     def test_empty_tag_uid_becomes_none(self, mock_state):
         """Verify empty tag_uid is converted to None."""
         mock_state.raw_data = {

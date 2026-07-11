@@ -1333,6 +1333,11 @@ class VirtualPrinterInstance:
             status["proxy"] = self._proxy.get_status()
         return status
 
+    def set_active_spoofs(self, spoofs: list[dict]) -> None:
+        """Push filament-spoof snapshots to this VP's MQTT bridge (no-op if none)."""
+        if self._mqtt_bridge is not None:
+            self._mqtt_bridge.set_active_spoofs(spoofs)
+
 
 class VirtualPrinterManager:
     """Multi-instance virtual printer registry and orchestrator.
@@ -1377,6 +1382,17 @@ class VirtualPrinterManager:
     def set_printer_manager(self, printer_manager: "PrinterManager") -> None:
         """Inject the global printer_manager so non-proxy VPs can mirror their target's MQTT stream."""
         self._printer_manager = printer_manager
+
+    def set_active_spoofs(self, printer_id: int, spoofs: list[dict]) -> None:
+        """Fan filament-spoof snapshots out to every VP bridging the given printer.
+
+        Called by the spoof engine on engage/disengage so slicer-facing VP
+        caches keep showing the tray's real identity. No-op if no running VP
+        targets the printer.
+        """
+        for instance in self._instances.values():
+            if instance.target_printer_id == printer_id:
+                instance.set_active_spoofs(spoofs)
 
     def get_ca_certificate_info(self) -> dict:
         """Return the shared virtual-printer CA certificate for slicer-trust import.

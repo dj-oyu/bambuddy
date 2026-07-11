@@ -576,6 +576,16 @@ class PrinterManager:
         self._models[printer_id] = printer.model  # Cache model for feature detection
         self._printer_info[printer_id] = PrinterInfo(printer.name, printer.serial_number)
 
+        # Re-install the filament-spoof overlay/guard/hooks on the fresh client
+        # (finding #6: a reconnect builds a new BambuMQTTClient with empty spoof
+        # state). Fire-and-forget, lazy import, best-effort.
+        try:
+            from backend.app.services.filament_spoof_engine import filament_spoof_engine
+
+            self._schedule_async(filament_spoof_engine.refresh_client(printer_id))
+        except Exception:
+            logger.debug("[%s] failed to schedule spoof refresh on connect", printer_id, exc_info=True)
+
         # Wait a moment for connection
         await asyncio.sleep(1)
         return client.state.connected
@@ -1006,6 +1016,23 @@ def printer_state_to_dict(
             except (ValueError, TypeError):
                 pass  # Skip K-profile entries with unparseable values
 
+    # Filament-spoof: map PENDING backup slots so the badge can render a
+    # "pending" style before firmware confirms the write (an unconfirmed slot
+    # carries no overlay marker yet). Confirmed (ENGAGED) slots are detected via
+    # the overlay marker below. Sourced from the live client's snapshot.
+    spoof_pending: dict[tuple, dict] = {}
+    try:
+        if printer_id is not None:
+            _sp_client = printer_manager.get_client(printer_id)
+            for _sp in getattr(_sp_client, "_active_spoofs", []) or []:
+                if _sp.get("state") == "PENDING":
+                    spoof_pending[(int(_sp["backup_ams_id"]), int(_sp["backup_tray_id"]))] = {
+                        "ams_id": _sp.get("primary_ams_id"),
+                        "tray_id": _sp.get("primary_tray_id"),
+                    }
+    except Exception:
+        pass
+
     if "ams" in raw_data and isinstance(raw_data["ams"], list):
         for ams_data in raw_data["ams"]:
             trays = []
@@ -1036,6 +1063,25 @@ def printer_state_to_dict(
                 if state_val is None and len(tray) == 1 and "id" in tray:
                     state_val = 9
 
+                # Filament-spoof status: an overlay marker means firmware has
+                # CONFIRMED the spoof (state "active"); a PENDING row without a
+                # marker yet renders as "pending". Keys are ams_id/tray_id
+                # (finding #3) to match the frontend contract.
+                _spoof_marker = tray.get("_spoof")
+                _spoof_state = None
+                _spoof_primary = None
+                if _spoof_marker:
+                    _spoof_state = "active"
+                    _spoof_primary = {
+                        "ams_id": _spoof_marker.get("ams_id"),
+                        "tray_id": _spoof_marker.get("tray_id"),
+                    }
+                else:
+                    _pend = spoof_pending.get((int(ams_data.get("id", 0)), int(tray.get("id", 0))))
+                    if _pend:
+                        _spoof_state = "pending"
+                        _spoof_primary = _pend
+
                 trays.append(
                     {
                         "id": int(tray.get("id", 0)),
@@ -1054,6 +1100,12 @@ def printer_state_to_dict(
                         "drying_temp": tray.get("drying_temp"),
                         "drying_time": tray.get("drying_time"),
                         "state": state_val,
+                        # Filament-spoof status. is_spoofed_backup is True for
+                        # both confirmed (active) and pending backups; spoof_state
+                        # distinguishes them for the badge.
+                        "is_spoofed_backup": _spoof_state is not None,
+                        "spoof_primary": _spoof_primary,
+                        "spoof_state": _spoof_state,
                     }
                 )
             # Prefer humidity_raw (actual percentage) over humidity (index 1-5)

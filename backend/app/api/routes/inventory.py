@@ -238,7 +238,7 @@ async def apply_spool_to_slot_via_mqtt(
             "printer" if printer_kp else "stored",
         )
 
-    client.ams_set_filament_setting(
+    write_ok = client.ams_set_filament_setting(
         ams_id=ams_id,
         tray_id=tray_id,
         tray_info_idx=effective_tray_info_idx,
@@ -249,6 +249,22 @@ async def apply_spool_to_slot_via_mqtt(
         nozzle_temp_max=temp_max,
         setting_id=effective_setting_id,
     )
+
+    # The firmware write-guard returns False (and sends nothing) when this slot
+    # is protected by an active filament-runout backup (spoof). Honor that: do
+    # not chase it with extrusion_cali_sel or persist a slot-preset mapping,
+    # otherwise we'd record a success the printer never accepted. Fail-safe:
+    # leave the slot untouched and let the caller see failure.
+    if write_ok is False:
+        logger.warning(
+            "AMS slot ams=%d tray=%d write suppressed by active runout backup — "
+            "skipping calibration + persistence for spool %d on printer %d",
+            ams_id,
+            tray_id,
+            spool.id,
+            printer_id,
+        )
+        return False
 
     if matching_kp and matching_kp.cali_idx is not None:
         # filament_id for cali_sel must match the preset under which the kp

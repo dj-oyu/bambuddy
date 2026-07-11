@@ -145,6 +145,14 @@ function BackupRing({
           const label = formatSlotLabel(m.amsId, m.slotIdx, trayCountByAms.get(m.amsId) ?? 4);
           // Approximate pill width based on char count (each digit ≈ 6.5 px @ 12 px font).
           const pillWidth = Math.max(22, label.length * 7 + 8);
+          // Spoofed backup member: render its pill in its REAL colour so the
+          // pair shows both real colours even though the firmware knows the
+          // backup under the primary's (ring) colour.
+          const memberHex = m.trayColor ? normalizeColor(m.trayColor) : null;
+          const pillFill = memberHex ?? labelPillBg;
+          const pillTextColor = memberHex
+            ? pickContrastTextColor(m.trayColor)
+            : ringTextColor;
           return (
             <g key={`${m.amsId}-${m.slotIdx}`}>
               <rect
@@ -154,7 +162,10 @@ function BackupRing({
                 height={18}
                 rx={9}
                 ry={9}
-                fill={labelPillBg}
+                fill={pillFill}
+                stroke={memberHex ? textSecondary : 'none'}
+                strokeOpacity={memberHex ? 0.4 : 0}
+                strokeWidth={memberHex ? 1 : 0}
               />
               <text
                 x={x}
@@ -163,7 +174,7 @@ function BackupRing({
                 dominantBaseline="middle"
                 fontSize="12"
                 fontWeight="700"
-                fill={ringTextColor}
+                fill={pillTextColor}
               >
                 {label}
               </text>

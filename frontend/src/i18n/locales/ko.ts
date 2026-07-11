@@ -552,6 +552,26 @@ export default {
       stateOff: '비활성화됨',
       stateUnknown: '이 프린터에서 지원되지 않음'
     },
+    filamentSpoof: {
+      badgeTitle: '{{slot}}이(가) 소진되면 자동으로 이어받습니다',
+      menuEngage: '소진 백업 설정',
+      menuRelease: '백업 해제',
+      modalTitle: '소진 백업',
+      primaryLabel: '{{slot}} 백업',
+      modalHelp: '이 슬롯의 필라멘트가 소진되면 자동으로 이어받을 스풀을 선택하세요.',
+      sameTypeOnly: '같은 재료 유형({{type}})의 스풀만 이어받을 수 있습니다.',
+      noCandidates: '호환되는 스풀이 없습니다 — 백업은 같은 재료 유형({{type}})이어야 합니다.',
+      confirm: '백업 설정',
+      toastEngaged: '소진 백업이 설정되었습니다',
+      toastEngagedNative: '백업이 활성화되었습니다 — 스풀이 이미 일치합니다.',
+      toastReleased: '백업이 해제되었습니다',
+      toastFailed: '소진 백업을 활성화할 수 없습니다 — 프린터가 변경을 수락하지 않았습니다. 다시 시도하거나 프린터를 재시작하세요.',
+      kDiffWarning: '이 스풀의 흐름 특성이 약간 다릅니다. 전환 후 인쇄 품질이 달라질 수 있습니다.',
+      badgePending: '{{slot}}의 소진 백업을 활성화하는 중…',
+      reassignTitle: '백업을 재할당할까요?',
+      reassignBody: '이 스풀은 현재 같은 색의 다른 스풀을 백업하고 있습니다. 재할당할까요?',
+      reassignConfirm: '재할당',
+    },
     activeJobSlot: {
       title: '이 슬롯은 활성 인쇄의 필라멘트 {{n}}입니다',
       ariaLabel: '활성 인쇄 슬롯 {{n}}'

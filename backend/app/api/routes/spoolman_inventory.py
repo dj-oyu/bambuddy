@@ -1615,7 +1615,7 @@ async def assign_spoolman_slot(
                     "printer" if printer_kp else "stored",
                 )
 
-            mqtt_client.ams_set_filament_setting(
+            write_ok = mqtt_client.ams_set_filament_setting(
                 ams_id=body.ams_id,
                 tray_id=body.tray_id,
                 tray_info_idx=effective_tray_info_idx,
@@ -1627,7 +1627,19 @@ async def assign_spoolman_slot(
                 setting_id=effective_setting_id,
             )
 
-            if matching_kp and matching_kp.cali_idx is not None:
+            # Firmware write-guard returned False: this slot is protected by an
+            # active filament-runout backup (spoof). Do not chase it with
+            # extrusion_cali_sel or log a false success — leave it untouched.
+            if write_ok is False:
+                logger.warning(
+                    "Spoolman assign: AMS slot ams=%d tray=%d write suppressed by "
+                    "active runout backup — skipping calibration for spool %d on printer %d",
+                    body.ams_id,
+                    body.tray_id,
+                    body.spoolman_spool_id,
+                    body.printer_id,
+                )
+            elif matching_kp and matching_kp.cali_idx is not None:
                 # Use printer-reported filament_id when available, otherwise
                 # fall back to the realigned tray_info_idx so both commands
                 # reference the same filament context.
@@ -1669,13 +1681,14 @@ async def assign_spoolman_slot(
                     body.spoolman_spool_id,
                 )
 
-            logger.info(
-                "Auto-configured AMS slot ams=%d tray=%d for Spoolman spool %d on printer %d",
-                body.ams_id,
-                body.tray_id,
-                body.spoolman_spool_id,
-                body.printer_id,
-            )
+            if write_ok is not False:
+                logger.info(
+                    "Auto-configured AMS slot ams=%d tray=%d for Spoolman spool %d on printer %d",
+                    body.ams_id,
+                    body.tray_id,
+                    body.spoolman_spool_id,
+                    body.printer_id,
+                )
     except Exception:
         logger.exception(
             "Failed to auto-configure AMS slot for Spoolman spool %d (printer=%d, ams=%d, tray=%d)",

@@ -1008,7 +1008,7 @@ async def link_spool(
                         "printer" if printer_kp else "stored",
                     )
 
-                mqtt_client.ams_set_filament_setting(
+                write_ok = mqtt_client.ams_set_filament_setting(
                     ams_id=a_id,
                     tray_id=t_id,
                     tray_info_idx=effective_tray_info_idx,
@@ -1020,7 +1020,19 @@ async def link_spool(
                     setting_id=effective_setting_id,
                 )
 
-                if matching_kp and matching_kp.cali_idx is not None:
+                # Firmware write-guard returned False: this slot is protected by
+                # an active filament-runout backup (spoof). Do not chase it with
+                # extrusion_cali_sel or log a false success — leave it untouched.
+                if write_ok is False:
+                    logger.warning(
+                        "Spoolman link: AMS slot ams=%d tray=%d write suppressed by "
+                        "active runout backup — skipping calibration for spool %d on printer %d",
+                        a_id,
+                        t_id,
+                        spool_id,
+                        p_id,
+                    )
+                elif matching_kp and matching_kp.cali_idx is not None:
                     cali_filament_id = (
                         printer_kp.filament_id if printer_kp and printer_kp.filament_id else None
                     ) or effective_tray_info_idx
@@ -1061,13 +1073,14 @@ async def link_spool(
                             nozzle_diameter=nozzle_diameter,
                         )
 
-                logger.info(
-                    "Auto-configured AMS slot ams=%d tray=%d after linking Spoolman spool %d on printer %d",
-                    a_id,
-                    t_id,
-                    spool_id,
-                    p_id,
-                )
+                if write_ok is not False:
+                    logger.info(
+                        "Auto-configured AMS slot ams=%d tray=%d after linking Spoolman spool %d on printer %d",
+                        a_id,
+                        t_id,
+                        spool_id,
+                        p_id,
+                    )
         except (SpoolmanNotFoundError, SpoolmanUnavailableError) as e:
             logger.warning(
                 "Could not fetch Spoolman spool %d for MQTT configure after tag link: %s",

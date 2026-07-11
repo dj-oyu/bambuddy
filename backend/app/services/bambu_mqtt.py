@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
+from backend.app.services.filament_spoof import apply_spoof_overlay
 from backend.app.services.hms_actions import HMSAction, get_actions_for_error_code
 
 logger = logging.getLogger(__name__)
@@ -628,6 +629,45 @@ class BambuMQTTClient:
         # rate-limits a fallback re-request while RUNNING with total==0.
         self._pending_total_layers_seed: int = 0
         self._total_layers_pushall_time: float = 0.0  # monotonic time of last fallback pushall
+
+        # Filament-spoof runout-backup (private-fork feature). A snapshot of the
+        # ENGAGED spoofs for this printer, refreshed by FilamentSpoofEngine via
+        # set_active_spoofs(). apply_spoof_overlay() consumes it to rewrite the
+        # backup slot's live identity back to truth after each AMS update.
+        self._active_spoofs: list[dict] = []
+        # Optional guard callback (ams_id, tray_id) -> bool: when it returns True
+        # for a slot, ams_set_filament_setting no-ops (fail-safe) to protect a
+        # spoofed slot from spoolman/inventory/reconciliation overwrites.
+        self._spoof_write_guard = None
+        # Optional callback (ams_id, tray_id, prev_global, gcode_state) invoked
+        # when the active tray changes (runout detection). Set by the engine.
+        self._on_tray_now_change = None
+        # Optional callback () invoked once per AMS message (after the firmware
+        # identity map is refreshed, below) so the engine can confirm PENDING
+        # spoofs / revalidate off firmware truth. Set by FilamentSpoofEngine.
+        self._on_fw_identity_update = None
+        # Pre-overlay firmware identity per slot: (ams_id, tray_id) -> {
+        #   "tray_info_idx": ..., "tray_color": ...}. Captured BEFORE the overlay
+        # rewrites the live view, so the engine sees firmware TRUTH (not the
+        # overlaid backup identity). See _handle_ams_data / get_fw_tray_identity.
+        self._fw_tray_identity: dict[tuple[int, int], dict] = {}
+
+    def set_active_spoofs(self, spoofs: list) -> None:
+        """Refresh the ENGAGED filament-spoof snapshot used by the overlay."""
+        self._active_spoofs = list(spoofs) if spoofs else []
+
+    def get_fw_tray_identity(self, ams_id: int, tray_id: int) -> dict | None:
+        """Pre-overlay firmware identity for (ams_id, tray_id), or None.
+
+        This is the engine's read API for firmware truth: the overlay rewrites
+        ``state.raw_data['ams']`` in place, so callers must NOT read identity
+        from there. Returns a shallow copy so callers can't mutate the cache.
+        """
+        try:
+            val = self._fw_tray_identity.get((int(ams_id), int(tray_id)))
+        except (ValueError, TypeError):
+            return None
+        return dict(val) if val is not None else None
 
     @property
     def topic_subscribe(self) -> str:
@@ -1664,6 +1704,7 @@ class BambuMQTTClient:
             # Parse tray_now from AMS dict - this is the currently loaded tray global ID
             # Note: tray_tar is also available but on H2D it's just slot number (0-3), not global ID
             if "tray_now" in ams_data:
+                _spoof_prev_tray_now = self.state.tray_now  # for runout-detection hook below
                 raw_tray_now = ams_data["tray_now"]
                 # Convert string to int if needed
                 if isinstance(raw_tray_now, str):
@@ -1881,6 +1922,29 @@ class BambuMQTTClient:
 
                 logger.debug("[%s] tray_now updated: %s", self.serial_number, self.state.tray_now)
 
+                # Filament-spoof runout hook: notify the engine when the active
+                # tray changes to a physical slot (a spoof's backup slot going
+                # active means the primary ran out → auto-release).
+                tn_new = self.state.tray_now
+                if self._on_tray_now_change is not None and tn_new != _spoof_prev_tray_now:
+                    if 0 <= tn_new <= 15:
+                        _sp_ams, _sp_tray = tn_new // 4, tn_new % 4
+                    elif 128 <= tn_new <= 135:
+                        _sp_ams, _sp_tray = tn_new, 0
+                    else:
+                        _sp_ams = _sp_tray = None
+                    if _sp_ams is not None:
+                        try:
+                            # Pass prev active tray + gcode_state so the engine
+                            # only treats a backup-slot activation as a genuine
+                            # runout when it followed the primary running out
+                            # mid-print (finding #7).
+                            self._on_tray_now_change(
+                                _sp_ams, _sp_tray, _spoof_prev_tray_now, self.state.state
+                            )
+                        except Exception:
+                            logger.debug("[%s] spoof tray_now hook raised", self.serial_number, exc_info=True)
+
             # NOTE: ams_status is parsed BEFORE tray_now (see above) to ensure correct
             # state when checking filament change mode for H2D disambiguation
 
@@ -2022,6 +2086,42 @@ class BambuMQTTClient:
                 power_on_flag=ams_data.get("power_on_flag", True),
                 log_label=self.serial_number,
             )
+
+        # Capture pre-overlay firmware identity per slot BEFORE the overlay
+        # rewrites the live view — this is the engine's source of firmware truth
+        # (finding #1). Only refresh entries actually present in this update so a
+        # partial AMS message doesn't wipe known slots.
+        for _unit in merged_ams:
+            if not isinstance(_unit, dict):
+                continue
+            try:
+                _uid = int(_unit.get("id"))
+            except (ValueError, TypeError):
+                continue
+            for _tray in _unit.get("tray", []) or []:
+                if not isinstance(_tray, dict):
+                    continue
+                try:
+                    _tid = int(_tray.get("id"))
+                except (ValueError, TypeError):
+                    continue
+                self._fw_tray_identity[(_uid, _tid)] = {
+                    "tray_info_idx": _tray.get("tray_info_idx"),
+                    "tray_color": _tray.get("tray_color"),
+                }
+
+        # Filament-spoof overlay: rewrite spoofed backup slots back to their real
+        # identity (fail-safe no-op when no ENGAGED spoofs / on any mismatch).
+        apply_spoof_overlay(merged_ams, self._active_spoofs)
+
+        # Notify the engine so it can confirm PENDING spoofs / revalidate off the
+        # firmware truth just captured. Gated on active spoofs to keep the hot
+        # path free when the feature isn't in use.
+        if self._active_spoofs and self._on_fw_identity_update is not None:
+            try:
+                self._on_fw_identity_update()
+            except Exception:
+                logger.debug("[%s] spoof fw-identity hook raised", self.serial_number, exc_info=True)
 
         self.state.raw_data["ams"] = merged_ams
 
@@ -5207,6 +5307,7 @@ class BambuMQTTClient:
         nozzle_temp_min: int,
         nozzle_temp_max: int,
         setting_id: str = "",
+        bypass_spoof_guard: bool = False,
     ) -> bool:
         """Set AMS tray filament settings (type, color, temperature).
 
@@ -5226,6 +5327,24 @@ class BambuMQTTClient:
         Returns:
             True if command was sent, False otherwise
         """
+        # Filament-spoof write-guard: a spoofed slot's firmware identity is
+        # deliberately set to the primary's. Block foreign writers (spoolman /
+        # inventory / main.py reconciliation) from clobbering it — this is the
+        # single choke point. The spoof engine itself passes bypass_spoof_guard.
+        if not bypass_spoof_guard and self._spoof_write_guard is not None:
+            try:
+                if self._spoof_write_guard(ams_id, tray_id):
+                    logger.info(
+                        "[%s] ams_filament_setting suppressed for spoofed slot AMS %s tray %s (write-guard)",
+                        self.serial_number,
+                        ams_id,
+                        tray_id,
+                    )
+                    return False
+            except Exception:
+                # Fail-safe: a broken guard must not block legitimate writes.
+                logger.debug("[%s] spoof write-guard raised; allowing write", self.serial_number, exc_info=True)
+
         if not self._client or not self.state.connected:
             logger.warning("[%s] Cannot set AMS filament setting: not connected", self.serial_number)
             return False
@@ -5291,7 +5410,7 @@ class BambuMQTTClient:
         self._last_ams_cmd_time = time.monotonic()
         return True
 
-    def reset_ams_slot(self, ams_id: int, tray_id: int) -> bool:
+    def reset_ams_slot(self, ams_id: int, tray_id: int, bypass_spoof_guard: bool = False) -> bool:
         """Reset an AMS slot to empty/unconfigured state.
 
         Args:
@@ -5301,6 +5420,20 @@ class BambuMQTTClient:
         Returns:
             True if command was sent, False otherwise
         """
+        # Filament-spoof write-guard: resetting a spoofed slot would wipe the
+        # deliberately-written primary identity. Route through the same choke
+        # point (finding #9a). The engine bypasses it.
+        if not bypass_spoof_guard and self._spoof_write_guard is not None:
+            try:
+                if self._spoof_write_guard(ams_id, tray_id):
+                    logger.info(
+                        "[%s] reset_ams_slot suppressed for spoofed slot AMS %s tray %s (write-guard)",
+                        self.serial_number, ams_id, tray_id,
+                    )
+                    return False
+            except Exception:
+                logger.debug("[%s] spoof write-guard raised; allowing reset", self.serial_number, exc_info=True)
+
         if not self._client or not self.state.connected:
             logger.warning("[%s] Cannot reset AMS slot: not connected", self.serial_number)
             return False

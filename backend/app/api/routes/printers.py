@@ -3,6 +3,8 @@ import logging
 import re
 import zipfile
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import func, select
@@ -1950,6 +1952,138 @@ async def set_ams_backup(
     return {"success": True, "ams_filament_backup": enabled}
 
 
+class _FilamentSpoofRequest(BaseModel):
+    # Flat slot fields (matches the frontend api client contract).
+    primary_ams_id: int
+    primary_tray_id: int
+    backup_ams_id: int
+    backup_tray_id: int
+    force: bool = False
+
+
+def _slot_is_guarded(client, ams_id: int, tray_id: int) -> bool:
+    """True if (ams_id, tray_id) is protected by an active runout-backup spoof.
+
+    Checks the client's write-guard closure first, then falls back to the
+    active-spoofs snapshot. Fully defensive: a missing attribute or any error
+    is treated as "not guarded" so a genuine send failure still surfaces its
+    normal error path rather than a misleading 409.
+    """
+    try:
+        guard = getattr(client, "_spoof_write_guard", None)
+        if callable(guard) and guard(ams_id, tray_id):
+            return True
+    except Exception:
+        pass
+    try:
+        for sp in getattr(client, "_active_spoofs", None) or []:
+            if int(sp.get("backup_ams_id")) == int(ams_id) and int(sp.get("backup_tray_id")) == int(tray_id):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _serialize_spoof(row) -> dict:
+    """Serialize a FilamentSpoof row for API responses."""
+    return {
+        "id": row.id,
+        "printer_id": row.printer_id,
+        "backup_ams_id": row.backup_ams_id,
+        "backup_tray_id": row.backup_tray_id,
+        "primary_ams_id": row.primary_ams_id,
+        "primary_tray_id": row.primary_tray_id,
+        "real_tray_info_idx": row.real_tray_info_idx,
+        "real_tray_type": row.real_tray_type,
+        "real_tray_sub_brands": row.real_tray_sub_brands,
+        "real_tray_color": row.real_tray_color,
+        "spoof_tray_info_idx": row.spoof_tray_info_idx,
+        "spoof_tray_color": row.spoof_tray_color,
+        "state": row.state,
+        "engaged_at": row.engaged_at.isoformat() if row.engaged_at else None,
+        "released_at": row.released_at.isoformat() if row.released_at else None,
+    }
+
+
+@router.post("/{printer_id}/filament-spoof")
+async def engage_filament_spoof(
+    printer_id: int,
+    body: _FilamentSpoofRequest,
+    _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL),
+    db: AsyncSession = Depends(get_db),
+):
+    """Engage a filament spoof so an arbitrary same-material spool can back up another.
+
+    Writes the primary slot's identity onto the backup slot (so Bambu's AMS
+    Filament Backup auto-switches on runout) while bambuddy keeps showing the
+    backup's real color everywhere.
+    """
+    # Kill switch: refuse to engage a NEW spoof when the feature is disabled
+    # server-side, BEFORE touching the engine. Release/DELETE stays ungated so
+    # operators can always clean up.
+    from backend.app.services.filament_spoof import _spoof_enabled
+
+    if not _spoof_enabled():
+        raise HTTPException(503, "Runout backup is disabled on this server")
+
+    result = await db.execute(select(Printer).where(Printer.id == printer_id))
+    printer = result.scalar_one_or_none()
+    if not printer:
+        raise HTTPException(404, "Printer not found")
+
+    from backend.app.services.filament_spoof_engine import FilamentSpoofError, filament_spoof_engine
+
+    try:
+        row = await filament_spoof_engine.engage(
+            printer_id,
+            (body.primary_ams_id, body.primary_tray_id),
+            (body.backup_ams_id, body.backup_tray_id),
+            force=body.force,
+        )
+    except FilamentSpoofError as err:
+        # The engine may attach a specific HTTP status (e.g. 409 native-group
+        # lock / chain refusal, 503 disabled); default to 400 for plain
+        # validation errors.
+        raise HTTPException(getattr(err, "status", 400), str(err))
+
+    # Design rule A: the engine may return a plain dict (e.g. {"native": True})
+    # instead of an ORM row — pass it straight through. Only ORM rows go through
+    # the serializer.
+    if isinstance(row, dict):
+        return row
+    return _serialize_spoof(row)
+
+
+@router.get("/{printer_id}/filament-spoof")
+async def list_filament_spoofs(
+    printer_id: int,
+    _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_READ),
+    db: AsyncSession = Depends(get_db),
+):
+    """List the active (ENGAGED) filament spoofs for a printer."""
+    from backend.app.services.filament_spoof_engine import filament_spoof_engine
+
+    rows = await filament_spoof_engine.list_active(printer_id)
+    return [_serialize_spoof(r) for r in rows]
+
+
+@router.delete("/{printer_id}/filament-spoof/{backup_ams_id}/{backup_tray_id}")
+async def release_filament_spoof(
+    printer_id: int,
+    backup_ams_id: int,
+    backup_tray_id: int,
+    _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL),
+    db: AsyncSession = Depends(get_db),
+):
+    """Release a filament spoof, restoring the backup slot's real firmware identity."""
+    from backend.app.services.filament_spoof_engine import filament_spoof_engine
+
+    row = await filament_spoof_engine.release(printer_id, (backup_ams_id, backup_tray_id), restore=True)
+    if row is None:
+        raise HTTPException(404, "No active spoof for that backup slot")
+    return _serialize_spoof(row)
+
+
 @router.get("/{printer_id}/inventory-remain")
 async def get_inventory_remain(
     printer_id: int,
@@ -2371,6 +2505,18 @@ async def configure_ams_slot(
     )
 
     if not success:
+        # Distinguish a runout-backup write-guard block from a genuine send
+        # failure. When the slot is spoof-guarded, ams_set_filament_setting
+        # returns False WITHOUT sending — surface a 409 so the operator knows to
+        # remove the runout backup first, rather than a generic 500.
+        if _slot_is_guarded(client, ams_id, tray_id):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This slot is protected by an active filament-runout backup. "
+                    "Remove the runout backup for this slot before reconfiguring it."
+                ),
+            )
         raise HTTPException(status_code=500, detail="Failed to send filament configuration command")
 
     # Method 1: Select existing calibration profile by cali_idx

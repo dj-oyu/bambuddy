@@ -1475,6 +1475,33 @@ def _is_bambu_uuid(tray_uuid: str) -> bool:
     return bool(tray_uuid) and tray_uuid not in ("", "0" * len(tray_uuid))
 
 
+def _strip_spoof_for_relay(units):
+    """Return a copy of the AMS unit list with internal `_spoof` markers removed.
+
+    ``strip_spoof_meta`` mutates in place, so we hand it a shallow-ish COPY
+    (new unit dicts + new tray dicts) — the live printer state that downstream
+    bambuddy readers depend on keeps its `_spoof` overlay untouched, and only
+    the outgoing relay payload is cleaned. Fully defensive: non-list input is
+    passed through unchanged.
+    """
+    if not isinstance(units, list):
+        return units
+    from backend.app.services.filament_spoof import strip_spoof_meta
+
+    copied = []
+    for unit in units:
+        if isinstance(unit, dict):
+            unit_copy = dict(unit)
+            trays = unit_copy.get("tray")
+            if isinstance(trays, list):
+                unit_copy["tray"] = [dict(t) if isinstance(t, dict) else t for t in trays]
+            copied.append(unit_copy)
+        else:
+            copied.append(unit)
+    strip_spoof_meta(copied)
+    return copied
+
+
 async def on_ams_change(printer_id: int, ams_data: list):
     """Handle AMS data changes - sync to Spoolman if enabled and auto mode."""
     logger = logging.getLogger(__name__)
@@ -1489,7 +1516,12 @@ async def on_ams_change(printer_id: int, ams_data: list):
     try:
         printer_info = printer_manager.get_printer(printer_id)
         if printer_info:
-            await mqtt_relay.on_ams_change(printer_id, printer_info.name, printer_info.serial_number, ams_data)
+            # Strip the internal `_spoof` marker before forwarding to the
+            # external relay — it's an internal overlay artifact and must never
+            # leak onto the wire. Clean a shallow-ish COPY so the live printer
+            # state (which downstream readers rely on) is untouched.
+            relay_ams = _strip_spoof_for_relay(ams_data)
+            await mqtt_relay.on_ams_change(printer_id, printer_info.name, printer_info.serial_number, relay_ams)
     except Exception:
         pass  # Don't fail AMS callback if MQTT fails
 
@@ -6352,6 +6384,15 @@ async def lifespan(app: FastAPI):
     # Start the local backup scheduler
     await local_backup_service.start_scheduler()
     await obico_detection_service.start()
+
+    # Revalidate persisted filament spoofs against current firmware state and
+    # reinstall the client-side overlay snapshots / write-guards.
+    try:
+        from backend.app.services.filament_spoof_engine import filament_spoof_engine
+
+        await filament_spoof_engine.start()
+    except Exception:
+        logging.warning("FilamentSpoofEngine start failed", exc_info=True)
 
     # Start the library trash sweeper (#1008)
     await library_trash_service.start_scheduler()
