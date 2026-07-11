@@ -89,9 +89,12 @@ def test_idempotent_double_apply(monkeypatch):
     monkeypatch.setenv("BAMBUDDY_FILAMENT_SPOOF", "1")
     units = _units()
     assert apply_spoof_overlay(units, [_spoof()]) == 1
-    # Second pass: live color is now the real color, no longer matches spoof key.
-    assert apply_spoof_overlay(units, [_spoof()]) == 0
+    # Second pass over the already-overlaid tray: values unchanged, marker kept
+    # (the "already overlaid" case counts as a match so partial-push merges
+    # don't strip the badge metadata).
+    assert apply_spoof_overlay(units, [_spoof()]) == 1
     assert units[0]["tray"][1]["tray_color"] == "002E96FF"
+    assert "_spoof" in units[0]["tray"][1]
 
 
 def test_empty_spoofs_noop(monkeypatch):
@@ -162,3 +165,31 @@ def test_normalize_color_helper():
     assert fs._normalize_color("002E96") == "002E96"
     assert fs._normalize_color(None) is None
     assert fs._normalize_color("") is None
+
+
+def test_overlay_marker_survives_partial_push_merge():
+    # Regression: after a first overlay pass the tray holds the REAL color; a
+    # partial AMS push merges into that overlaid tray, so the fw-identity check
+    # fails and the marker was stripped (badge vanished). "Already overlaid"
+    # must count as a match and keep the marker.
+    from backend.app.services.filament_spoof import apply_spoof_overlay
+
+    spoofs = [{
+        "state": "ENGAGED",
+        "backup_ams_id": 0, "backup_tray_id": 2,
+        "primary_ams_id": 0, "primary_tray_id": 0,
+        "spoof_tray_info_idx": "GFG00", "spoof_tray_color": "002E96FF",
+        "real_tray_color": "000000FF", "real_tray_sub_brands": "",
+    }]
+    units = [{"id": 0, "tray": [
+        {"id": 2, "tray_info_idx": "GFG00", "tray_color": "002E96FF"},
+    ]}]
+    assert apply_spoof_overlay(units, spoofs) == 1
+    tray = units[0]["tray"][0]
+    assert tray["tray_color"] == "000000FF"
+    assert tray["_spoof"]["ams_id"] == 0
+
+    # Simulate a partial push merged into the overlaid tray: color stays real.
+    assert apply_spoof_overlay(units, spoofs) == 1
+    assert tray["tray_color"] == "000000FF"
+    assert "_spoof" in tray, "marker must survive partial-push merges"

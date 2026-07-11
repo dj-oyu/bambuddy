@@ -177,7 +177,19 @@ def apply_spoof_overlay(units: list, spoofs: list) -> int:
             if tray is None:
                 continue
 
-            if not _matches_spoof(tray, spoof.get("spoof_tray_info_idx"), spoof.get("spoof_tray_color")):
+            matches_fw = _matches_spoof(
+                tray, spoof.get("spoof_tray_info_idx"), spoof.get("spoof_tray_color")
+            )
+            # Partial AMS pushes merge into the PREVIOUSLY OVERLAID tray (real
+            # color), so the firmware-identity check fails even though the spoof
+            # is healthy. Treat "already overlaid" as a match too, otherwise the
+            # marker is stripped (badge/pairing vanish) on every partial push.
+            already_overlaid = (
+                tray.get("tray_info_idx") == spoof.get("spoof_tray_info_idx")
+                and _normalize_color(tray.get("tray_color"))
+                == _normalize_color(spoof.get("real_tray_color"))
+            )
+            if not (matches_fw or already_overlaid):
                 # Firmware hasn't (yet) reported the spoofed identity (PENDING),
                 # or the user swapped the spool / firmware drifted. Leave alone.
                 continue
