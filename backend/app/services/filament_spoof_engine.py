@@ -197,6 +197,10 @@ class FilamentSpoofEngine:
         self._snapshots[printer_id] = spoofs
 
         client = self._get_client(printer_id)
+        logger.info(
+            "[%s] Spoof snapshot push: %d spoof(s), client=%s",
+            printer_id, len(spoofs), "present" if client is not None else "MISSING",
+        )
         if client is not None:
             client.set_active_spoofs(spoofs)
             if not spoofs:
