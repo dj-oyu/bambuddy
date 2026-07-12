@@ -269,3 +269,38 @@ async def test_dispatch_failure_marks_pending_item_failed(queue_factory):
 
     status, _ = await _final_status(ctx)
     assert status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_skip_does_not_overwrite_cancel(queue_factory):
+    """check_queue's require_previous_success skip is a CAS on ("pending",):
+    an item cancelled mid-loop stays cancelled and _skip_queue_item reports
+    False so the caller suppresses the 'skipped' notification.
+    """
+    ctx = await queue_factory(status="cancelled")
+    scheduler = PrintScheduler()
+
+    async with ctx.session_maker() as db:
+        item = await db.get(PrintQueueItem, ctx.queue_item_id)
+        applied = await scheduler._skip_queue_item(db, item)
+
+    assert applied is False
+    status, _ = await _final_status(ctx)
+    assert status == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_skip_marks_pending_item_skipped(queue_factory):
+    """Sanity: a still-pending item is skipped with the standard reason."""
+    ctx = await queue_factory()
+    scheduler = PrintScheduler()
+
+    async with ctx.session_maker() as db:
+        item = await db.get(PrintQueueItem, ctx.queue_item_id)
+        applied = await scheduler._skip_queue_item(db, item)
+        assert applied is True
+        assert item.status == "skipped"
+        assert item.error_message == "Previous print failed or was aborted"
+
+    status, _ = await _final_status(ctx)
+    assert status == "skipped"

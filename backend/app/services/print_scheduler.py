@@ -364,24 +364,19 @@ class PrintScheduler:
                     # Check condition (previous print success)
                     if item.require_previous_success:
                         if not await self._check_previous_success(db, item):
-                            # lifecycle-polarity: FORCE — pending SELECT is stale
-                            # by now (awaits since); no current-status recheck.
-                            item.status = "skipped"
-                            item.error_message = "Previous print failed or was aborted"
-                            item.completed_at = datetime.now(timezone.utc)
-                            await db.commit()
-                            logger.info("Skipped queue item %s - previous print failed", item.id)
+                            if await self._skip_queue_item(db, item):
+                                logger.info("Skipped queue item %s - previous print failed", item.id)
 
-                            # Send notification
-                            job_name = await self._get_job_name(db, item)
-                            printer = await self._get_printer(db, item.printer_id)
-                            await notification_service.on_queue_job_skipped(
-                                job_name=job_name,
-                                printer_id=item.printer_id,
-                                printer_name=printer.name if printer else "Unknown",
-                                reason="Previous print failed or was aborted",
-                                db=db,
-                            )
+                                # Send notification
+                                job_name = await self._get_job_name(db, item)
+                                printer = await self._get_printer(db, item.printer_id)
+                                await notification_service.on_queue_job_skipped(
+                                    job_name=job_name,
+                                    printer_id=item.printer_id,
+                                    printer_name=printer.name if printer else "Unknown",
+                                    reason="Previous print failed or was aborted",
+                                    db=db,
+                                )
                             continue
 
                     # Compute AMS mapping if not already set
@@ -479,24 +474,19 @@ class PrintScheduler:
                         # Check condition (previous print success) before assigning
                         if item.require_previous_success:
                             if not await self._check_previous_success(db, item):
-                                # lifecycle-polarity: FORCE — stale pending SELECT,
-                                # no current-status recheck.
-                                item.status = "skipped"
-                                item.error_message = "Previous print failed or was aborted"
-                                item.completed_at = datetime.now(timezone.utc)
-                                await db.commit()
-                                logger.info("Skipped queue item %s - previous print failed", item.id)
+                                if await self._skip_queue_item(db, item):
+                                    logger.info("Skipped queue item %s - previous print failed", item.id)
 
-                                # Send notification
-                                job_name = await self._get_job_name(db, item)
-                                printer = await self._get_printer(db, printer_id)
-                                await notification_service.on_queue_job_skipped(
-                                    job_name=job_name,
-                                    printer_id=printer_id,
-                                    printer_name=printer.name if printer else "Unknown",
-                                    reason="Previous print failed or was aborted",
-                                    db=db,
-                                )
+                                    # Send notification
+                                    job_name = await self._get_job_name(db, item)
+                                    printer = await self._get_printer(db, printer_id)
+                                    await notification_service.on_queue_job_skipped(
+                                        job_name=job_name,
+                                        printer_id=printer_id,
+                                        printer_name=printer.name if printer else "Unknown",
+                                        reason="Previous print failed or was aborted",
+                                        db=db,
+                                    )
                                 continue
 
                         # Assign printer and start - clear waiting reason
@@ -2558,6 +2548,36 @@ class PrintScheduler:
         owner = await db.get(User, item.created_by_id)
         if owner:
             printer_manager.set_current_print_user(item.printer_id, owner.id, owner.username)
+
+    async def _skip_queue_item(self, db: AsyncSession, item: PrintQueueItem) -> bool:
+        """Skip a pending item whose predecessor failed. Returns True if applied.
+
+        CAS on ("pending",) — user decision 2026-07-12: a /cancel landing in
+        the window between check_queue's pending SELECT and this write wins
+        the row (cancelled is never overwritten to skipped). On mismatch the
+        caller must also skip the 'skipped' notification — the user already
+        acted on the item.
+        """
+        result = await printer_lifecycle.transition(
+            db,
+            item.id,
+            to_status="skipped",
+            from_states=("pending",),
+            reason="previous print failed or was aborted",
+            caller="print_scheduler.check_queue",
+            extra={
+                "error_message": "Previous print failed or was aborted",
+                "completed_at": datetime.now(timezone.utc),
+            },
+            item=item,
+        )
+        if not result:
+            logger.warning(
+                "Queue item %s: skip not written — item already %s; user action wins",
+                item.id,
+                result.observed_status,
+            )
+        return bool(result)
 
     async def _fail_queue_item(self, db: AsyncSession, item: PrintQueueItem, error_message: str, *, reason: str):
         """Terminal 'failed' write for dispatch error paths.

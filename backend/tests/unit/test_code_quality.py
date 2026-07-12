@@ -283,8 +283,9 @@ PQ_MODEL_NAME = "PrintQueueItem"
 # (path relative to backend/app, function, kind, value) -> (count, polarity)
 ALLOWED_PQ_STATUS_WRITES = {
     # --- services/print_scheduler.py ---
-    # stale pending-SELECT with awaits before the write: effectively FORCE (TOCTOU)
-    ("services/print_scheduler.py", "check_queue", "attr", "'skipped'"): (2, "FORCE(stale-pending-select)"),
+    # (check_queue's skipped writes migrated to _skip_queue_item -> CAS on
+    #  ("pending",): a mid-loop cancel wins the row and suppresses the
+    #  'skipped' notification — user decision 2026-07-12)
     # (_start_print error paths migrated to _fail_queue_item -> CAS on
     #  ("pending","printing"): a concurrent cancel wins the row, the failure
     #  stays visible via logs — user decision 2026-07-12)
