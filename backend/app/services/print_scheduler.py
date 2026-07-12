@@ -119,13 +119,11 @@ class _UploadProgressBridge:
             pass  # progress is best-effort, never block the upload
 
 
-# Bambu firmware states that mean the project_file has actually been accepted
-# and the printer is now processing / running / paused mid-print. Used by the
-# dispatch watchdog (#1370): a transition into one of these states means the
-# print landed, anything else (e.g. FINISH -> IDLE after the user dismisses
-# a post-print prompt) is NOT a valid "command landed" signal even though the
-# state value did change. SLICING is included because some firmwares park
-# briefly in SLICING between PREPARE and RUNNING while parsing the g-code.
+# Watchdog "command landed" signal (#1370): a transition INTO one of these
+# states means the project_file was accepted; FINISH -> IDLE is not one even
+# though the state changed. Aliases the lifecycle set — the two motivations
+# (command-landed here, don't-cut-power #1890 there) happen to share the same
+# four states today; if the lifecycle set ever grows, re-pin this locally.
 _ACTIVE_PRINT_STATES: frozenset[str] = printer_lifecycle.ACTIVE_PRINT_STATES
 
 # Filament type equivalence groups — types within the same group are

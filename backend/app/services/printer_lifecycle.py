@@ -120,20 +120,6 @@ def evaluate_demonstrably_idle(
     return IdleVerdict(True, "")
 
 
-def demonstrably_idle(printer_id: int) -> IdleVerdict:
-    """ID wrapper over :func:`evaluate_demonstrably_idle` for the live
-    singletons. Late imports keep this module import-light (models only) and
-    cycle-free — printer_manager and the scheduler both import this module."""
-    from backend.app.services.print_scheduler import scheduler
-    from backend.app.services.printer_manager import printer_manager
-
-    client = printer_manager.get_client(printer_id)
-    return evaluate_demonstrably_idle(
-        getattr(client, "state", None),
-        in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
-    )
-
-
 def active_job_stale(archive_subtask_id: str | None, state: Any) -> tuple[bool, str]:
     """Reconcile-sweep predicate: is an archive in ``status="printing"``
     provably no longer the print on the printer? Returns ``(is_stale, reason)``.
