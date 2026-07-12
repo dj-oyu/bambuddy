@@ -440,7 +440,11 @@ def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
 
         cleared = client.clear_hms_errors()
         resumed = False
-        if cleared and getattr(client.state, "gcode_state", None) == "PAUSE":
+        # NOTE: the printer state field is PrinterState.state — there is no
+        # `gcode_state` attribute. The old getattr(..., "gcode_state") read
+        # always returned None, so this resume branch never fired and the
+        # requeue helper's idle check silently passed for every state.
+        if cleared and getattr(client.state, "state", None) == "PAUSE":
             resumed = client.resume_print()
         log.info(
             "[HMS] Auto-cleared %s on printer %s (cleared=%s, resumed=%s, attempt %d/%d)",
@@ -455,16 +459,46 @@ def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
 
 async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> None:
     """Flip a queue item stuck in 'printing' back to 'pending' after an HMS
-    auto-clear, but only if the printer is still idle once things settle."""
+    auto-clear, but only if the printer is demonstrably idle once things settle.
+
+    gcode_state alone is not enough to conclude the job is dead: on the A1 the
+    reported state lags the print command by many seconds, and 409D fires
+    *during* a normal job start (BMCU engages the feeder). Requeuing in that
+    window makes the scheduler send a second project_file while the first is
+    mid-filament-load — observed to leave the BMCU feeding two slots into the
+    hub at once (hard jam). The job-is-dead call belongs to the scheduler's
+    wedge watchdog (#1678), which keys on subtask_id acceptance; this helper
+    only rescues the case where the printer visibly did nothing at all.
+    """
     log = logging.getLogger(__name__)
     await asyncio.sleep(8.0)
 
+    from backend.app.services.print_scheduler import scheduler
     from backend.app.services.printer_manager import printer_manager
 
     client = printer_manager.get_client(printer_id)
-    state = getattr(getattr(client, "state", None), "gcode_state", None)
-    if state not in (None, "IDLE", "FAILED", "FINISH"):
+    printer_state = getattr(client, "state", None)
+    state = getattr(printer_state, "state", None)
+    if state is None or state == "unknown":
+        # Unknown state — fail safe, do nothing.
+        log.info("[HMS] Skipping requeue on printer %s: printer state unknown", printer_id)
+        return
+    if state not in ("IDLE", "FAILED", "FINISH"):
         return  # print actually started (or is paused) — leave it alone
+    if scheduler.printer_in_dispatch_hold(printer_id):
+        # A print command was just sent and the firmware accepted (or may still
+        # accept) it — the wedge watchdog owns the dead-or-alive decision here.
+        log.info("[HMS] Skipping requeue on printer %s: inside post-dispatch hold", printer_id)
+        return
+    if getattr(printer_state, "ams_status_main", 0) != 0:
+        # AMS/BMCU is mid-motion (filament change, RFID, assist, calibration) —
+        # the printer is doing something even though gcode_state says idle.
+        log.info(
+            "[HMS] Skipping requeue on printer %s: AMS busy (ams_status_main=%s)",
+            printer_id,
+            getattr(printer_state, "ams_status_main", 0),
+        )
+        return
 
     from sqlalchemy import select as _select
 

@@ -1490,6 +1490,15 @@ class PrintScheduler:
         """Drop the dispatch hold for ``printer_id`` (called by the watchdog)."""
         self._dispatch_holds.pop(printer_id, None)
 
+    def printer_in_dispatch_hold(self, printer_id: int) -> bool:
+        """Public accessor for the post-dispatch hold (see below).
+
+        Exposed for external actors (the HMS auto-clear requeue helper) that
+        must not revert queue state while a just-sent print command is still
+        inside its acceptance window.
+        """
+        return self._printer_in_dispatch_hold(printer_id)
+
     def _printer_in_dispatch_hold(self, printer_id: int) -> bool:
         """True if ``printer_id`` is still inside its post-dispatch hold window.
 
