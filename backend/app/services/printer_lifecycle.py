@@ -22,6 +22,7 @@ Neither swallows DB exceptions — callers that need retry keep using
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -32,6 +33,140 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.print_queue import PrintQueueItem
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Gcode-state vocabulary (phase 3) — the single home for the state sets that
+# were previously re-declared per judgment site. Polarity on uncertainty is a
+# property of each PREDICATE below, not of these sets: the same TERMINAL set
+# means "dispatchable" to the scheduler and "job is dead" to the reconcile
+# sweep. There is deliberately no single is_busy() — the 2026-07-12 audit
+# found three coexisting polarities, and collapsing them into one boolean is
+# exactly the bug-shape this module exists to prevent.
+# ---------------------------------------------------------------------------
+
+TERMINAL_GCODE_STATES = frozenset({"IDLE", "FINISH", "FAILED"})
+# PAUSE is active on purpose — a paused print is still loaded on the bed
+# (#1890: cutting power to a paused print ruins it).
+ACTIVE_PRINT_STATES = frozenset({"RUNNING", "PAUSE", "PREPARE", "SLICING"})
+# PrinterState construction defaults before the first push_status lands
+# (#1679) — never evidence of anything.
+UNKNOWN_GCODE_STATES = frozenset({"", "UNKNOWN"})
+
+
+def print_process_active(state: Any | None) -> bool:
+    """True when the printer currently has a print loaded / in progress.
+
+    FAIL-OPEN polarity (#1890 smart-plug auto-off): disconnected, no state, or
+    unknown state all return False so the plug is allowed to cut power — the
+    only safe misread here is "nothing is printing". Do NOT reuse this for
+    dispatch or requeue decisions; those need the fail-safe predicates below.
+    """
+    if not state or not getattr(state, "connected", False):
+        return False
+    return state.state in ACTIVE_PRINT_STATES
+
+
+@dataclass(frozen=True)
+class IdleVerdict:
+    idle: bool
+    # Skip-reason for logging when not idle. Empty string on the one silent
+    # arm (print visibly started — nothing worth logging) and when idle.
+    reason: str = ""
+
+    def __bool__(self) -> bool:
+        return self.idle
+
+
+def evaluate_demonstrably_idle(
+    printer_state: Any | None,
+    *,
+    in_dispatch_hold: Callable[[], bool],
+) -> IdleVerdict:
+    """FAIL-SAFE idleness for destructive rescues (HMS requeue and friends).
+
+    Any uncertainty means "not idle": requeuing a live job double-sends the
+    project file (2026-07-12 BMCU double-feed jam). Gate order is load-bearing
+    and mirrors the original _requeue_print_rejected_by_hms stack:
+
+      1. state None/unknown           -> not idle ("printer state unknown")
+      2. state not terminal           -> not idle (reason "" — the print
+                                          visibly started; callers stay silent)
+      3. in_dispatch_hold()           -> not idle ("inside post-dispatch hold";
+                                          the wedge watchdog #1678 owns the
+                                          dead-or-alive call in that window)
+      4. not connected                -> not idle ("printer not connected";
+                                          state incl. ams_status_main may be
+                                          stale from the dead session)
+      5. ams_status_main != 0         -> not idle ("AMS busy (...)"; BMCU is
+                                          mid-motion even though gcode_state
+                                          reads idle)
+
+    ``in_dispatch_hold`` is a zero-arg callable so the hold lookup (which pops
+    expired holds as a side effect) only runs when gates 1-2 pass, exactly as
+    the original short-circuit did.
+    """
+    state = getattr(printer_state, "state", None)
+    if state is None or state == "unknown":
+        return IdleVerdict(False, "printer state unknown")
+    if state not in TERMINAL_GCODE_STATES:
+        return IdleVerdict(False, "")
+    if in_dispatch_hold():
+        return IdleVerdict(False, "inside post-dispatch hold")
+    if not getattr(printer_state, "connected", False):
+        return IdleVerdict(False, "printer not connected")
+    ams_status_main = getattr(printer_state, "ams_status_main", 0)
+    if ams_status_main != 0:
+        return IdleVerdict(False, f"AMS busy (ams_status_main={ams_status_main})")
+    return IdleVerdict(True, "")
+
+
+def demonstrably_idle(printer_id: int) -> IdleVerdict:
+    """ID wrapper over :func:`evaluate_demonstrably_idle` for the live
+    singletons. Late imports keep this module import-light (models only) and
+    cycle-free — printer_manager and the scheduler both import this module."""
+    from backend.app.services.print_scheduler import scheduler
+    from backend.app.services.printer_manager import printer_manager
+
+    client = printer_manager.get_client(printer_id)
+    return evaluate_demonstrably_idle(
+        getattr(client, "state", None),
+        in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
+    )
+
+
+def active_job_stale(archive_subtask_id: str | None, state: Any) -> tuple[bool, str]:
+    """Reconcile-sweep predicate: is an archive in ``status="printing"``
+    provably no longer the print on the printer? Returns ``(is_stale, reason)``.
+
+    CONSERVATIVE polarity (#1542 / #1679): degenerate input means "not stale" —
+    a real stale archive is caught by the next push_status with terminal state,
+    while a false positive would synthesise a spurious "aborted". Triggers:
+
+      1. Terminal printer state (IDLE / FINISH / FAILED) — the print is
+         provably not running anymore.
+      2. subtask_id mismatch — firmware mints a fresh subtask_id per print
+         (including the post-power-cycle ghost replay), so a mismatch
+         unambiguously means the archive's print is gone.
+      3. Running but empty subtask_name — the printer doesn't know what it's
+         running; the archive's reference to it is already broken.
+
+    Pre-push guard: ``""``/``"unknown"`` state is PrinterState construction
+    defaults (#1679), not evidence — never stale on those.
+    """
+    current_state = (state.state or "").upper()
+    if current_state in UNKNOWN_GCODE_STATES:
+        return False, ""
+    if current_state in TERMINAL_GCODE_STATES:
+        return True, f"printer state {current_state}"
+    # Below here the printer is in a running / pre-running state (RUNNING /
+    # PAUSE / PREPARE / SLICING / etc.) — decide based on subtask identity.
+    current_subtask_id = (state.subtask_id or "").strip()
+    if archive_subtask_id and current_subtask_id and archive_subtask_id != current_subtask_id:
+        return True, f"subtask_id changed ({archive_subtask_id!r} → {current_subtask_id!r})"
+    current_subtask_name = (state.subtask_name or "").strip()
+    if not current_subtask_name:
+        return True, "printer subtask_name empty"
+    return False, ""
 
 # Columns callers may update atomically together with status. Kept narrow on
 # purpose — this facade owns lifecycle state, not generic row editing.
