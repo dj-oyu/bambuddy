@@ -3885,57 +3885,14 @@ def _is_active_archive_stale(archive, state) -> tuple[bool, str]:
     """Return ``(is_stale, reason)`` for an archive in ``status="printing"``
     against the printer's current MQTT state.
 
-    Reconciliation triggers (#1542 follow-up — recovers from missed PRINT
-    COMPLETE events, typically a print finishing during an MQTT disconnect
-    window followed by a smart-plug power cycle):
-
-      1. Printer state is terminal (IDLE / FINISH / FAILED). The print is
-         provably not running anymore — only branch that should fire under
-         normal disconnect-then-reconnect timing.
-      2. Printer has a different ``subtask_id`` than the archive. Bambu
-         firmware mints a fresh ``subtask_id`` for each print, including the
-         ghost replay it runs after a power cycle from a leftover SD file —
-         so a mismatch unambiguously means the in-DB archive is no longer
-         the print on the printer.
-      3. Printer is running but ``subtask_name`` is empty. The printer
-         doesn't know what it's running; the archive's reference to it is
-         already broken.
-
-    Conservative on purpose: PAUSE / PREPARE / SLICING and any RUNNING state
-    with matching subtask_id+subtask_name is left alone. The cost of a false
-    positive is a duplicate archive on the next real PRINT COMPLETE — the
-    reactive handler uses ``_active_prints`` for lookup, which the reconcile
-    clears on synthesis, so the real completion creates a fresh row instead
-    of overwriting the synthesised one (#1679). The cost of a false negative
-    is the ghost-print loop in #1542.
-
-    Pre-push guard (#1679): when ``state.state`` is empty or ``"unknown"``,
-    MQTT has connected but the first ``push_status`` response hasn't been
-    applied yet — ``PrinterState`` is sitting on its construction defaults.
-    The reconcile caller in ``on_printer_status_change`` is already gated
-    on a real ``state.state``, so in normal operation this branch is
-    unreachable; it's kept as belt-and-braces for future callers and for
-    the narrow window where a partial state update could arrive
-    (``state.state`` set but ``subtask_name`` not yet populated). Returning
-    ``not stale`` on degenerate input is strictly conservative: a real
-    stale archive will still be caught by the next push_status arriving
-    with terminal state.
+    Thin shim over :func:`printer_lifecycle.active_job_stale`, which owns the
+    decision and its documentation (#1542 / #1679 — conservative polarity:
+    degenerate input is never stale). Kept so the reconcile call sites and
+    their tests are untouched by the phase-3 migration.
     """
-    current_state = (state.state or "").upper()
-    if current_state in ("", "UNKNOWN"):
-        # No real push_status yet — PrinterState defaults are not evidence.
-        return False, ""
-    if current_state in ("IDLE", "FINISH", "FAILED"):
-        return True, f"printer state {current_state}"
-    # Below here the printer is in a running / pre-running state (RUNNING /
-    # PAUSE / PREPARE / SLICING / etc.) — decide based on subtask identity.
-    current_subtask_id = (state.subtask_id or "").strip()
-    if archive.subtask_id and current_subtask_id and archive.subtask_id != current_subtask_id:
-        return True, f"subtask_id changed ({archive.subtask_id!r} → {current_subtask_id!r})"
-    current_subtask_name = (state.subtask_name or "").strip()
-    if not current_subtask_name:
-        return True, "printer subtask_name empty"
-    return False, ""
+    from backend.app.services import printer_lifecycle
+
+    return printer_lifecycle.active_job_stale(archive.subtask_id, state)
 
 
 async def reconcile_stale_active_prints(printer_id: int) -> int:
