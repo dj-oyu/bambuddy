@@ -286,19 +286,13 @@ ALLOWED_PQ_STATUS_WRITES = {
     ("services/print_scheduler.py", "check_queue", "attr", "'skipped'"): (2, "FORCE(stale-pending-select)"),
     # error paths in _start_print; no current-status guard, may clobber a concurrent cancel
     ("services/print_scheduler.py", "_start_print", "attr", "'failed'"): (10, "FORCE(error-path)"),
-    # canonical CAS: UPDATE ... WHERE status=='pending' + rowcount check (#1853)
-    ("services/print_scheduler.py", "_start_print", "bulk", "'printing'"): (1, "CAS(update-where-rowcount)"),
-    # in-memory mirror executed only after the bulk CAS above succeeded
-    ("services/print_scheduler.py", "_start_print", "attr", "'printing'"): (1, "CAS(mirror-of-bulk-cas)"),
-    # _do_revert: explicit `item.status != "printing"` recheck before write
-    ("services/print_scheduler.py", "_watchdog_print_start", "attr", "'pending'"): (1, "CAS(status-recheck)"),
+    # (dispatch pending->printing CAS, its mirror, and the watchdog revert
+    #  migrated into printer_lifecycle.transition — commit history has details)
     # --- main.py ---
     # HMS auto-clear requeue: SELECT scoped to status=='printing' (fw-truth gated, d9e81190)
     ("main.py", "_requeue_print_rejected_by_hms", "attr", "'pending'"): (1, "CAS(select-scoped)"),
     # print-complete handler: SELECT scoped 'printing', but an await sits before commit (TOCTOU window)
     ("main.py", "on_print_complete", "attr", "<dynamic>"): (1, "CAS(select-scoped,pre-commit-await)"),
-    # startup data migration aborted->cancelled
-    ("main.py", "lifespan", "attr", "'cancelled'"): (1, "CAS(startup-migration)"),
     # --- api/routes/print_queue.py ---
     ("api/routes/print_queue.py", "add_to_queue", "ctor", "'pending'"): (1, "CREATE"),
     ("api/routes/print_queue.py", "cancel_batch", "attr", "'cancelled'"): (1, "CAS(select-scoped)"),

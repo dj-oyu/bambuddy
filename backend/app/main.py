@@ -6212,9 +6212,19 @@ async def lifespan(app: FastAPI):
             result = await db.execute(select(PrintQueueItem).where(PrintQueueItem.status == "aborted"))
             aborted_items = result.scalars().all()
             if aborted_items:
+                from backend.app.services import printer_lifecycle
+
                 for item in aborted_items:
-                    # lifecycle-polarity: CAS — startup migration scoped to 'aborted'.
-                    item.status = "cancelled"
+                    await printer_lifecycle.transition(
+                        db,
+                        item.id,
+                        to_status="cancelled",
+                        from_states=("aborted",),
+                        reason="startup migration: legacy 'aborted' status",
+                        caller="main.lifespan",
+                        item=item,
+                        commit=False,
+                    )
                 await db.commit()
                 logging.info("Fixed %d queue item(s) with invalid 'aborted' status → 'cancelled'", len(aborted_items))
     except Exception as e:

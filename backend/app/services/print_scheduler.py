@@ -22,6 +22,7 @@ from backend.app.models.print_queue import PrintQueueItem
 from backend.app.models.printer import Printer
 from backend.app.models.settings import Settings
 from backend.app.models.smart_plug import SmartPlug
+from backend.app.services import printer_lifecycle
 from backend.app.models.spool_assignment import SpoolAssignment
 from backend.app.models.spoolman_slot_assignment import SpoolmanSlotAssignment
 from backend.app.services.bambu_ftp import (
@@ -2935,14 +2936,17 @@ class PrintScheduler:
         # rowcount==0 means the user won the race; bail out, best-effort delete
         # the file we just uploaded, do NOT send start_print.
         now_utc = datetime.now(timezone.utc)
-        cas = await db.execute(
-            update(PrintQueueItem)
-            .where(PrintQueueItem.id == item.id)
-            .where(PrintQueueItem.status == "pending")
-            .values(status="printing", started_at=now_utc)
+        cas = await printer_lifecycle.transition(
+            db,
+            item.id,
+            to_status="printing",
+            from_states=("pending",),
+            reason="dispatch",
+            caller="print_scheduler._start_print",
+            extra={"started_at": now_utc},
+            item=item,
         )
-        await db.commit()
-        if cas.rowcount == 0:
+        if not cas:
             logger.info(
                 "Queue item %s no longer pending at print-command time "
                 "(cancelled or removed mid-dispatch) — aborting before MQTT send (#1853)",
@@ -2972,11 +2976,7 @@ class PrintScheduler:
             except Exception:
                 pass
             return
-        # Sync the in-memory item so subsequent code that reads item.status /
-        # item.started_at sees the values we just persisted.
-        # lifecycle-polarity: CAS — mirror of the rowcount-checked UPDATE above.
-        item.status = "printing"
-        item.started_at = now_utc
+        # transition() already committed and mirrored item.status/started_at.
 
         for cleanup_path in cleanup_disk_paths:
             try:
@@ -3298,14 +3298,17 @@ class PrintScheduler:
         #                        recovery so the MQTT session gets a fresh client_id
         #                        on the half-broken-session path.
         async def _do_revert(db):
-            item = await db.get(PrintQueueItem, queue_item_id)
-            if not item or item.status != "printing":
-                return "already_moved_on"
-            # lifecycle-polarity: CAS — guarded by the status recheck above.
-            item.status = "pending"
-            item.started_at = None
-            await db.commit()
-            return "reverted"
+            result = await printer_lifecycle.transition(
+                db,
+                queue_item_id,
+                to_status="pending",
+                from_states=("printing",),
+                reason="watchdog revert (no active-state transition)",
+                caller="print_scheduler._watchdog_print_start",
+                extra={"started_at": None},
+            )
+            # NOT_FOUND (row deleted) counts as already_moved_on, same as before.
+            return "reverted" if result else "already_moved_on"
 
         try:
             revert_outcome = await run_with_retry(_do_revert, label=f"watchdog revert item={queue_item_id}")
