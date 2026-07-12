@@ -2112,7 +2112,12 @@ class BambuMQTTClient:
 
         # Filament-spoof overlay: rewrite spoofed backup slots back to their real
         # identity (fail-safe no-op when no ENGAGED spoofs / on any mismatch).
-        apply_spoof_overlay(merged_ams, self._active_spoofs)
+        _spoof_rewritten = apply_spoof_overlay(merged_ams, self._active_spoofs)
+        if self._active_spoofs:
+            logger.info(
+                "[%s] spoof overlay pass: %d active, %d rewritten",
+                self.serial_number, len(self._active_spoofs), _spoof_rewritten,
+            )
 
         # Notify the engine so it can confirm PENDING spoofs / revalidate off the
         # firmware truth just captured. Gated on active spoofs to keep the hot
