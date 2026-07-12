@@ -315,6 +315,11 @@ ALLOWED_PQ_STATUS_WRITES = {
     # --- other creators ---
     ("api/routes/library.py", "add_files_to_queue", "ctor", "'pending'"): (1, "CREATE"),
     ("services/virtual_printer/manager.py", "_add_to_print_queue", "ctor", "'pending'"): (1, "CREATE"),
+    # --- services/printer_lifecycle.py (the facade itself) ---
+    # single UPDATE serving both transition() (WHERE status IN + rowcount)
+    # and force_transition() (no status predicate); the only writer that is
+    # allowed to grow, everything above should shrink into it.
+    ("services/printer_lifecycle.py", "_execute", "bulk", "<dynamic>"): (1, "FACADE(cas-or-force)"),
     # --- core/database.py ---
     # startup migration #1667: raw SQL scoped by WHERE pq.status='skipped'
     ("core/database.py", "run_migrations", "rawsql", "<sql>"): (1, "CAS(sql-scoped)"),
