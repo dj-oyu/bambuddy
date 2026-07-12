@@ -157,7 +157,7 @@ class TestPollOneStateLifecycle:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="new_task", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="new_task")
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"detections": []}
@@ -190,7 +190,7 @@ class TestPollOneStateLifecycle:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         mock_client = MagicMock()
         mock_client.get = AsyncMock(side_effect=RuntimeError("connection refused"))
@@ -219,7 +219,7 @@ class TestPollOneStateLifecycle:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         class _SilentError(Exception):
             def __str__(self) -> str:
@@ -254,7 +254,7 @@ class TestPollOneStateLifecycle:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         # Seed state so the next frame crosses HIGH immediately
         from backend.app.services.obico_smoothing import PrintState
@@ -472,7 +472,7 @@ class TestCheckPrinterUsesCachedFrameUrl:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"detections": []}
@@ -512,7 +512,7 @@ class TestCheckPrinterUsesCachedFrameUrl:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         mock_client = MagicMock()
         mock_client.get = AsyncMock()
@@ -542,7 +542,7 @@ class TestCheckPrinterUsesCachedFrameUrl:
             "enabled_printers": None,
             "external_url": "",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         mock_client = MagicMock()
         mock_client.get = AsyncMock()
@@ -577,7 +577,7 @@ class TestCheckPrinterUsesCachedFrameUrl:
             "enabled_printers": None,
             "external_url": "http://bambuddy:8000",
         }
-        status = MagicMock(state="RUNNING", task_name="job", subtask_name="")
+        status = MagicMock(state="RUNNING", subtask_name="job")
 
         # Seed a prior transient error, as would be left by a cold-start capture timeout.
         svc._last_error = "Failed to capture snapshot for printer 1"

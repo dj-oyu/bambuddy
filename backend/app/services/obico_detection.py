@@ -232,7 +232,9 @@ class ObicoDetectionService:
         )
 
     async def _check_printer(self, printer_id: int, status, settings: dict):
-        task_name = getattr(status, "task_name", None) or getattr(status, "subtask_name", "") or ""
+        # PrinterState has no `task_name` attribute — subtask_name is the real
+        # field (same getattr-on-wrong-literal shape as the gcode_state bug).
+        task_name = getattr(status, "subtask_name", "") or ""
         key = f"{task_name}"
         if self._state_keys.get(printer_id) != key:
             self._states[printer_id] = PrintState()
