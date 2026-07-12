@@ -194,7 +194,13 @@ def apply_spoof_overlay(units: list, spoofs: list) -> int:
                 # or the user swapped the spool / firmware drifted. Leave alone.
                 continue
 
-            # Overlay the real identity. Keep tray_info_idx spoofed.
+            # Overlay the real identity. Keep tray_info_idx spoofed. Count a
+            # rewrite only when a value actually changes (an already-overlaid
+            # tray still gets its marker refreshed but isn't "rewritten").
+            _changed = (
+                tray.get("tray_color") != spoof.get("real_tray_color")
+                or tray.get("tray_sub_brands") != spoof.get("real_tray_sub_brands")
+            )
             tray["tray_color"] = spoof.get("real_tray_color")
             tray["tray_sub_brands"] = spoof.get("real_tray_sub_brands")
             tray["_spoof"] = {
@@ -208,7 +214,8 @@ def apply_spoof_overlay(units: list, spoofs: list) -> int:
                 keep.add((int(b_ams), int(b_tray)))
             except (ValueError, TypeError):
                 pass
-            rewritten += 1
+            if _changed:
+                rewritten += 1
         except Exception:
             # Defensive: a single malformed spoof must never break the AMS view.
             logger.debug("apply_spoof_overlay: skipping malformed spoof", exc_info=True)
@@ -234,3 +241,44 @@ def strip_spoof_meta(units: list) -> None:
         for tray in ams_unit.get("tray", []) or []:
             if isinstance(tray, dict):
                 tray.pop("_spoof", None)
+
+
+def pending_spoof_map(client) -> dict:
+    """(ams_id, tray_id) → primary ref for PENDING spoofs on a live client.
+
+    PENDING rows carry no overlay marker yet (firmware hasn't echoed the
+    write), so status serializers surface them from the client snapshot.
+    Fully defensive: any error → {}.
+    """
+    pending: dict = {}
+    try:
+        for sp in getattr(client, "_active_spoofs", []) or []:
+            if sp.get("state") == "PENDING":
+                pending[(int(sp["backup_ams_id"]), int(sp["backup_tray_id"]))] = {
+                    "ams_id": sp.get("primary_ams_id"),
+                    "tray_id": sp.get("primary_tray_id"),
+                }
+    except Exception:
+        logger.debug("pending_spoof_map failed", exc_info=True)
+    return pending
+
+
+def spoof_status_fields(tray: dict, ams_id, tray_id, pending: dict) -> tuple:
+    """(spoof_state, spoof_primary) for one tray dict.
+
+    Single source of the badge contract shared by BOTH status serializers
+    (REST route and the WebSocket printer_state_to_dict) so they can't
+    diverge: an overlay ``_spoof`` marker means firmware confirmed the spoof
+    ("active"); otherwise a PENDING snapshot entry renders as "pending".
+    Keys of ``spoof_primary`` are ams_id/tray_id (frontend contract).
+    """
+    try:
+        marker = tray.get("_spoof")
+        if marker:
+            return "active", {"ams_id": marker.get("ams_id"), "tray_id": marker.get("tray_id")}
+        pend = pending.get((int(ams_id), int(tray_id)))
+        if pend:
+            return "pending", pend
+    except Exception:
+        logger.debug("spoof_status_fields failed", exc_info=True)
+    return None, None

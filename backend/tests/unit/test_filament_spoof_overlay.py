@@ -89,10 +89,10 @@ def test_idempotent_double_apply(monkeypatch):
     monkeypatch.setenv("BAMBUDDY_FILAMENT_SPOOF", "1")
     units = _units()
     assert apply_spoof_overlay(units, [_spoof()]) == 1
-    # Second pass over the already-overlaid tray: values unchanged, marker kept
-    # (the "already overlaid" case counts as a match so partial-push merges
-    # don't strip the badge metadata).
-    assert apply_spoof_overlay(units, [_spoof()]) == 1
+    # Second pass over the already-overlaid tray: no values change (rewritten
+    # count 0) but the marker is kept — "already overlaid" counts as a match
+    # so partial-push merges don't strip the badge metadata.
+    assert apply_spoof_overlay(units, [_spoof()]) == 0
     assert units[0]["tray"][1]["tray_color"] == "002E96FF"
     assert "_spoof" in units[0]["tray"][1]
 
@@ -190,6 +190,6 @@ def test_overlay_marker_survives_partial_push_merge():
     assert tray["_spoof"]["ams_id"] == 0
 
     # Simulate a partial push merged into the overlaid tray: color stays real.
-    assert apply_spoof_overlay(units, spoofs) == 1
+    assert apply_spoof_overlay(units, spoofs) == 0  # nothing changed, marker kept
     assert tray["tray_color"] == "000000FF"
     assert "_spoof" in tray, "marker must survive partial-push merges"

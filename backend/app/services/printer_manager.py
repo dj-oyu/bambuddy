@@ -1020,18 +1020,11 @@ def printer_state_to_dict(
     # "pending" style before firmware confirms the write (an unconfirmed slot
     # carries no overlay marker yet). Confirmed (ENGAGED) slots are detected via
     # the overlay marker below. Sourced from the live client's snapshot.
-    spoof_pending: dict[tuple, dict] = {}
-    try:
-        if printer_id is not None:
-            _sp_client = printer_manager.get_client(printer_id)
-            for _sp in getattr(_sp_client, "_active_spoofs", []) or []:
-                if _sp.get("state") == "PENDING":
-                    spoof_pending[(int(_sp["backup_ams_id"]), int(_sp["backup_tray_id"]))] = {
-                        "ams_id": _sp.get("primary_ams_id"),
-                        "tray_id": _sp.get("primary_tray_id"),
-                    }
-    except Exception:
-        pass
+    from backend.app.services.filament_spoof import pending_spoof_map, spoof_status_fields
+
+    spoof_pending: dict[tuple, dict] = (
+        pending_spoof_map(printer_manager.get_client(printer_id)) if printer_id is not None else {}
+    )
 
     if "ams" in raw_data and isinstance(raw_data["ams"], list):
         for ams_data in raw_data["ams"]:
@@ -1063,24 +1056,10 @@ def printer_state_to_dict(
                 if state_val is None and len(tray) == 1 and "id" in tray:
                     state_val = 9
 
-                # Filament-spoof status: an overlay marker means firmware has
-                # CONFIRMED the spoof (state "active"); a PENDING row without a
-                # marker yet renders as "pending". Keys are ams_id/tray_id
-                # (finding #3) to match the frontend contract.
-                _spoof_marker = tray.get("_spoof")
-                _spoof_state = None
-                _spoof_primary = None
-                if _spoof_marker:
-                    _spoof_state = "active"
-                    _spoof_primary = {
-                        "ams_id": _spoof_marker.get("ams_id"),
-                        "tray_id": _spoof_marker.get("tray_id"),
-                    }
-                else:
-                    _pend = spoof_pending.get((int(ams_data.get("id", 0)), int(tray.get("id", 0))))
-                    if _pend:
-                        _spoof_state = "pending"
-                        _spoof_primary = _pend
+                # Filament-spoof status fields (shared contract helper).
+                _spoof_state, _spoof_primary = spoof_status_fields(
+                    tray, ams_data.get("id", 0), tray.get("id", 0), spoof_pending
+                )
 
                 trays.append(
                     {

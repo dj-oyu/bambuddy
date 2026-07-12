@@ -2087,11 +2087,14 @@ class BambuMQTTClient:
                 log_label=self.serial_number,
             )
 
-        # Capture pre-overlay firmware identity per slot BEFORE the overlay
-        # rewrites the live view — this is the engine's source of firmware truth
-        # (finding #1). Only refresh entries actually present in this update so a
-        # partial AMS message doesn't wipe known slots.
-        for _unit in merged_ams:
+        # Capture pre-overlay firmware identity per slot — the engine's source
+        # of firmware truth (finding #1). CRITICAL: iterate the INCOMING
+        # ``ams_list``, never ``merged_ams`` — the merge inherits fields from
+        # the previous cycle's OVERLAID state, so a partial push that omits the
+        # backup tray's color would poison the map with the overlaid real color
+        # and make _reconcile spuriously release a healthy ENGAGED row. Only
+        # update fields the incoming tray actually carries.
+        for _unit in ams_list:
             if not isinstance(_unit, dict):
                 continue
             try:
@@ -2101,20 +2104,23 @@ class BambuMQTTClient:
             for _tray in _unit.get("tray", []) or []:
                 if not isinstance(_tray, dict):
                     continue
+                if "tray_info_idx" not in _tray and "tray_color" not in _tray:
+                    continue
                 try:
                     _tid = int(_tray.get("id"))
                 except (ValueError, TypeError):
                     continue
+                _prev = self._fw_tray_identity.get((_uid, _tid), {})
                 self._fw_tray_identity[(_uid, _tid)] = {
-                    "tray_info_idx": _tray.get("tray_info_idx"),
-                    "tray_color": _tray.get("tray_color"),
+                    "tray_info_idx": _tray.get("tray_info_idx", _prev.get("tray_info_idx")),
+                    "tray_color": _tray.get("tray_color", _prev.get("tray_color")),
                 }
 
         # Filament-spoof overlay: rewrite spoofed backup slots back to their real
         # identity (fail-safe no-op when no ENGAGED spoofs / on any mismatch).
         _spoof_rewritten = apply_spoof_overlay(merged_ams, self._active_spoofs)
         if self._active_spoofs:
-            logger.info(
+            logger.debug(
                 "[%s] spoof overlay pass: %d active, %d rewritten",
                 self.serial_number, len(self._active_spoofs), _spoof_rewritten,
             )

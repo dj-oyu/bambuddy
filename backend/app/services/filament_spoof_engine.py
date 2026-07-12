@@ -16,8 +16,15 @@ overlay (``filament_spoof.apply_spoof_overlay``):
 * Runout detection: only when the backup slot becomes active *because the
   primary ran out mid-print* (prev active == primary AND state RUNNING) do we
   auto-release WITHOUT a firmware write.
+* ``adopt`` records an EXISTING firmware-level spoof (e.g. a delayed BMCU write
+  applied after its row was released) from a user-declared real identity —
+  row created directly ENGAGED, no firmware write.
+* Confirm loop: while PENDING, the spoof write is RESENT every
+  BAMBUDDY_SPOOF_RESEND_INTERVAL_S (BMCU accepts writes probabilistically) and
+  a deferred reconcile guarantees the timeout fires even with no AMS traffic.
 * Startup/connect revalidation & confirmation: driven off live firmware truth,
   never off the overlaid view. Rows are only RELEASED on POSITIVE evidence.
+  Reconciles are single-flight per printer (debounced against the AMS push rate).
 
 Firmware truth: the engine NEVER reads ``client.state.raw_data['ams']`` for
 identity comparisons — the overlay has already rewritten it. It reads the
@@ -119,6 +126,13 @@ class FilamentSpoofEngine:
         self._printer_manager = None
         # Sync snapshot cache for consumers that can't await (VP manager.start()).
         self._snapshots: dict[int, list[dict]] = {}
+        # Single-flight guard: one in-flight _reconcile per printer (the AMS
+        # message rate would otherwise open a DB session per push and let two
+        # reconciles interleave nondeterministically).
+        self._reconcile_inflight: set[int] = set()
+        # Confirm-loop task per backup slot so a release+re-engage doesn't
+        # stack duplicate resend timers.
+        self._confirm_tasks: dict[tuple, asyncio.Task] = {}
 
     # ---- infrastructure -------------------------------------------------
 
@@ -197,10 +211,10 @@ class FilamentSpoofEngine:
         self._snapshots[printer_id] = spoofs
 
         client = self._get_client(printer_id)
-        logger.info(
-            "[%s] Spoof snapshot push: %d spoof(s), client=%s",
-            printer_id, len(spoofs), "present" if client is not None else "MISSING",
-        )
+        if client is None:
+            logger.info("[%s] Spoof snapshot push: %d spoof(s), client=MISSING", printer_id, len(spoofs))
+        else:
+            logger.debug("[%s] Spoof snapshot push: %d spoof(s)", printer_id, len(spoofs))
         if client is not None:
             client.set_active_spoofs(spoofs)
             if not spoofs:
@@ -392,11 +406,7 @@ class FilamentSpoofEngine:
             await db.commit()
             await db.refresh(row)
 
-        if not self._is_backup_enabled(client):
-            try:
-                client.set_ams_filament_backup(True)
-            except Exception:
-                logger.warning("[%s] failed to enable AMS filament backup", printer_id, exc_info=True)
+        self._ensure_backup_enabled(client, printer_id)
 
         await self.refresh_client(printer_id)
         logger.info(
@@ -475,11 +485,7 @@ class FilamentSpoofEngine:
         if b_fw.get("tray_info_idx") == p_fw.get("tray_info_idx") and _normalize_color(
             b_fw.get("tray_color")
         ) == _normalize_color(p_fw.get("tray_color")):
-            if not self._is_backup_enabled(client):
-                try:
-                    client.set_ams_filament_backup(True)
-                except Exception:
-                    logger.warning("[%s] failed to enable AMS filament backup", printer_id, exc_info=True)
+            self._ensure_backup_enabled(client, printer_id)
             logger.info("[%s] Native backup (identical identity), no spoof row created", printer_id)
             return {"native": True, "primary_ams_id": p_ams, "primary_tray_id": p_tray,
                     "backup_ams_id": b_ams, "backup_tray_id": b_tray}
@@ -554,11 +560,7 @@ class FilamentSpoofEngine:
         self._reassert_cali(client, b_ams, b_tray, real_cali, spoof_idx)
 
         # Ensure AMS Filament Backup (auto_switch_filament) is ON.
-        if not self._is_backup_enabled(client):
-            try:
-                client.set_ams_filament_backup(True)
-            except Exception:
-                logger.warning("[%s] failed to enable AMS filament backup", printer_id, exc_info=True)
+        self._ensure_backup_enabled(client, printer_id)
 
         now = datetime.now(timezone.utc)
         async with async_session() as db:
@@ -614,6 +616,14 @@ class FilamentSpoofEngine:
         if state is None:
             return False
         return bool(getattr(state, "ams_filament_backup", None))
+
+    def _ensure_backup_enabled(self, client, printer_id: int) -> None:
+        """Turn on AMS Filament Backup unless state already shows it ON."""
+        if not self._is_backup_enabled(client):
+            try:
+                client.set_ams_filament_backup(True)
+            except Exception:
+                logger.warning("[%s] failed to enable AMS filament backup", printer_id, exc_info=True)
 
     # ---- release --------------------------------------------------------
 
@@ -730,10 +740,26 @@ class FilamentSpoofEngine:
     # ---- confirmation / revalidation -----------------------------------
 
     def _on_fw_identity_update(self, printer_id: int) -> None:
-        """Sync entry from the MQTT thread on each AMS message; reconcile."""
+        """Sync entry from the MQTT thread on each AMS message; reconcile.
+
+        Single-flight: while one reconcile is in flight for this printer,
+        further AMS messages are dropped (the next message after it finishes
+        re-triggers). Prevents per-push DB churn and interleaved reconciles.
+        """
+        if printer_id in self._reconcile_inflight:
+            return
+        self._reconcile_inflight.add(printer_id)
+
+        async def _run() -> None:
+            try:
+                await self._reconcile(printer_id)
+            finally:
+                self._reconcile_inflight.discard(printer_id)
+
         try:
-            self._pm()._schedule_async(self._reconcile(printer_id))
+            self._pm()._schedule_async(_run())
         except Exception:
+            self._reconcile_inflight.discard(printer_id)
             logger.debug("[%s] failed to schedule spoof reconcile", printer_id, exc_info=True)
 
     async def _setting_id_for_slot(
@@ -806,19 +832,29 @@ class FilamentSpoofEngine:
                     client = self._get_client(printer_id)
                     if client is None:
                         continue
-                    primary_live = self._fw_identity(client, row.primary_ams_id, row.primary_tray_id)
-                    if primary_live is None:
+                    if self._fw_identity(client, row.primary_ams_id, row.primary_tray_id) is None:
                         continue  # no data — keep waiting, timeout will handle it
-                    tmin = row.real_nozzle_temp_min
-                    tmax = row.real_nozzle_temp_max
+                    # Mirror the initial engage write exactly: type/sub_brands/
+                    # temps come from the PRIMARY's live tray (the primary slot
+                    # is never overlaid, so raw_data is genuine for it).
+                    from backend.app.services.filament_spoof import _find_tray
+
+                    primary_tray = _find_tray(
+                        (getattr(client.state, "raw_data", None) or {}).get("ams", []),
+                        row.primary_ams_id, row.primary_tray_id,
+                    ) or {}
+                    tmin = primary_tray.get("nozzle_temp_min", row.real_nozzle_temp_min)
+                    tmax = primary_tray.get("nozzle_temp_max", row.real_nozzle_temp_max)
                     logger.info(
                         "[%s] Resending spoof write for AMS %s tray %s (still PENDING)",
                         printer_id, b_ams, b_tray,
                     )
                     client.ams_set_filament_setting(
                         b_ams, b_tray,
-                        row.spoof_tray_info_idx or "", row.real_tray_type or "",
-                        row.real_tray_sub_brands or "", row.spoof_tray_color or "",
+                        row.spoof_tray_info_idx or "",
+                        primary_tray.get("tray_type") or row.real_tray_type or "",
+                        primary_tray.get("tray_sub_brands") or "",
+                        row.spoof_tray_color or "",
                         int(tmin) if tmin is not None else 0,
                         int(tmax) if tmax is not None else 0,
                         setting_id=setting_id,
@@ -830,9 +866,20 @@ class FilamentSpoofEngine:
                         pass
             except Exception:
                 logger.debug("[%s] spoof confirm loop aborted", printer_id, exc_info=True)
+            finally:
+                # Only clear our own registration — a cancelled stale loop must
+                # not evict the replacement task's entry.
+                if self._confirm_tasks.get(key) is asyncio.current_task():
+                    self._confirm_tasks.pop(key, None)
 
+        # One loop per backup slot: cancel a stale loop from a prior engage so
+        # release+re-engage doesn't stack duplicate resend timers.
+        key = (printer_id, b_ams, b_tray)
+        old = self._confirm_tasks.pop(key, None)
+        if old is not None and not old.done():
+            old.cancel()
         try:
-            asyncio.get_running_loop().create_task(_loop())
+            self._confirm_tasks[key] = asyncio.get_running_loop().create_task(_loop())
         except RuntimeError:
             try:
                 self._pm()._schedule_async(_loop())
