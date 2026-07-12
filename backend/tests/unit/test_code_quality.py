@@ -483,6 +483,118 @@ class TestPrintQueueStatusFence:
             )
 
 
+# ---------------------------------------------------------------------------
+# Gcode-state vocabulary fence (phase 3)
+# ---------------------------------------------------------------------------
+
+GCODE_STATE_VOCAB = {"IDLE", "FINISH", "FAILED", "RUNNING", "PAUSE", "PREPARE", "SLICING"}
+
+# (path relative to backend/app, function, sorted literal values) -> (count, note)
+# Literal membership sets over the gcode-state vocabulary re-encode a busy/idle
+# judgment; new ones should use the printer_lifecycle constants/predicates
+# instead. Single-state equality (== "PAUSE") is legitimate and NOT fenced.
+ALLOWED_GCODE_STATE_LITERALS = {
+    # UI serialization of "is a print in progress" for status endpoints — pure
+    # display, not a dispatch/requeue judgment.
+    ("api/routes/printers.py", "get_printer_status", ("PAUSE", "RUNNING")): (2, "UI serialization"),
+    ("api/routes/printers.py", "get_printable_objects", ("PAUSE", "RUNNING")): (1, "skip-objects guard"),
+    # Plate-clear ack: FINISH/FAILED is the "post-print" condition, a different
+    # state machine (printers table) — explicitly out of phase-3 scope.
+    ("api/routes/printers.py", "clear_plate", ("FAILED", "FINISH")): (1, "plate-clear gate"),
+    ("api/routes/webhook.py", "webhook_cancel_print", ("PAUSE", "RUNNING")): (1, "cancel precondition"),
+    # Completion-detection edge latches — the state machine that PRODUCES the
+    # events the lifecycle predicates consume; stays in bambu_mqtt by design.
+    ("services/bambu_mqtt.py", "_update_state", ("FAILED", "FINISH")): (2, "completion edges"),
+    ("services/bambu_mqtt.py", "_update_state", ("PREPARE", "SLICING")): (1, "pre-print failure #1111"),
+    ("services/printer_manager.py", "get_derived_status_name", ("PAUSE", "RUNNING")): (1, "UI status name"),
+    ("services/printer_manager.py", "printer_state_to_dict", ("PAUSE", "RUNNING")): (1, "UI serialization"),
+}
+
+
+def find_gcode_state_literals(file_path: Path) -> list[tuple[str, int, tuple[str, ...]]]:
+    """Return (function, lineno, sorted_values) for `x in ("RUNNING", ...)`-style
+    membership tests whose literal container holds >=2 gcode-state words."""
+    try:
+        tree = ast.parse(file_path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return []
+
+    func_of: dict[ast.AST, str] = {}
+
+    def _assign(node: ast.AST, fn: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            child_fn = child.name if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) else fn
+            func_of[child] = child_fn
+            _assign(child, child_fn)
+
+    _assign(tree, "<module>")
+
+    results = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Compare) and any(isinstance(op, (ast.In, ast.NotIn)) for op in node.ops)):
+            continue
+        for comp in node.comparators:
+            elts = None
+            if isinstance(comp, (ast.Tuple, ast.List, ast.Set)):
+                elts = comp.elts
+            elif (
+                isinstance(comp, ast.Call)
+                and isinstance(comp.func, ast.Name)
+                and comp.func.id == "frozenset"
+                and comp.args
+                and isinstance(comp.args[0], (ast.Tuple, ast.List, ast.Set))
+            ):
+                elts = comp.args[0].elts
+            if not elts:
+                continue
+            values = sorted(e.value for e in elts if isinstance(e, ast.Constant) and isinstance(e.value, str))
+            if len({v.upper() for v in values} & GCODE_STATE_VOCAB) >= 2:
+                results.append((func_of.get(node, "<module>"), node.lineno, tuple(values)))
+    return results
+
+
+class TestGcodeStateVocabularyFence:
+    """Fence: literal gcode-state membership sets outside printer_lifecycle
+    must be allowlisted. New busy/idle judgments belong in printer_lifecycle
+    (TERMINAL_GCODE_STATES / ACTIVE_PRINT_STATES or a named predicate) — a
+    fresh literal set smuggled in by an upstream merge re-scatters exactly
+    the judgment logic phase 3 centralised."""
+
+    def test_all_state_literal_sets_are_allowlisted(self):
+        found: dict[tuple[str, str, tuple[str, ...]], list[int]] = {}
+        for py_file in get_python_files(BACKEND_DIR):
+            rel = str(py_file.relative_to(BACKEND_DIR))
+            if rel == "services/printer_lifecycle.py":
+                continue  # the vocabulary's single home
+            for func, lineno, values in find_gcode_state_literals(py_file):
+                found.setdefault((rel, func, values), []).append(lineno)
+
+        errors = []
+        for key, linenos in sorted(found.items()):
+            allowed = ALLOWED_GCODE_STATE_LITERALS.get(key)
+            if allowed is None:
+                errors.append(
+                    f"UNREVIEWED state-set literal: {key[0]}:{sorted(linenos)} in {key[1]}() "
+                    f"{key[2]} — use printer_lifecycle constants/predicates, or review and "
+                    f"add it to ALLOWED_GCODE_STATE_LITERALS."
+                )
+            elif len(linenos) > allowed[0]:
+                errors.append(
+                    f"NEW state-set literal(s): {key[0]} in {key[1]}() {key[2]} "
+                    f"found {len(linenos)} at lines {sorted(linenos)}, allowlist permits {allowed[0]}."
+                )
+        for key, (count, note) in sorted(ALLOWED_GCODE_STATE_LITERALS.items()):
+            n_found = len(found.get(key, []))
+            if n_found < count:
+                errors.append(
+                    f"STALE allowlist entry: {key} [{note}] expects {count} site(s), found {n_found} "
+                    f"— shrink/remove the entry."
+                )
+
+        if errors:
+            pytest.fail("gcode-state vocabulary fence violations:\n  " + "\n  ".join(errors))
+
+
 class TestLogErrorPatterns:
     """Tests that use log capture to detect runtime errors."""
 
