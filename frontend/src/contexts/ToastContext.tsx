@@ -314,15 +314,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast, showPersistentToast, dismissToast, setViewportSuppressed }}>
       {children}
 
-      {/* Toast Container — to the left of the bug-report bubble (bottom-4 right-4 w-12).
-          The kiosk layout suppresses this entire viewport so SpoolBuddy displays stay
-          free of main-app notifications. */}
-      <div className={`fixed bottom-4 right-20 z-[60] flex flex-col items-end gap-2 ${viewportSuppressed ? 'hidden' : ''}`}>
+      {/* Toast Container — to the left of the bug-report bubble (bottom-4 right-4 w-12)
+          on ≥sm screens; on narrow (mobile) viewports it sits above the bubble instead,
+          and toasts are capped to the viewport width — a fixed 420px dispatch toast at
+          right-20 was rendered almost entirely off-screen on phones. The kiosk layout
+          suppresses this entire viewport so SpoolBuddy displays stay free of main-app
+          notifications. */}
+      <div className={`fixed bottom-20 sm:bottom-4 right-4 sm:right-20 z-[60] flex flex-col items-end gap-2 max-w-[calc(100vw-2rem)] ${viewportSuppressed ? 'hidden' : ''}`}>
         {toasts.map((toast) => (
           <div
             key={toast.id}
             className={`rounded-lg border shadow-lg backdrop-blur-sm animate-slide-in ${bgColors[toast.type]} ${
-              toast.dispatchData ? 'w-[420px] p-3' : 'flex items-center gap-3 px-4 py-3'
+              toast.dispatchData ? 'w-[420px] max-w-full p-3' : 'flex items-center gap-3 px-4 py-3 max-w-full'
             }`}
             data-testid={toast.dispatchData ? 'dispatch-toast-wrapper' : undefined}
           >
