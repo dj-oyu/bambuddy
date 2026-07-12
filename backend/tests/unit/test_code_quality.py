@@ -6,6 +6,7 @@ that could cause runtime errors but aren't caught by normal tests.
 """
 
 import ast
+from collections import deque
 from pathlib import Path
 
 import pytest
@@ -292,7 +293,7 @@ ALLOWED_PQ_STATUS_WRITES = {
     # HMS auto-clear requeue: SELECT scoped to status=='printing' (fw-truth gated, d9e81190)
     ("main.py", "_requeue_print_rejected_by_hms", "attr", "'pending'"): (1, "CAS(select-scoped)"),
     # print-complete handler: SELECT scoped 'printing', but an await sits before commit (TOCTOU window)
-    ("main.py", "on_print_complete", "attr", "<dynamic>"): (1, "CAS(select-scoped,pre-commit-await)"),
+    ("main.py", "_update_queue_status", "attr", "<dynamic>"): (1, "CAS(select-scoped,pre-commit-await)"),
     # --- api/routes/print_queue.py ---
     ("api/routes/print_queue.py", "add_to_queue", "ctor", "'pending'"): (1, "CREATE"),
     ("api/routes/print_queue.py", "cancel_batch", "attr", "'cancelled'"): (1, "CAS(select-scoped)"),
@@ -303,8 +304,8 @@ ALLOWED_PQ_STATUS_WRITES = {
     ("api/routes/print_queue.py", "stop_queue_item", "attr", "'cancelled'"): (1, "CAS(status)+FORCE(connectivity)"),
     # --- api/routes/pipeline_runs.py ---
     # python-level guard `status in ("pending","queued")`, commit later in loop (small TOCTOU)
-    ("api/routes/pipeline_runs.py", "_make_orchestration_callable", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
-    ("api/routes/pipeline_runs.py", "_make_orchestration_callable", "ctor", "'pending'"): (1, "CREATE"),
+    ("api/routes/pipeline_runs.py", "_orchestrate", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
+    ("api/routes/pipeline_runs.py", "_orchestrate", "ctor", "'pending'"): (1, "CREATE"),
     ("api/routes/pipeline_runs.py", "cancel_run", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
     # --- other creators ---
     ("api/routes/library.py", "add_files_to_queue", "ctor", "'pending'"): (1, "CREATE"),
@@ -332,6 +333,11 @@ class PrintQueueStatusWriteScanner:
     Binding from an expression that mentions a DIFFERENT class-like name
     clears the taint (e.g. `batch = db.get(PrintBatch, ...)` reusing a name).
     Attribute/subscript writes never rebind, so they never change taint.
+
+    Known limitation: taint does not cross function boundaries — a status
+    write on a value returned from a helper that hides the PrintQueueItem
+    query is invisible to this fence. Keep queue-item queries and their
+    status writes in the same function, or add the site by hand.
     """
 
     def __init__(self):
@@ -365,6 +371,12 @@ class PrintQueueStatusWriteScanner:
                 elif isinstance(node, (ast.For, ast.AsyncFor)):
                     tgts = {n.id for n in ast.walk(node.target) if isinstance(n, ast.Name)}
                     self._apply_taint(_pq_subtree_names(node.iter), tgts)
+                elif isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
+                    # walrus: `if (item := await db.get(PrintQueueItem, id)):`
+                    self._apply_taint(_pq_subtree_names(node.value), {node.target.id})
+                elif isinstance(node, ast.comprehension):
+                    tgts = {n.id for n in ast.walk(node.target) if isinstance(n, ast.Name)}
+                    self._apply_taint(_pq_subtree_names(node.iter), tgts)
 
     @staticmethod
     def _value_repr(node) -> str:
@@ -373,7 +385,19 @@ class PrintQueueStatusWriteScanner:
         return "<dynamic>"
 
     def scan(self, func_node):
-        nodes = list(ast.walk(func_node))
+        # Own body only — nested functions get their own scan pass in
+        # find_pq_status_writes, and letting their taint leak into this scope
+        # makes results walk-order dependent.
+        # BFS in source order (like ast.walk) so the 2-pass taint fixpoint
+        # converges on multi-step assignment chains.
+        nodes = [func_node]
+        queue = deque(ast.iter_child_nodes(func_node))
+        while queue:
+            node = queue.popleft()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            nodes.append(node)
+            queue.extend(ast.iter_child_nodes(node))
         self._taint_pass(nodes)
         for node in nodes:
             if isinstance(node, ast.Assign):
@@ -414,10 +438,11 @@ def find_pq_status_writes(file_path: Path) -> list[tuple[str, int, str, str]]:
         scanner = PrintQueueStatusWriteScanner()
         scanner.scan(func)
         for lineno, kind, value in scanner.findings:
-            # nested functions are walked by both the outer and inner pass;
-            # keep the first (outermost) attribution only
-            if (lineno, kind) not in seen:
-                seen.add((lineno, kind))
+            # ctor/bulk/rawsql findings inside nested functions are collected
+            # by both the outer and inner pass; keep one attribution only
+            key = (lineno, kind, value)
+            if key not in seen:
+                seen.add(key)
                 results.append((func.name, lineno, kind, value))
     return results
 

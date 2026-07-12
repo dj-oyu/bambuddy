@@ -53,6 +53,8 @@ class TransitionResult:
     observed_status: str | None = None  # best-effort re-read on non-APPLIED
 
     def __bool__(self) -> bool:
+        """Truthy iff APPLIED. NOT_FOUND and STATE_MISMATCH are both falsy —
+        inspect ``.outcome`` when the distinction matters."""
         return self.outcome is TransitionOutcome.APPLIED
 
 
@@ -107,7 +109,7 @@ async def _execute(
         kind = TransitionOutcome.NOT_FOUND if observed is None else TransitionOutcome.STATE_MISMATCH
         outcome = TransitionResult(kind, item_id, to_status, from_states, observed_status=observed)
 
-    from_repr = "|".join(from_states) if from_states is not None else f"FORCE({outcome.observed_status})"
+    from_repr = "|".join(from_states) if from_states is not None else "FORCE"
     log = logger.info if outcome else logger.warning
     log(
         "PQ_LIFECYCLE item=%s %s->%s outcome=%s reason=%s caller=%s",

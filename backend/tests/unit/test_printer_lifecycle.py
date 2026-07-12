@@ -5,6 +5,7 @@ not python check-then-commit — the cross-session tests here are the proof.
 """
 
 import logging
+from datetime import datetime
 
 import pytest
 from sqlalchemy import select
@@ -22,7 +23,19 @@ from backend.app.services.printer_lifecycle import (
 
 @pytest.fixture
 async def session_maker():
+    # NOTE: aiosqlite :memory: hands every "session" the same underlying
+    # connection — cross-session tests that need real commit isolation must
+    # use the file-backed `file_session_maker` fixture instead.
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield async_sessionmaker(engine, expire_on_commit=False)
+    await engine.dispose()
+
+
+@pytest.fixture
+async def file_session_maker(tmp_path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'lifecycle.db'}", echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield async_sessionmaker(engine, expire_on_commit=False)
@@ -45,6 +58,7 @@ async def read_status(session_maker, item_id):
 class TestTransitionCAS:
     async def test_cas_success_updates_row_and_mirrors_item(self, session_maker):
         item_id = await make_item(session_maker)
+        started = datetime(2026, 7, 12, 3, 0, 0)
         async with session_maker() as db:
             item = await db.get(PrintQueueItem, item_id)
             result = await transition(
@@ -54,13 +68,17 @@ class TestTransitionCAS:
                 from_states=("pending",),
                 reason="dispatch",
                 caller="test",
-                extra={"error_message": None},
+                extra={"started_at": started},
                 item=item,
             )
             assert result
             assert result.outcome is TransitionOutcome.APPLIED
             assert item.status == "printing"
-        assert await read_status(session_maker, item_id) == "printing"
+            assert item.started_at == started
+        async with session_maker() as db:
+            row = await db.get(PrintQueueItem, item_id)
+            assert row.status == "printing"
+            assert row.started_at == started
 
     async def test_cas_mismatch_leaves_row_and_item_untouched(self, session_maker):
         item_id = await make_item(session_maker, status="cancelled")
@@ -73,12 +91,15 @@ class TestTransitionCAS:
                 from_states=("pending",),
                 reason="dispatch",
                 caller="test",
+                extra={"error_message": "should not land"},
                 item=item,
             )
             assert not result
             assert result.outcome is TransitionOutcome.STATE_MISMATCH
             assert result.observed_status == "cancelled"
+            # neither status nor extra columns are mirrored on mismatch
             assert item.status == "cancelled"
+            assert item.error_message is None
         assert await read_status(session_maker, item_id) == "cancelled"
 
     async def test_cross_session_race_decided_by_where_clause(self, session_maker):
@@ -133,14 +154,10 @@ class TestTransitionCAS:
             with pytest.raises(ValueError, match="from_states"):
                 await transition(db, 1, to_status="failed", from_states=(), reason="r", caller="test")
 
-    async def test_commit_false_invisible_until_caller_commits(self, tmp_path):
+    async def test_commit_false_invisible_until_caller_commits(self, file_session_maker):
         # needs a file-backed DB: the shared in-memory connection would show
         # uncommitted changes to every "session"
-        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'lifecycle.db'}", echo=False)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        session_maker = async_sessionmaker(engine, expire_on_commit=False)
-
+        session_maker = file_session_maker
         item_id = await make_item(session_maker)
         async with session_maker() as db:
             result = await transition(
@@ -157,7 +174,6 @@ class TestTransitionCAS:
             assert await read_status(session_maker, item_id) == "pending"
             await db.commit()
         assert await read_status(session_maker, item_id) == "printing"
-        await engine.dispose()
 
     async def test_extra_column_whitelist(self, session_maker):
         async with session_maker() as db:
@@ -177,12 +193,24 @@ class TestForceTransition:
     async def test_force_clobbers_concurrent_state(self, session_maker):
         item_id = await make_item(session_maker, status="cancelled")
         async with session_maker() as db:
+            item = await db.get(PrintQueueItem, item_id)
             result = await force_transition(
-                db, item_id, to_status="failed", reason="stop regardless", caller="test"
+                db,
+                item_id,
+                to_status="failed",
+                reason="stop regardless",
+                caller="test",
+                extra={"error_message": "boom"},
+                item=item,
             )
             assert result
             assert result.from_states is None
-        assert await read_status(session_maker, item_id) == "failed"
+            assert item.status == "failed"
+            assert item.error_message == "boom"
+        async with session_maker() as db:
+            row = await db.get(PrintQueueItem, item_id)
+            assert row.status == "failed"
+            assert row.error_message == "boom"
 
     async def test_force_not_found(self, session_maker):
         async with session_maker() as db:
@@ -227,3 +255,13 @@ class TestLifecycleLogging:
         [record] = [r for r in caplog.records if "PQ_LIFECYCLE" in r.getMessage()]
         assert record.levelno == logging.WARNING
         assert "outcome=state_mismatch" in record.getMessage()
+
+    async def test_force_success_log_format(self, session_maker, caplog):
+        item_id = await make_item(session_maker)
+        with caplog.at_level(logging.INFO, logger="backend.app.services.printer_lifecycle"):
+            async with session_maker() as db:
+                await force_transition(db, item_id, to_status="cancelled", reason="stop", caller="route")
+        [record] = [r for r in caplog.records if "PQ_LIFECYCLE" in r.getMessage()]
+        assert record.levelno == logging.INFO
+        assert "FORCE->cancelled" in record.getMessage()
+        assert "outcome=applied" in record.getMessage()
