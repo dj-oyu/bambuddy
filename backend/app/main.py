@@ -473,42 +473,31 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
     log = logging.getLogger(__name__)
     await asyncio.sleep(8.0)
 
+    from backend.app.services import printer_lifecycle
     from backend.app.services.print_scheduler import scheduler
     from backend.app.services.printer_manager import printer_manager
 
+    # Gate stack owned by printer_lifecycle (fail-safe: any uncertainty means
+    # "not idle" — see evaluate_demonstrably_idle for the incident history and
+    # per-gate rationale). The wedge watchdog owns the dead-or-alive call
+    # inside the post-dispatch hold window.
     client = printer_manager.get_client(printer_id)
     printer_state = getattr(client, "state", None)
-    state = getattr(printer_state, "state", None)
-    if state is None or state == "unknown":
-        # Unknown state — fail safe, do nothing.
-        log.info("[HMS] Skipping requeue on printer %s: printer state unknown", printer_id)
+    verdict = printer_lifecycle.evaluate_demonstrably_idle(
+        printer_state,
+        in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
+    )
+    if not verdict:
+        if verdict.reason:
+            log.info("[HMS] Skipping requeue on printer %s: %s", printer_id, verdict.reason)
+        # Empty reason = the print visibly started (or is paused) — leave it
+        # alone, silently, as before.
         return
-    if state not in ("IDLE", "FAILED", "FINISH"):
-        return  # print actually started (or is paused) — leave it alone
-    if scheduler.printer_in_dispatch_hold(printer_id):
-        # A print command was just sent and the firmware accepted (or may still
-        # accept) it — the wedge watchdog owns the dead-or-alive decision here.
-        log.info("[HMS] Skipping requeue on printer %s: inside post-dispatch hold", printer_id)
-        return
-    if not getattr(printer_state, "connected", False):
-        # Disconnected — state (including ams_status_main) may be stale from the
-        # dead session; nothing sane to decide here. Fail safe, do nothing.
-        log.info("[HMS] Skipping requeue on printer %s: printer not connected", printer_id)
-        return
-    if getattr(printer_state, "ams_status_main", 0) != 0:
-        # AMS/BMCU is mid-motion (filament change, RFID, assist, calibration) —
-        # the printer is doing something even though gcode_state says idle.
-        log.info(
-            "[HMS] Skipping requeue on printer %s: AMS busy (ams_status_main=%s)",
-            printer_id,
-            getattr(printer_state, "ams_status_main", 0),
-        )
-        return
+    state = printer_state.state
 
     from sqlalchemy import select as _select
 
     from backend.app.models.print_queue import PrintQueueItem
-    from backend.app.services import printer_lifecycle
 
     async with async_session() as db:
         result = await db.execute(
