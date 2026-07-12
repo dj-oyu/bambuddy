@@ -531,10 +531,12 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
                 caller="main._requeue_print_rejected_by_hms",
                 extra={"started_at": None},
                 item=item,
+                commit=False,
             )
             if cas:
                 requeued += 1
         if requeued:
+            await db.commit()
             log.info(
                 "[HMS] Requeued %d stuck queue item(s) on printer %s after auto-clearing %s (printer state=%s)",
                 requeued, printer_id, short_code, state,

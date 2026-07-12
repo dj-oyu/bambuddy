@@ -48,6 +48,10 @@ def db_session():
     """Mock async_session; returns the mock DB and a captured items list."""
     item = SimpleNamespace(id=1, status="printing", started_at="x")
     result = MagicMock()
+    # transition()'s CAS branches on rowcount — a bare MagicMock is truthy and
+    # would silently take the APPLIED path; make it explicit (tests flip it to
+    # 0 to exercise the mismatch arm).
+    result.rowcount = 1
     result.scalars.return_value.all.return_value = [item]
 
     class FakeSession:
@@ -64,6 +68,7 @@ def db_session():
             FakeSession.committed = True
 
     FakeSession.committed = False
+    FakeSession.result = result
     return FakeSession, item
 
 
@@ -154,3 +159,18 @@ class TestGates:
         assert item.status == "pending"
         assert item.started_at is None
         assert FakeSession.committed is True
+
+    def test_cas_mismatch_leaves_item_untouched(self, db_session):
+        """A concurrent terminal write between the SELECT and the CAS UPDATE
+        (rowcount 0) must not mirror 'pending' onto the item or commit."""
+        FakeSession, item = db_session
+        FakeSession.result.rowcount = 0
+        with (
+            patch("backend.app.services.printer_manager.printer_manager.get_client", return_value=_client("IDLE")),
+            patch("backend.app.services.print_scheduler.scheduler.printer_in_dispatch_hold", return_value=False),
+            patch("backend.app.main.async_session", FakeSession),
+        ):
+            asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))
+        assert item.status == "printing"
+        assert item.started_at == "x"
+        assert FakeSession.committed is False
