@@ -318,6 +318,94 @@ class FilamentSpoofEngine:
                 return True
         return False
 
+    async def adopt(
+        self, printer_id: int, primary: tuple, backup: tuple, real: dict
+    ) -> FilamentSpoof:
+        """Adopt an EXISTING firmware-level spoof without writing to the printer.
+
+        For when the backup slot already carries the primary's identity on the
+        firmware (e.g. a delayed BMCU write applied after the row was released)
+        but bambuddy has no record of the slot's physical reality. ``real`` is
+        the user-declared truth for the backup slot: tray_info_idx, tray_type,
+        tray_sub_brands, tray_color, nozzle_temp_min, nozzle_temp_max.
+
+        Firmware is not touched (aside from ensuring the backup toggle is ON);
+        the row is created directly in ENGAGED state since the firmware already
+        echoes the spoofed identity.
+        """
+        if not _spoof_enabled():
+            raise FilamentSpoofError("Runout backup is disabled on this server", status=503)
+
+        p_ams, p_tray = int(primary[0]), int(primary[1])
+        b_ams, b_tray = int(backup[0]), int(backup[1])
+        if (p_ams, p_tray) == (b_ams, b_tray):
+            raise FilamentSpoofError("Primary and backup slots must differ", status=409)
+
+        client = self._get_client(printer_id)
+        if client is None or not getattr(client.state, "connected", False):
+            raise FilamentSpoofError("Printer not connected", status=409)
+
+        primary_fw = self._fw_identity(client, p_ams, p_tray)
+        backup_fw = self._fw_identity(client, b_ams, b_tray)
+        if primary_fw is None or backup_fw is None:
+            raise FilamentSpoofError("Slot state not available", status=409)
+        # Adoption precondition: the firmware must ALREADY show the primary's
+        # identity on the backup slot — otherwise this is a normal engage.
+        if not _matches_spoof(
+            backup_fw, primary_fw.get("tray_info_idx"), primary_fw.get("tray_color")
+        ):
+            raise FilamentSpoofError(
+                "Backup slot does not carry the primary's identity on the printer; "
+                "use a normal engage instead",
+                status=409,
+            )
+        real_color = (real.get("tray_color") or "").strip()
+        if not real_color:
+            raise FilamentSpoofError("Real tray_color is required", status=422)
+        if _normalize_color(real_color) == _normalize_color(primary_fw.get("tray_color")):
+            raise FilamentSpoofError(
+                "Real color equals the primary's color — nothing to adopt", status=409
+            )
+
+        async with async_session() as db:
+            if await self._slot_has_active_spoof(db, printer_id, b_ams, b_tray) or \
+               await self._slot_has_active_spoof(db, printer_id, p_ams, p_tray):
+                raise FilamentSpoofError("Slot already participates in a runout backup", status=409)
+            now = datetime.now(timezone.utc)
+            row = FilamentSpoof(
+                printer_id=printer_id,
+                backup_ams_id=b_ams, backup_tray_id=b_tray,
+                primary_ams_id=p_ams, primary_tray_id=p_tray,
+                real_tray_info_idx=real.get("tray_info_idx") or backup_fw.get("tray_info_idx"),
+                real_tray_type=real.get("tray_type"),
+                real_tray_sub_brands=real.get("tray_sub_brands") or "",
+                real_tray_color=real_color,
+                real_nozzle_temp_min=real.get("nozzle_temp_min"),
+                real_nozzle_temp_max=real.get("nozzle_temp_max"),
+                spoof_tray_info_idx=primary_fw.get("tray_info_idx"),
+                spoof_tray_color=primary_fw.get("tray_color"),
+                state="ENGAGED",
+                engaged_at=now,
+                confirmed_at=now,
+            )
+            db.add(row)
+            await db.commit()
+            await db.refresh(row)
+
+        if not self._is_backup_enabled(client):
+            try:
+                client.set_ams_filament_backup(True)
+            except Exception:
+                logger.warning("[%s] failed to enable AMS filament backup", printer_id, exc_info=True)
+
+        await self.refresh_client(printer_id)
+        logger.info(
+            "[%s] Filament spoof ADOPTED: backup AMS %s tray %s carries primary AMS %s tray %s "
+            "(real color %s declared by user; no firmware write)",
+            printer_id, b_ams, b_tray, p_ams, p_tray, real_color,
+        )
+        return row
+
     async def engage(self, printer_id: int, primary: tuple, backup: tuple, force: bool = False):
         """Engage a spoof: backup slot impersonates the primary slot's identity.
 

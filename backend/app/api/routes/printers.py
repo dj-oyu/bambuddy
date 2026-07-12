@@ -2054,6 +2054,65 @@ async def engage_filament_spoof(
     return _serialize_spoof(row)
 
 
+class _FilamentSpoofAdoptRequest(BaseModel):
+    primary_ams_id: int
+    primary_tray_id: int
+    backup_ams_id: int
+    backup_tray_id: int
+    # User-declared physical reality of the backup slot.
+    real_tray_info_idx: str = ""
+    real_tray_type: str = ""
+    real_tray_sub_brands: str = ""
+    real_tray_color: str
+    real_nozzle_temp_min: int | None = None
+    real_nozzle_temp_max: int | None = None
+
+
+@router.post("/{printer_id}/filament-spoof/adopt")
+async def adopt_filament_spoof(
+    printer_id: int,
+    body: _FilamentSpoofAdoptRequest,
+    _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL),
+    db: AsyncSession = Depends(get_db),
+):
+    """Adopt an existing firmware-level runout backup without writing firmware.
+
+    For when the backup slot already carries the primary's identity on the
+    printer but bambuddy has no record of the slot's real spool (e.g. a
+    delayed BMCU write applied after its row was released). The caller
+    declares the slot's physical reality; bambuddy records it and resumes
+    overlaying/guarding.
+    """
+    from backend.app.services.filament_spoof import _spoof_enabled
+
+    if not _spoof_enabled():
+        raise HTTPException(503, "Runout backup is disabled on this server")
+
+    result = await db.execute(select(Printer).where(Printer.id == printer_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(404, "Printer not found")
+
+    from backend.app.services.filament_spoof_engine import FilamentSpoofError, filament_spoof_engine
+
+    try:
+        row = await filament_spoof_engine.adopt(
+            printer_id,
+            (body.primary_ams_id, body.primary_tray_id),
+            (body.backup_ams_id, body.backup_tray_id),
+            {
+                "tray_info_idx": body.real_tray_info_idx,
+                "tray_type": body.real_tray_type,
+                "tray_sub_brands": body.real_tray_sub_brands,
+                "tray_color": body.real_tray_color,
+                "nozzle_temp_min": body.real_nozzle_temp_min,
+                "nozzle_temp_max": body.real_nozzle_temp_max,
+            },
+        )
+    except FilamentSpoofError as err:
+        raise HTTPException(getattr(err, "status", 400), str(err))
+    return _serialize_spoof(row)
+
+
 @router.get("/{printer_id}/filament-spoof")
 async def list_filament_spoofs(
     printer_id: int,

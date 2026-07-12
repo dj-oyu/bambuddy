@@ -452,3 +452,37 @@ async def test_engage_ignores_mismatched_slot_preset(session_maker):
     await eng.engage(1, (0, 0), (0, 1))
     call = client.ams_set_filament_setting.call_args
     assert call.kwargs["setting_id"] == "GFSA00"  # fallback derivation
+
+
+# ---- adopt (existing firmware-level spoof, no write) ---------------------
+
+@pytest.mark.asyncio
+async def test_adopt_existing_firmware_spoof(session_maker):
+    client = _fake_client()
+    # Firmware already shows the primary's identity on the backup slot.
+    b = client.state.raw_data["ams"][0]["tray"][1]
+    b["tray_info_idx"] = "GFA00"
+    b["tray_color"] = "FF0000FF"
+    eng = _engine_with(client)
+
+    row = await eng.adopt(1, (0, 0), (0, 1), {
+        "tray_info_idx": "GFA00", "tray_type": "PLA",
+        "tray_sub_brands": "", "tray_color": "000000FF",
+        "nozzle_temp_min": 190, "nozzle_temp_max": 230,
+    })
+    assert row.state == "ENGAGED"
+    assert row.real_tray_color == "000000FF"
+    assert row.spoof_tray_color == "FF0000FF"
+    client.ams_set_filament_setting.assert_not_called()  # no firmware write
+    client.set_active_spoofs.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_adopt_rejected_when_firmware_not_spoofed(session_maker):
+    # Backup slot shows its own identity → this is a normal-engage situation.
+    client = _fake_client()
+    eng = _engine_with(client)
+    with pytest.raises(FilamentSpoofError) as ei:
+        await eng.adopt(1, (0, 0), (0, 1), {"tray_color": "000000FF"})
+    assert ei.value.status == 409
+    assert await _rows(session_maker) == []
