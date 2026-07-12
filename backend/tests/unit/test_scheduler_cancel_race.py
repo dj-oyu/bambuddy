@@ -235,3 +235,37 @@ async def test_happy_path_still_dispatches(queue_factory):
     assert started_at is not None
     ctx.upload.assert_awaited_once()
     ctx.start_print.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_does_not_overwrite_cancel(queue_factory):
+    """User decision 2026-07-12: a concurrent /cancel wins over a dispatch
+    failure write. _fail_queue_item is a CAS on ("pending","printing"), so a
+    row already cancelled must stay cancelled (failure goes to logs only).
+    """
+    ctx = await queue_factory(status="cancelled")
+    scheduler = PrintScheduler()
+
+    async with ctx.session_maker() as db:
+        item = await db.get(PrintQueueItem, ctx.queue_item_id)
+        await scheduler._fail_queue_item(db, item, "Printer not found", reason="test")
+
+    status, _ = await _final_status(ctx)
+    assert status == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_marks_pending_item_failed(queue_factory):
+    """Sanity for the same helper: an uncancelled pending row does record
+    the failure, including the error message."""
+    ctx = await queue_factory()
+    scheduler = PrintScheduler()
+
+    async with ctx.session_maker() as db:
+        item = await db.get(PrintQueueItem, ctx.queue_item_id)
+        await scheduler._fail_queue_item(db, item, "Printer not found", reason="test")
+        assert item.status == "failed"
+        assert item.error_message == "Printer not found"
+
+    status, _ = await _final_status(ctx)
+    assert status == "failed"

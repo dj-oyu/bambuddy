@@ -2559,6 +2559,33 @@ class PrintScheduler:
         if owner:
             printer_manager.set_current_print_user(item.printer_id, owner.id, owner.username)
 
+    async def _fail_queue_item(self, db: AsyncSession, item: PrintQueueItem, error_message: str, *, reason: str):
+        """Terminal 'failed' write for dispatch error paths.
+
+        CAS on ("pending", "printing") — user decision 2026-07-12: a
+        concurrent /cancel must win the row (the user's intent sticks), so a
+        cancelled item is never overwritten to failed. The failure itself
+        stays visible through the caller's logger.error (always fires) and
+        the facade's PQ_LIFECYCLE state_mismatch WARNING.
+        """
+        result = await printer_lifecycle.transition(
+            db,
+            item.id,
+            to_status="failed",
+            from_states=("pending", "printing"),
+            reason=reason,
+            caller="print_scheduler._start_print",
+            extra={"error_message": error_message, "completed_at": datetime.now(timezone.utc)},
+            item=item,
+        )
+        if not result:
+            logger.warning(
+                "Queue item %s: dispatch failure (%s) not written — item already %s; user action wins",
+                item.id,
+                reason,
+                result.observed_status,
+            )
+
     async def _start_print(self, db: AsyncSession, item: PrintQueueItem):
         """Upload file and start print for a queue item.
 
@@ -2566,11 +2593,9 @@ class PrintScheduler:
         - archive_id: Print from an existing archive
         - library_file_id: Print from a library file (file manager)
 
-        lifecycle-polarity: every `item.status = "failed"` error path in this
-        function is FORCE — written without a current-status guard, so it can
-        clobber a concurrent user cancel (cancelled -> failed). The only CAS
-        transition is the pending -> printing bulk UPDATE (+ rowcount check,
-        #1853) and its in-memory mirror.
+        lifecycle-polarity: every error path here fails the item via
+        _fail_queue_item (FORCE, see its docstring). The only CAS transition
+        is the pending -> printing UPDATE (#1853) via transition().
         """
         logger.info("Starting queue item %s", item.id)
 
@@ -2578,20 +2603,14 @@ class PrintScheduler:
         result = await db.execute(select(Printer).where(Printer.id == item.printer_id))
         printer = result.scalar_one_or_none()
         if not printer:
-            item.status = "failed"
-            item.error_message = "Printer not found"
-            item.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await self._fail_queue_item(db, item, "Printer not found", reason="printer row missing")
             logger.error("Queue item %s: Printer %s not found", item.id, item.printer_id)
             await self._power_off_if_needed(db, item)
             return
 
         # Check printer is connected
         if not printer_manager.is_connected(item.printer_id):
-            item.status = "failed"
-            item.error_message = "Printer not connected"
-            item.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await self._fail_queue_item(db, item, "Printer not connected", reason="printer disconnected")
             logger.error("Queue item %s: Printer %s not connected", item.id, item.printer_id)
             await self._power_off_if_needed(db, item)
             return
@@ -2624,10 +2643,7 @@ class PrintScheduler:
             result = await db.execute(select(PrintArchive).where(PrintArchive.id == item.archive_id))
             archive = result.scalar_one_or_none()
             if not archive:
-                item.status = "failed"
-                item.error_message = "Archive not found"
-                item.completed_at = datetime.now(timezone.utc)
-                await db.commit()
+                await self._fail_queue_item(db, item, "Archive not found", reason="archive row missing")
                 logger.error("Queue item %s: Archive %s not found", item.id, item.archive_id)
                 await self._power_off_if_needed(db, item)
                 return
@@ -2640,10 +2656,7 @@ class PrintScheduler:
             result = await db.execute(LibraryFile.active().where(LibraryFile.id == item.library_file_id))
             library_file = result.scalar_one_or_none()
             if not library_file:
-                item.status = "failed"
-                item.error_message = "Library file not found"
-                item.completed_at = datetime.now(timezone.utc)
-                await db.commit()
+                await self._fail_queue_item(db, item, "Library file not found", reason="library file missing")
                 logger.error("Queue item %s: Library file %s not found", item.id, item.library_file_id)
                 await self._power_off_if_needed(db, item)
                 return
@@ -2700,38 +2713,36 @@ class PrintScheduler:
                 await db.rollback()
                 item = await db.get(PrintQueueItem, queue_item_id)
                 if item:
-                    item.status = "failed"
-                    item.error_message = "Failed to create archive from library file"
-                    item.completed_at = datetime.now(timezone.utc)
-                    await db.commit()
+                    await self._fail_queue_item(
+                        db,
+                        item,
+                        "Failed to create archive from library file",
+                        reason="archive creation raised",
+                    )
                     await self._power_off_if_needed(db, item)
                 return
 
             if not archive:
-                item.status = "failed"
-                item.error_message = "Failed to create archive from library file"
-                item.completed_at = datetime.now(timezone.utc)
-                await db.commit()
+                await self._fail_queue_item(
+                    db,
+                    item,
+                    "Failed to create archive from library file",
+                    reason="archive creation returned none",
+                )
                 logger.error("Queue item %s: Archive creation from library file returned no archive", item.id)
                 await self._power_off_if_needed(db, item)
                 return
 
         else:
             # Neither archive nor library file specified
-            item.status = "failed"
-            item.error_message = "No source file specified"
-            item.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await self._fail_queue_item(db, item, "No source file specified", reason="no source configured")
             logger.error("Queue item %s: No archive_id or library_file_id specified", item.id)
             await self._power_off_if_needed(db, item)
             return
 
         # Check file exists on disk
         if not file_path.exists():
-            item.status = "failed"
-            item.error_message = "Source file not found on disk"
-            item.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await self._fail_queue_item(db, item, "Source file not found on disk", reason="source file missing")
             logger.error("Queue item %s: File not found: %s", item.id, file_path)
             await self._power_off_if_needed(db, item)
             return
@@ -2863,10 +2874,7 @@ class PrintScheduler:
                 "Failed to upload file to printer. Check if SD card is inserted and properly formatted (FAT32/exFAT). "
                 "See server logs for detailed diagnostics."
             )
-            item.status = "failed"
-            item.error_message = error_msg
-            item.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await self._fail_queue_item(db, item, error_msg, reason="ftp upload failed")
             logger.error(
                 f"Queue item {item.id}: FTP upload failed - printer={printer.name}, model={printer.model}, "
                 f"ip={printer.ip_address}. Check logs above for storage diagnostics and specific error codes."
@@ -3152,10 +3160,9 @@ class PrintScheduler:
                 pass  # Best-effort — don't fail the error handler
 
             # Print command failed - revert status
-            item.status = "failed"
-            item.error_message = "Failed to send print command to printer"
-            item.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await self._fail_queue_item(
+                db, item, "Failed to send print command to printer", reason="start_print command failed"
+            )
             logger.error(
                 f"Queue item {item.id}: Failed to start print on {printer.name} ({printer.model}) - "
                 f"printer_manager.start_print() returned False. "

@@ -285,8 +285,9 @@ ALLOWED_PQ_STATUS_WRITES = {
     # --- services/print_scheduler.py ---
     # stale pending-SELECT with awaits before the write: effectively FORCE (TOCTOU)
     ("services/print_scheduler.py", "check_queue", "attr", "'skipped'"): (2, "FORCE(stale-pending-select)"),
-    # error paths in _start_print; no current-status guard, may clobber a concurrent cancel
-    ("services/print_scheduler.py", "_start_print", "attr", "'failed'"): (10, "FORCE(error-path)"),
+    # (_start_print error paths migrated to _fail_queue_item -> CAS on
+    #  ("pending","printing"): a concurrent cancel wins the row, the failure
+    #  stays visible via logs — user decision 2026-07-12)
     # (dispatch pending->printing CAS, its mirror, and the watchdog revert
     #  migrated into printer_lifecycle.transition — commit history has details)
     # --- main.py ---
