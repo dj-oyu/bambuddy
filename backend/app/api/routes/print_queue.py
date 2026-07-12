@@ -941,6 +941,7 @@ async def cancel_batch(
     pending_items = result.scalars().all()
     cancelled_count = 0
     for item in pending_items:
+        # lifecycle-polarity: CAS — scoped by the status=="pending" SELECT above.
         item.status = "cancelled"
         cancelled_count += 1
 
@@ -1202,6 +1203,7 @@ async def resume_queue_after_failure(
     )
     to_restore = restore_result.scalars().all()
     for skipped_item in to_restore:
+        # lifecycle-polarity: CAS — scoped by the status=="skipped" SELECT above.
         skipped_item.status = "pending"
         skipped_item.error_message = None
         skipped_item.completed_at = None
@@ -1244,6 +1246,7 @@ async def cancel_queue_item(
     if item.status not in ("pending",):
         raise HTTPException(400, f"Cannot cancel item with status '{item.status}'")
 
+    # lifecycle-polarity: CAS — explicit status guard above.
     item.status = "cancelled"
     item.completed_at = datetime.now(timezone.utc)
     await db.commit()
@@ -1315,6 +1318,9 @@ async def stop_queue_item(
         logger.warning("Failed to mark printer %s as user-stopped: %s", printer_id, _mark_err)
 
     # Update queue item status regardless - if printer is off, print is already stopped
+    # lifecycle-polarity: CAS on status (route raises unless 'printing') but
+    # intentionally FORCE w.r.t. printer connectivity — the cancel must stick
+    # even when stop_sent is False. Do NOT gate this on the stop command.
     item.status = "cancelled"
     item.completed_at = datetime.now(timezone.utc)
     item.error_message = "Stopped by user" if stop_sent else "Stopped by user (printer was offline)"

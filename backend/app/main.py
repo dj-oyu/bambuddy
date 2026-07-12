@@ -518,6 +518,8 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
         )
         items = result.scalars().all()
         for item in items:
+            # lifecycle-polarity: CAS — write set scoped by the
+            # status=="printing" SELECT just above (no awaits in between).
             item.status = "pending"
             item.started_at = None
         if items:
@@ -4490,6 +4492,8 @@ async def on_print_complete(printer_id: int, data: dict):
                 # "cancelled" so it matches the queue schema Literal.
                 if queue_status == "aborted":
                     queue_status = "cancelled"
+                # lifecycle-polarity: CAS — row selected with status=="printing",
+                # but an await runs before commit, leaving a small TOCTOU window.
                 item.status = queue_status
                 item.completed_at = datetime.now(timezone.utc)
                 if queue_status == "failed" and not item.error_message:
@@ -6209,6 +6213,7 @@ async def lifespan(app: FastAPI):
             aborted_items = result.scalars().all()
             if aborted_items:
                 for item in aborted_items:
+                    # lifecycle-polarity: CAS — startup migration scoped to 'aborted'.
                     item.status = "cancelled"
                 await db.commit()
                 logging.info("Fixed %d queue item(s) with invalid 'aborted' status → 'cancelled'", len(aborted_items))

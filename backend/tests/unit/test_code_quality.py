@@ -261,6 +261,206 @@ class TestModuleImports:
             pytest.fail("Failed to import modules:\n" + "\n".join(errors))
 
 
+# ---------------------------------------------------------------------------
+# print_queue.status write fence (lifecycle refactor, 2026-07-12)
+#
+# Motivated by the BMCU double-feed incident: a helper force-wrote a live
+# "printing" job back to "pending" and the printer received the project twice.
+# Every write site to PrintQueueItem.status must be enumerated here with its
+# concurrency polarity:
+#   CAS   — guarded by a current-status check (explicit compare, status-scoped
+#           SELECT, or UPDATE ... WHERE status IN (...) + rowcount).
+#   FORCE — unconditional write (error paths, intentional overrides).
+# New writes smuggled in (e.g. via upstream merges) fail this test until they
+# are reviewed and added here with an explicit polarity. Removed sites also
+# fail (delete the stale entry) — the shrinking allowlist is the migration
+# progress meter for backend/app/services/printer_lifecycle.py.
+# ---------------------------------------------------------------------------
+
+PQ_MODEL_NAME = "PrintQueueItem"
+
+# (path relative to backend/app, function, kind, value) -> (count, polarity)
+ALLOWED_PQ_STATUS_WRITES = {
+    # --- services/print_scheduler.py ---
+    # stale pending-SELECT with awaits before the write: effectively FORCE (TOCTOU)
+    ("services/print_scheduler.py", "check_queue", "attr", "'skipped'"): (2, "FORCE(stale-pending-select)"),
+    # error paths in _start_print; no current-status guard, may clobber a concurrent cancel
+    ("services/print_scheduler.py", "_start_print", "attr", "'failed'"): (10, "FORCE(error-path)"),
+    # canonical CAS: UPDATE ... WHERE status=='pending' + rowcount check (#1853)
+    ("services/print_scheduler.py", "_start_print", "bulk", "'printing'"): (1, "CAS(update-where-rowcount)"),
+    # in-memory mirror executed only after the bulk CAS above succeeded
+    ("services/print_scheduler.py", "_start_print", "attr", "'printing'"): (1, "CAS(mirror-of-bulk-cas)"),
+    # _do_revert: explicit `item.status != "printing"` recheck before write
+    ("services/print_scheduler.py", "_watchdog_print_start", "attr", "'pending'"): (1, "CAS(status-recheck)"),
+    # --- main.py ---
+    # HMS auto-clear requeue: SELECT scoped to status=='printing' (fw-truth gated, d9e81190)
+    ("main.py", "_requeue_print_rejected_by_hms", "attr", "'pending'"): (1, "CAS(select-scoped)"),
+    # print-complete handler: SELECT scoped 'printing', but an await sits before commit (TOCTOU window)
+    ("main.py", "on_print_complete", "attr", "<dynamic>"): (1, "CAS(select-scoped,pre-commit-await)"),
+    # startup data migration aborted->cancelled
+    ("main.py", "lifespan", "attr", "'cancelled'"): (1, "CAS(startup-migration)"),
+    # --- api/routes/print_queue.py ---
+    ("api/routes/print_queue.py", "add_to_queue", "ctor", "'pending'"): (1, "CREATE"),
+    ("api/routes/print_queue.py", "cancel_batch", "attr", "'cancelled'"): (1, "CAS(select-scoped)"),
+    ("api/routes/print_queue.py", "resume_queue_after_failure", "attr", "'pending'"): (1, "CAS(select-scoped)"),
+    ("api/routes/print_queue.py", "cancel_queue_item", "attr", "'cancelled'"): (1, "CAS(explicit-guard)"),
+    # /stop: CAS on status (raises unless 'printing') but intentionally cancels
+    # even when the printer is offline / stop command failed — do NOT weaken.
+    ("api/routes/print_queue.py", "stop_queue_item", "attr", "'cancelled'"): (1, "CAS(status)+FORCE(connectivity)"),
+    # --- api/routes/pipeline_runs.py ---
+    # python-level guard `status in ("pending","queued")`, commit later in loop (small TOCTOU)
+    ("api/routes/pipeline_runs.py", "_make_orchestration_callable", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
+    ("api/routes/pipeline_runs.py", "_make_orchestration_callable", "ctor", "'pending'"): (1, "CREATE"),
+    ("api/routes/pipeline_runs.py", "cancel_run", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
+    # --- other creators ---
+    ("api/routes/library.py", "add_files_to_queue", "ctor", "'pending'"): (1, "CREATE"),
+    ("services/virtual_printer/manager.py", "_add_to_print_queue", "ctor", "'pending'"): (1, "CREATE"),
+    # --- core/database.py ---
+    # startup migration #1667: raw SQL scoped by WHERE pq.status='skipped'
+    ("core/database.py", "run_migrations", "rawsql", "<sql>"): (1, "CAS(sql-scoped)"),
+}
+
+
+def _pq_subtree_names(node) -> set[str]:
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+
+class PrintQueueStatusWriteScanner:
+    """Find PrintQueueItem.status writes in one function via light taint tracking.
+
+    A variable is 'tainted' (treated as a PrintQueueItem) when bound from an
+    expression mentioning PrintQueueItem, or from another tainted name.
+    Binding from an expression that mentions a DIFFERENT class-like name
+    clears the taint (e.g. `batch = db.get(PrintBatch, ...)` reusing a name).
+    Attribute/subscript writes never rebind, so they never change taint.
+    """
+
+    def __init__(self):
+        self.tainted: set[str] = set()
+        self.findings: list[tuple[int, str, str]] = []  # (lineno, kind, value_repr)
+
+    @staticmethod
+    def _class_like(names: set[str]) -> set[str]:
+        return {n for n in names if n[:1].isupper() and n != PQ_MODEL_NAME}
+
+    def _apply_taint(self, rhs_names: set[str], target_names: set[str]):
+        if PQ_MODEL_NAME in rhs_names:
+            self.tainted |= target_names
+        elif self._class_like(rhs_names):
+            self.tainted -= target_names
+        elif rhs_names & self.tainted:
+            self.tainted |= target_names
+
+    def _taint_pass(self, nodes):
+        for _ in range(2):  # simple fixpoint
+            for node in nodes:
+                if isinstance(node, ast.Assign) and node.value is not None:
+                    tgts = set()
+                    for tgt in node.targets:
+                        if isinstance(tgt, ast.Name):
+                            tgts.add(tgt.id)
+                        elif isinstance(tgt, (ast.Tuple, ast.List)):
+                            tgts |= {e.id for e in tgt.elts if isinstance(e, ast.Name)}
+                    if tgts:
+                        self._apply_taint(_pq_subtree_names(node.value), tgts)
+                elif isinstance(node, (ast.For, ast.AsyncFor)):
+                    tgts = {n.id for n in ast.walk(node.target) if isinstance(n, ast.Name)}
+                    self._apply_taint(_pq_subtree_names(node.iter), tgts)
+
+    @staticmethod
+    def _value_repr(node) -> str:
+        if isinstance(node, ast.Constant):
+            return repr(node.value)
+        return "<dynamic>"
+
+    def scan(self, func_node):
+        nodes = list(ast.walk(func_node))
+        self._taint_pass(nodes)
+        for node in nodes:
+            if isinstance(node, ast.Assign):
+                for tgt in node.targets:
+                    if (
+                        isinstance(tgt, ast.Attribute)
+                        and tgt.attr == "status"
+                        and isinstance(tgt.value, ast.Name)
+                        and tgt.value.id in self.tainted
+                    ):
+                        self.findings.append((node.lineno, "attr", self._value_repr(node.value)))
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == PQ_MODEL_NAME:
+                    for kw in node.keywords:
+                        if kw.arg == "status":
+                            self.findings.append((node.lineno, "ctor", self._value_repr(kw.value)))
+                if isinstance(node.func, ast.Attribute) and node.func.attr == "values":
+                    for kw in node.keywords:
+                        if kw.arg == "status" and PQ_MODEL_NAME in _pq_subtree_names(node):
+                            self.findings.append((node.lineno, "bulk", self._value_repr(kw.value)))
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                lowered = node.value.lower()
+                if "update print_queue" in lowered and "status" in lowered:
+                    self.findings.append((node.lineno, "rawsql", "<sql>"))
+
+
+def find_pq_status_writes(file_path: Path) -> list[tuple[str, int, str, str]]:
+    """Return (function, lineno, kind, value_repr) for PrintQueueItem.status writes."""
+    try:
+        tree = ast.parse(file_path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return []
+    results = []
+    seen = set()
+    for func in ast.walk(tree):
+        if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        scanner = PrintQueueStatusWriteScanner()
+        scanner.scan(func)
+        for lineno, kind, value in scanner.findings:
+            # nested functions are walked by both the outer and inner pass;
+            # keep the first (outermost) attribution only
+            if (lineno, kind) not in seen:
+                seen.add((lineno, kind))
+                results.append((func.name, lineno, kind, value))
+    return results
+
+
+class TestPrintQueueStatusFence:
+    """Fence: every PrintQueueItem.status write must be allowlisted with polarity."""
+
+    def test_all_status_writes_are_allowlisted(self):
+        found: dict[tuple[str, str, str, str], list[int]] = {}
+        for py_file in get_python_files(BACKEND_DIR):
+            rel = str(py_file.relative_to(BACKEND_DIR))
+            for func, lineno, kind, value in find_pq_status_writes(py_file):
+                found.setdefault((rel, func, kind, value), []).append(lineno)
+
+        errors = []
+        for key, linenos in sorted(found.items()):
+            allowed = ALLOWED_PQ_STATUS_WRITES.get(key)
+            if allowed is None:
+                errors.append(
+                    f"UNREVIEWED write site: {key[0]}:{sorted(linenos)} in {key[1]}() "
+                    f"[{key[2]} -> {key[3]}] — review its CAS/FORCE polarity and add "
+                    f"it to ALLOWED_PQ_STATUS_WRITES (or route it through printer_lifecycle)."
+                )
+            elif len(linenos) > allowed[0]:
+                errors.append(
+                    f"NEW write site(s): {key[0]} in {key[1]}() [{key[2]} -> {key[3]}] "
+                    f"found {len(linenos)} at lines {sorted(linenos)}, allowlist permits {allowed[0]}."
+                )
+        for key, (count, polarity) in sorted(ALLOWED_PQ_STATUS_WRITES.items()):
+            n_found = len(found.get(key, []))
+            if n_found < count:
+                errors.append(
+                    f"STALE allowlist entry: {key} [{polarity}] expects {count} site(s), found {n_found} "
+                    f"— if the write moved into printer_lifecycle, shrink/remove the entry."
+                )
+
+        if errors:
+            pytest.fail(
+                "print_queue.status write fence violations:\n  " + "\n  ".join(errors)
+            )
+
+
 class TestLogErrorPatterns:
     """Tests that use log capture to detect runtime errors."""
 

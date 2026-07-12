@@ -363,6 +363,8 @@ class PrintScheduler:
                     # Check condition (previous print success)
                     if item.require_previous_success:
                         if not await self._check_previous_success(db, item):
+                            # lifecycle-polarity: FORCE — pending SELECT is stale
+                            # by now (awaits since); no current-status recheck.
                             item.status = "skipped"
                             item.error_message = "Previous print failed or was aborted"
                             item.completed_at = datetime.now(timezone.utc)
@@ -476,6 +478,8 @@ class PrintScheduler:
                         # Check condition (previous print success) before assigning
                         if item.require_previous_success:
                             if not await self._check_previous_success(db, item):
+                                # lifecycle-polarity: FORCE — stale pending SELECT,
+                                # no current-status recheck.
                                 item.status = "skipped"
                                 item.error_message = "Previous print failed or was aborted"
                                 item.completed_at = datetime.now(timezone.utc)
@@ -2560,6 +2564,12 @@ class PrintScheduler:
         Supports two sources:
         - archive_id: Print from an existing archive
         - library_file_id: Print from a library file (file manager)
+
+        lifecycle-polarity: every `item.status = "failed"` error path in this
+        function is FORCE — written without a current-status guard, so it can
+        clobber a concurrent user cancel (cancelled -> failed). The only CAS
+        transition is the pending -> printing bulk UPDATE (+ rowcount check,
+        #1853) and its in-memory mirror.
         """
         logger.info("Starting queue item %s", item.id)
 
@@ -2964,6 +2974,7 @@ class PrintScheduler:
             return
         # Sync the in-memory item so subsequent code that reads item.status /
         # item.started_at sees the values we just persisted.
+        # lifecycle-polarity: CAS — mirror of the rowcount-checked UPDATE above.
         item.status = "printing"
         item.started_at = now_utc
 
@@ -3290,6 +3301,7 @@ class PrintScheduler:
             item = await db.get(PrintQueueItem, queue_item_id)
             if not item or item.status != "printing":
                 return "already_moved_on"
+            # lifecycle-polarity: CAS — guarded by the status recheck above.
             item.status = "pending"
             item.started_at = None
             await db.commit()

@@ -597,6 +597,8 @@ def _make_orchestration_callable(
                             await session.execute(select(PrintQueueItem).where(PrintQueueItem.id == job.queue_entry_id))
                         ).scalar_one_or_none()
                         if qe is not None and qe.status in ("pending", "queued"):
+                            # lifecycle-polarity: CAS — python-level guard;
+                            # commit after loop (small TOCTOU window).
                             qe.status = "cancelled"
                     if job.status not in ("completed", "failed", "cancelled"):
                         job.status = "cancelled"
@@ -887,6 +889,8 @@ async def cancel_run(
                 await db.execute(select(PrintQueueItem).where(PrintQueueItem.id == job.queue_entry_id))
             ).scalar_one_or_none()
             if queue_entry is not None and queue_entry.status in ("pending", "queued"):
+                # lifecycle-polarity: CAS — python-level guard; commit happens
+                # after later loop awaits (small TOCTOU window).
                 queue_entry.status = "cancelled"
         if job.status not in ("completed", "failed", "cancelled"):
             job.status = "cancelled"
