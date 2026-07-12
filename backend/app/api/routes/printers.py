@@ -497,6 +497,20 @@ async def get_printer_status(
     # needs the cache to render "<filament> @ <temp>°C".
     drying_targets = printer_manager.get_drying_targets(printer_id) or {}
 
+    # Filament-spoof: pending rows have no overlay marker yet — surface them
+    # from the live client snapshot so the UI can render a pending badge.
+    _spoof_pending: dict[tuple, dict] = {}
+    try:
+        _sp_client = printer_manager.get_client(printer_id)
+        for _sp in getattr(_sp_client, "_active_spoofs", []) or []:
+            if _sp.get("state") == "PENDING":
+                _spoof_pending[(int(_sp["backup_ams_id"]), int(_sp["backup_tray_id"]))] = {
+                    "ams_id": _sp.get("primary_ams_id"),
+                    "tray_id": _sp.get("primary_tray_id"),
+                }
+    except Exception:
+        pass
+
     if "ams" in raw_data and isinstance(raw_data["ams"], list):
         ams_exists = True
         for ams_data in raw_data["ams"]:
@@ -519,6 +533,26 @@ async def get_printer_status(
                 if k_value is None and cali_idx is not None and cali_idx in kprofile_map:
                     k_value = kprofile_map[cali_idx]
 
+                # Filament-spoof status: overlay marker = confirmed ("active"),
+                # otherwise a PENDING row renders as "pending". Mirrors the
+                # WebSocket serializer in printer_manager.printer_state_to_dict.
+                _spoof_marker = tray_data.get("_spoof")
+                _spoof_state = None
+                _spoof_primary = None
+                if _spoof_marker:
+                    _spoof_state = "active"
+                    _spoof_primary = {
+                        "ams_id": _spoof_marker.get("ams_id"),
+                        "tray_id": _spoof_marker.get("tray_id"),
+                    }
+                else:
+                    _pend = _spoof_pending.get(
+                        (int(ams_data.get("id", 0)), int(tray_data.get("id", 0)))
+                    )
+                    if _pend:
+                        _spoof_state = "pending"
+                        _spoof_primary = _pend
+
                 trays.append(
                     AMSTray(
                         id=tray_data.get("id", 0),
@@ -537,6 +571,9 @@ async def get_printer_status(
                         drying_temp=tray_data.get("drying_temp"),
                         drying_time=tray_data.get("drying_time"),
                         state=tray_data.get("state"),
+                        is_spoofed_backup=_spoof_state is not None,
+                        spoof_state=_spoof_state,
+                        spoof_primary=_spoof_primary,
                     )
                 )
             # Prefer humidity_raw (percentage) over humidity (index 1-5)
