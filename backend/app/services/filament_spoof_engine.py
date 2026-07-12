@@ -64,6 +64,13 @@ def _resend_interval_s() -> float:
         return 20.0
 
 
+# Release an ENGAGED row only after this many consecutive mismatching
+# reconciles spanning at least this many seconds — printer/BMCU reboots
+# briefly report empty or stale identities that must not count as evidence.
+_RELEASE_MISMATCH_STREAK = 3
+_RELEASE_MISMATCH_SPAN_S = 30.0
+
+
 def _confirm_timeout_s() -> float:
     """Seconds to wait for firmware to confirm a spoof write before FAILED."""
     try:
@@ -133,6 +140,8 @@ class FilamentSpoofEngine:
         # Confirm-loop task per backup slot so a release+re-engage doesn't
         # stack duplicate resend timers.
         self._confirm_tasks: dict[tuple, asyncio.Task] = {}
+        # Consecutive-mismatch tracker for the hardened ENGAGED-release rule.
+        self._mismatch_streak: dict[tuple, tuple] = {}
 
     # ---- infrastructure -------------------------------------------------
 
@@ -950,20 +959,56 @@ class FilamentSpoofEngine:
                                 printer_id, timeout, row.backup_ams_id, row.backup_tray_id,
                             )
                 elif row.state == "ENGAGED":
-                    # Positive-evidence release only.
-                    if fw is not None and not matches:
+                    # Positive-evidence release only — hardened against printer
+                    # REBOOT transients (observed 2026-07-12: during BMCU boot
+                    # the tray is briefly reported with an empty/changed identity,
+                    # which released a healthy row even though the persisted
+                    # spoof came back seconds later):
+                    #   * an empty tray_info_idx is re-detection, not evidence;
+                    #   * a genuine mismatch must persist across several
+                    #     consecutive reconciles AND a minimum wall-clock span.
+                    if self._note_identity_mismatch(printer_id, row, fw, matches, now):
                         row.state = "RELEASED"
                         row.released_at = now
                         changed = True
-                        logger.info(
-                            "[%s] Filament spoof revalidation dropped (firmware identity changed): "
-                            "backup AMS %s tray %s",
-                            printer_id, row.backup_ams_id, row.backup_tray_id,
-                        )
             if changed:
                 await db.commit()
         if changed:
             await self.refresh_client(printer_id)
+
+    def _note_identity_mismatch(self, printer_id: int, row, fw, matches: bool, now) -> bool:
+        """Hardened ENGAGED-release rule. Returns True when release is warranted.
+
+        Printer/BMCU reboots briefly report empty or stale identities that must
+        not count as evidence (observed 2026-07-12: a healthy row was released
+        during a power-cycle even though the persisted spoof came back seconds
+        later). Release requires a REAL identity mismatch observed on
+        _RELEASE_MISMATCH_STREAK consecutive reconciles spanning at least
+        _RELEASE_MISMATCH_SPAN_S seconds; empty tray_info_idx (re-detection) and
+        matches reset the streak.
+        """
+        key = (printer_id, row.backup_ams_id, row.backup_tray_id)
+        if matches or fw is None or not (fw.get("tray_info_idx") or "").strip():
+            self._mismatch_streak.pop(key, None)
+            return False
+        count, first_ts = self._mismatch_streak.get(key, (0, now))
+        count += 1
+        self._mismatch_streak[key] = (count, first_ts)
+        elapsed = (now - first_ts).total_seconds()
+        if count >= _RELEASE_MISMATCH_STREAK and elapsed >= _RELEASE_MISMATCH_SPAN_S:
+            self._mismatch_streak.pop(key, None)
+            logger.info(
+                "[%s] Filament spoof revalidation dropped (firmware identity changed, "
+                "%d observations over %.0fs): backup AMS %s tray %s",
+                printer_id, count, elapsed, row.backup_ams_id, row.backup_tray_id,
+            )
+            return True
+        logger.debug(
+            "[%s] spoof identity mismatch %d/%d (%.0fs) for AMS %s tray %s — holding",
+            printer_id, count, _RELEASE_MISMATCH_STREAK, elapsed,
+            row.backup_ams_id, row.backup_tray_id,
+        )
+        return False
 
     async def revalidate(self, printer_id: int) -> int:
         """Positive-evidence revalidation of ENGAGED/PENDING rows on connect.
@@ -989,13 +1034,10 @@ class FilamentSpoofEngine:
                     row.confirmed_at = now
                     changed += 1
                 elif row.state == "ENGAGED" and not matches:
-                    row.state = "RELEASED"
-                    row.released_at = now
-                    changed += 1
-                    logger.info(
-                        "[%s] Filament spoof revalidation dropped stale row: backup AMS %s tray %s",
-                        printer_id, row.backup_ams_id, row.backup_tray_id,
-                    )
+                    if self._note_identity_mismatch(printer_id, row, fw, matches, now):
+                        row.state = "RELEASED"
+                        row.released_at = now
+                        changed += 1
             if changed:
                 await db.commit()
         return changed

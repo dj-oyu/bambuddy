@@ -318,7 +318,10 @@ async def test_revalidate_keeps_row_when_no_firmware_data(session_maker):
 
 
 @pytest.mark.asyncio
-async def test_revalidate_drops_on_positive_evidence(session_maker):
+async def test_revalidate_drops_on_positive_evidence(session_maker, monkeypatch):
+    # Release now requires a sustained mismatch (streak + span) — patch the
+    # span to 0 so three consecutive observations suffice in the test.
+    monkeypatch.setattr(fse_mod, "_RELEASE_MISMATCH_SPAN_S", 0.0)
     client = _fake_client()
     eng = _engine_with(client)
     await eng.engage(1, (0, 0), (0, 1))
@@ -330,9 +333,45 @@ async def test_revalidate_drops_on_positive_evidence(session_maker):
     assert (await _rows(session_maker))[0].state == "ENGAGED"
     b["tray_info_idx"] = "GFZ99"
     b["tray_color"] = "00FF00FF"
-    changed = await eng.revalidate(1)
+    assert await eng.revalidate(1) == 0  # 1st mismatch — held
+    assert await eng.revalidate(1) == 0  # 2nd mismatch — held
+    changed = await eng.revalidate(1)    # 3rd — sustained, released
     assert changed == 1
     assert (await _rows(session_maker))[0].state == "RELEASED"
+
+
+@pytest.mark.asyncio
+async def test_reboot_transient_does_not_release(session_maker, monkeypatch):
+    # Regression (2026-07-12): during a printer/BMCU power-cycle the tray is
+    # briefly reported with an empty identity, which must NOT release the row.
+    monkeypatch.setattr(fse_mod, "_RELEASE_MISMATCH_SPAN_S", 0.0)
+    client = _fake_client()
+    eng = _engine_with(client)
+    await eng.engage(1, (0, 0), (0, 1))
+    b = client.state.raw_data["ams"][0]["tray"][1]
+    b["tray_info_idx"] = "GFA00"
+    b["tray_color"] = "FF0000FF"
+    await eng._reconcile(1)
+    assert (await _rows(session_maker))[0].state == "ENGAGED"
+
+    # Boot transient: empty identity — never counts as evidence, any number of times.
+    b["tray_info_idx"] = ""
+    b["tray_color"] = None
+    for _ in range(5):
+        assert await eng.revalidate(1) == 0
+    assert (await _rows(session_maker))[0].state == "ENGAGED"
+
+    # A brief real mismatch that recovers also resets the streak.
+    b["tray_info_idx"] = "GFZ99"
+    b["tray_color"] = "00FF00FF"
+    await eng.revalidate(1)
+    b["tray_info_idx"] = "GFA00"
+    b["tray_color"] = "FF0000FF"
+    await eng.revalidate(1)  # match → streak reset
+    b["tray_info_idx"] = "GFZ99"
+    b["tray_color"] = "00FF00FF"
+    assert await eng.revalidate(1) == 0  # streak restarted at 1
+    assert (await _rows(session_maker))[0].state == "ENGAGED"
 
 
 # ---- BMCU write acceptance (setting_id) + confirmation timer ------------
