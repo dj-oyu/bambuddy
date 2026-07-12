@@ -27,14 +27,12 @@ import pytest
 from backend.app.main import _requeue_print_rejected_by_hms
 
 
-def _client(printer_state, ams_status_main=0):
+def _client(printer_state, ams_status_main=0, connected=True):
     """printer_state maps to PrinterState.state (there is no gcode_state attr —
     the pre-fix helper read that nonexistent name and always got None)."""
-    return SimpleNamespace(state=SimpleNamespace(state=printer_state, ams_status_main=ams_status_main))
-
-
-def _run(printer_id=1):
-    return asyncio.get_event_loop().run_until_complete(_requeue_print_rejected_by_hms(printer_id, "0500_409D"))
+    return SimpleNamespace(
+        state=SimpleNamespace(state=printer_state, ams_status_main=ams_status_main, connected=connected)
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -107,6 +105,21 @@ class TestGates:
         with (
             patch("backend.app.services.printer_manager.printer_manager.get_client", return_value=_client("FINISH")),
             patch("backend.app.services.print_scheduler.scheduler.printer_in_dispatch_hold", return_value=True),
+            patch("backend.app.main.async_session", FakeSession),
+        ):
+            asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))
+        assert item.status == "printing"
+        assert FakeSession.committed is False
+
+    def test_disconnected_blocks_requeue(self, db_session):
+        """Disconnected printer: all state (incl. ams_status_main) may be stale
+        from the dead session — never requeue on it."""
+        FakeSession, item = db_session
+        with (
+            patch(
+                "backend.app.services.printer_manager.printer_manager.get_client",
+                return_value=_client("IDLE", connected=False),
+            ),
             patch("backend.app.main.async_session", FakeSession),
         ):
             asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))

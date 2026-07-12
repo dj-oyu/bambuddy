@@ -1495,7 +1495,9 @@ class PrintScheduler:
 
         Exposed for external actors (the HMS auto-clear requeue helper) that
         must not revert queue state while a just-sent print command is still
-        inside its acceptance window.
+        inside its acceptance window. Not a pure read: expired holds are
+        popped from ``_dispatch_holds`` as a side effect (idempotent — the
+        scheduler loop performs the same pop).
         """
         return self._printer_in_dispatch_hold(printer_id)
 

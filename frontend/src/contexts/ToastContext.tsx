@@ -317,10 +317,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {/* Toast Container — to the left of the bug-report bubble (bottom-4 right-4 w-12)
           on ≥sm screens; on narrow (mobile) viewports it sits above the bubble instead,
           and toasts are capped to the viewport width — a fixed 420px dispatch toast at
-          right-20 was rendered almost entirely off-screen on phones. The kiosk layout
+          right-20 was rendered almost entirely off-screen on phones. Mobile z stays
+          below the bug-report panel (bottom-20 right-4 z-50) so an active toast can't
+          block the panel's controls at the shared anchor. The kiosk layout
           suppresses this entire viewport so SpoolBuddy displays stay free of main-app
           notifications. */}
-      <div className={`fixed bottom-20 sm:bottom-4 right-4 sm:right-20 z-[60] flex flex-col items-end gap-2 max-w-[calc(100vw-2rem)] ${viewportSuppressed ? 'hidden' : ''}`}>
+      <div className={`fixed bottom-20 sm:bottom-4 right-4 sm:right-20 z-40 sm:z-[60] flex flex-col items-end gap-2 max-w-[calc(100vw-2rem)] ${viewportSuppressed ? 'hidden' : ''}`}>
         {toasts.map((toast) => (
           <div
             key={toast.id}

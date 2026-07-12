@@ -490,6 +490,11 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
         # accept) it — the wedge watchdog owns the dead-or-alive decision here.
         log.info("[HMS] Skipping requeue on printer %s: inside post-dispatch hold", printer_id)
         return
+    if not getattr(printer_state, "connected", False):
+        # Disconnected — state (including ams_status_main) may be stale from the
+        # dead session; nothing sane to decide here. Fail safe, do nothing.
+        log.info("[HMS] Skipping requeue on printer %s: printer not connected", printer_id)
+        return
     if getattr(printer_state, "ams_status_main", 0) != 0:
         # AMS/BMCU is mid-motion (filament change, RFID, assist, calibration) —
         # the printer is doing something even though gcode_state says idle.
