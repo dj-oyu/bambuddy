@@ -140,3 +140,18 @@ class TestActiveJobStale:
     def test_none_state_fields_treated_as_empty(self):
         stale, _ = active_job_stale("task-1", SimpleNamespace(state=None, subtask_id=None, subtask_name=None))
         assert stale is False
+
+
+class TestVocabularyAliases:
+    def test_printer_manager_class_attr_matches_lifecycle(self):
+        # PrinterManager.ACTIVE_PRINT_STATES is kept as a tuple for
+        # compatibility; is_print_active itself delegates to the lifecycle
+        # predicate, so a drift between the two would be a silent lie.
+        from backend.app.services.printer_manager import PrinterManager
+
+        assert set(PrinterManager.ACTIVE_PRINT_STATES) == ACTIVE_PRINT_STATES
+
+    def test_scheduler_watchdog_set_is_lifecycle_set(self):
+        from backend.app.services.print_scheduler import _ACTIVE_PRINT_STATES
+
+        assert _ACTIVE_PRINT_STATES == ACTIVE_PRINT_STATES

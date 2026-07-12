@@ -126,7 +126,7 @@ class _UploadProgressBridge:
 # a post-print prompt) is NOT a valid "command landed" signal even though the
 # state value did change. SLICING is included because some firmwares park
 # briefly in SLICING between PREPARE and RUNNING while parsing the g-code.
-_ACTIVE_PRINT_STATES: frozenset[str] = frozenset({"PREPARE", "SLICING", "RUNNING", "PAUSE"})
+_ACTIVE_PRINT_STATES: frozenset[str] = printer_lifecycle.ACTIVE_PRINT_STATES
 
 # Filament type equivalence groups — types within the same group are
 # interchangeable on the printer side (Bambu Lab firmware treats them as compatible).
@@ -1562,7 +1562,7 @@ class PrintScheduler:
             )
             return False
 
-        idle = state.state in ("IDLE", "FINISH", "FAILED")
+        idle = state.state in printer_lifecycle.TERMINAL_GCODE_STATES
         if not idle:
             logger.debug("Printer %d: not idle — state=%s", printer_id, state.state)
         return idle
