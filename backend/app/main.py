@@ -508,6 +508,7 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
     from sqlalchemy import select as _select
 
     from backend.app.models.print_queue import PrintQueueItem
+    from backend.app.services import printer_lifecycle
 
     async with async_session() as db:
         result = await db.execute(
@@ -517,16 +518,26 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
             )
         )
         items = result.scalars().all()
+        requeued = 0
         for item in items:
-            # lifecycle-polarity: CAS — write set scoped by the
-            # status=="printing" SELECT just above (no awaits in between).
-            item.status = "pending"
-            item.started_at = None
-        if items:
-            await db.commit()
+            # lifecycle-polarity: CAS on ("printing",) — a concurrent terminal
+            # write (completion handler / user stop) wins the row and we skip it.
+            cas = await printer_lifecycle.transition(
+                db,
+                item.id,
+                to_status="pending",
+                from_states=("printing",),
+                reason=f"HMS auto-clear requeue ({short_code})",
+                caller="main._requeue_print_rejected_by_hms",
+                extra={"started_at": None},
+                item=item,
+            )
+            if cas:
+                requeued += 1
+        if requeued:
             log.info(
                 "[HMS] Requeued %d stuck queue item(s) on printer %s after auto-clearing %s (printer state=%s)",
-                len(items), printer_id, short_code, state,
+                requeued, printer_id, short_code, state,
             )
 
 # Track timelapse file baselines at print start: {printer_id: set of video filenames}
@@ -4492,12 +4503,29 @@ async def on_print_complete(printer_id: int, data: dict):
                 # "cancelled" so it matches the queue schema Literal.
                 if queue_status == "aborted":
                     queue_status = "cancelled"
-                # lifecycle-polarity: CAS — row selected with status=="printing",
-                # but an await runs before commit, leaving a small TOCTOU window.
-                item.status = queue_status
-                item.completed_at = datetime.now(timezone.utc)
+                extra = {"completed_at": datetime.now(timezone.utc)}
                 if queue_status == "failed" and not item.error_message:
-                    item.error_message = _format_hms_error_summary(data.get("hms_errors") or [])
+                    extra["error_message"] = _format_hms_error_summary(data.get("hms_errors") or [])
+                # lifecycle-polarity: CAS on ("printing",). commit=False keeps
+                # the pre-existing "bump usage, then one commit" ordering; the
+                # CAS UPDATE itself closes the old set-attr TOCTOU window.
+                from backend.app.services import printer_lifecycle
+
+                cas = await printer_lifecycle.transition(
+                    db,
+                    item.id,
+                    to_status=queue_status,
+                    from_states=("printing",),
+                    reason=f"print complete ({queue_status})",
+                    caller="main._update_queue_status",
+                    extra=extra,
+                    item=item,
+                    commit=False,
+                )
+                if not cas:
+                    # Another writer (user stop, requeue) won the row between
+                    # our SELECT and the UPDATE — skip side effects.
+                    return
 
                 # Bump usage counters on the source library file so admins can
                 # sort by "last printed" and (eventually) auto-purge stale

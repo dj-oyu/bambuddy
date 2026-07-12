@@ -292,23 +292,19 @@ ALLOWED_PQ_STATUS_WRITES = {
     # (dispatch pending->printing CAS, its mirror, and the watchdog revert
     #  migrated into printer_lifecycle.transition — commit history has details)
     # --- main.py ---
-    # HMS auto-clear requeue: SELECT scoped to status=='printing' (fw-truth gated, d9e81190)
-    ("main.py", "_requeue_print_rejected_by_hms", "attr", "'pending'"): (1, "CAS(select-scoped)"),
-    # print-complete handler: SELECT scoped 'printing', but an await sits before commit (TOCTOU window)
-    ("main.py", "_update_queue_status", "attr", "<dynamic>"): (1, "CAS(select-scoped,pre-commit-await)"),
+    # (HMS requeue + _update_queue_status migrated to printer_lifecycle.transition
+    #  -> CAS on ("printing",): a concurrent terminal write wins the row)
     # --- api/routes/print_queue.py ---
+    # (cancel_batch / resume_queue_after_failure / cancel_queue_item /
+    #  stop_queue_item migrated to printer_lifecycle.transition. /stop keeps
+    #  its documented polarity: CAS on status, FORCE w.r.t. printer
+    #  connectivity — the cancel sticks even when the stop command failed.)
     ("api/routes/print_queue.py", "add_to_queue", "ctor", "'pending'"): (1, "CREATE"),
-    ("api/routes/print_queue.py", "cancel_batch", "attr", "'cancelled'"): (1, "CAS(select-scoped)"),
-    ("api/routes/print_queue.py", "resume_queue_after_failure", "attr", "'pending'"): (1, "CAS(select-scoped)"),
-    ("api/routes/print_queue.py", "cancel_queue_item", "attr", "'cancelled'"): (1, "CAS(explicit-guard)"),
-    # /stop: CAS on status (raises unless 'printing') but intentionally cancels
-    # even when the printer is offline / stop command failed — do NOT weaken.
-    ("api/routes/print_queue.py", "stop_queue_item", "attr", "'cancelled'"): (1, "CAS(status)+FORCE(connectivity)"),
     # --- api/routes/pipeline_runs.py ---
-    # python-level guard `status in ("pending","queued")`, commit later in loop (small TOCTOU)
-    ("api/routes/pipeline_runs.py", "_orchestrate", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
+    # (_orchestrate dispatch-window cancel + cancel_run migrated to
+    #  printer_lifecycle.transition -> CAS on ("pending","queued"),
+    #  commit=False preserving the caller-owned commit)
     ("api/routes/pipeline_runs.py", "_orchestrate", "ctor", "'pending'"): (1, "CREATE"),
-    ("api/routes/pipeline_runs.py", "cancel_run", "attr", "'cancelled'"): (1, "CAS(python-guard,pre-commit-await)"),
     # --- other creators ---
     ("api/routes/library.py", "add_files_to_queue", "ctor", "'pending'"): (1, "CREATE"),
     ("services/virtual_printer/manager.py", "_add_to_print_queue", "ctor", "'pending'"): (1, "CREATE"),

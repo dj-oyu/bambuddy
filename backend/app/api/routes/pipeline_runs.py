@@ -56,6 +56,7 @@ from backend.app.schemas.pipeline_run import (
     PipelineRunResponse,
 )
 from backend.app.schemas.slicer import PresetRef, SliceRequest
+from backend.app.services import printer_lifecycle
 from backend.app.services.pipeline_eligibility import (
     EligibilityReport,
     check_pipeline_eligibility,
@@ -593,13 +594,18 @@ def _make_orchestration_callable(
                 )
                 for job in jobs:
                     if job.queue_entry_id:
-                        qe = (
-                            await session.execute(select(PrintQueueItem).where(PrintQueueItem.id == job.queue_entry_id))
-                        ).scalar_one_or_none()
-                        if qe is not None and qe.status in ("pending", "queued"):
-                            # lifecycle-polarity: CAS — python-level guard;
-                            # commit after loop (small TOCTOU window).
-                            qe.status = "cancelled"
+                        # lifecycle-polarity: CAS on ("pending","queued") — a
+                        # dispatched/terminal row keeps its status. NOT_FOUND
+                        # (row deleted) is fine here, same as the old guard.
+                        await printer_lifecycle.transition(
+                            session,
+                            job.queue_entry_id,
+                            to_status="cancelled",
+                            from_states=("pending", "queued"),
+                            reason=f"pipeline_run {run_id} cancelled in dispatch window",
+                            caller="pipeline_runs._orchestrate",
+                            commit=False,
+                        )
                     if job.status not in ("completed", "failed", "cancelled"):
                         job.status = "cancelled"
                         job.completed_at = datetime.now(timezone.utc)
@@ -885,13 +891,17 @@ async def cancel_run(
     job_rows = (await db.execute(select(PipelineJob).where(PipelineJob.pipeline_run_id == run.id))).scalars().all()
     for job in job_rows:
         if job.queue_entry_id:
-            queue_entry = (
-                await db.execute(select(PrintQueueItem).where(PrintQueueItem.id == job.queue_entry_id))
-            ).scalar_one_or_none()
-            if queue_entry is not None and queue_entry.status in ("pending", "queued"):
-                # lifecycle-polarity: CAS — python-level guard; commit happens
-                # after later loop awaits (small TOCTOU window).
-                queue_entry.status = "cancelled"
+            # lifecycle-polarity: CAS on ("pending","queued") — an in-flight
+            # print keeps its row (operator must Stop it, per the docstring).
+            await printer_lifecycle.transition(
+                db,
+                job.queue_entry_id,
+                to_status="cancelled",
+                from_states=("pending", "queued"),
+                reason=f"pipeline_run {run_id} cancelled by user",
+                caller="pipeline_runs.cancel_run",
+                commit=False,
+            )
         if job.status not in ("completed", "failed", "cancelled"):
             job.status = "cancelled"
             job.completed_at = datetime.now(timezone.utc)

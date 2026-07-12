@@ -34,6 +34,7 @@ from backend.app.schemas.print_queue import (
     PrintQueueItemUpdate,
     PrintQueueReorder,
 )
+from backend.app.services import printer_lifecycle
 from backend.app.services.filament_deficit import compute_deficit_for_queue_item
 from backend.app.services.notification_service import notification_service
 from backend.app.utils.printer_models import normalize_printer_model, normalize_printer_model_id
@@ -941,9 +942,20 @@ async def cancel_batch(
     pending_items = result.scalars().all()
     cancelled_count = 0
     for item in pending_items:
-        # lifecycle-polarity: CAS — scoped by the status=="pending" SELECT above.
-        item.status = "cancelled"
-        cancelled_count += 1
+        # lifecycle-polarity: CAS on ("pending",) — a concurrent dispatch wins
+        # the row and that item is skipped (it is genuinely printing now).
+        cas = await printer_lifecycle.transition(
+            db,
+            item.id,
+            to_status="cancelled",
+            from_states=("pending",),
+            reason=f"batch {batch_id} cancelled",
+            caller="print_queue.cancel_batch",
+            item=item,
+            commit=False,
+        )
+        if cas:
+            cancelled_count += 1
 
     batch.status = "cancelled"
     await db.commit()
@@ -1202,11 +1214,23 @@ async def resume_queue_after_failure(
         .where(PrintQueueItem.error_message == "Previous print failed or was aborted")
     )
     to_restore = restore_result.scalars().all()
+    restored = 0
     for skipped_item in to_restore:
-        # lifecycle-polarity: CAS — scoped by the status=="skipped" SELECT above.
-        skipped_item.status = "pending"
-        skipped_item.error_message = None
-        skipped_item.completed_at = None
+        # lifecycle-polarity: CAS on ("skipped",) — anything that moved the row
+        # since the SELECT above keeps it; we only restore true gate-skips.
+        cas = await printer_lifecycle.transition(
+            db,
+            skipped_item.id,
+            to_status="pending",
+            from_states=("skipped",),
+            reason="resume after failure (gate cleared)",
+            caller="print_queue.resume_queue_after_failure",
+            extra={"error_message": None, "completed_at": None},
+            item=skipped_item,
+            commit=False,
+        )
+        if cas:
+            restored += 1
 
     await db.commit()
 
@@ -1214,9 +1238,9 @@ async def resume_queue_after_failure(
         "Resume after failure on printer %s: acknowledged %d failure(s), restored %d skipped item(s)",
         printer_id,
         len(to_ack),
-        len(to_restore),
+        restored,
     )
-    return {"acknowledged": len(to_ack), "restored": len(to_restore)}
+    return {"acknowledged": len(to_ack), "restored": restored}
 
 
 @router.post("/{item_id}/cancel")
@@ -1246,10 +1270,23 @@ async def cancel_queue_item(
     if item.status not in ("pending",):
         raise HTTPException(400, f"Cannot cancel item with status '{item.status}'")
 
-    # lifecycle-polarity: CAS — explicit status guard above.
-    item.status = "cancelled"
-    item.completed_at = datetime.now(timezone.utc)
-    await db.commit()
+    # lifecycle-polarity: CAS on ("pending",) — the guard above gives the fast
+    # 400, the CAS closes the race where a dispatch lands after the SELECT.
+    cas = await printer_lifecycle.transition(
+        db,
+        item.id,
+        to_status="cancelled",
+        from_states=("pending",),
+        reason="cancelled by user",
+        caller="print_queue.cancel_queue_item",
+        extra={"completed_at": datetime.now(timezone.utc)},
+        item=item,
+    )
+    if not cas:
+        raise HTTPException(
+            400,
+            f"Cannot cancel item with status '{cas.observed_status or 'removed'}'",
+        )
 
     logger.info("Cancelled queue item %s", item_id)
     return {"message": "Queue item cancelled"}
@@ -1318,13 +1355,30 @@ async def stop_queue_item(
         logger.warning("Failed to mark printer %s as user-stopped: %s", printer_id, _mark_err)
 
     # Update queue item status regardless - if printer is off, print is already stopped
-    # lifecycle-polarity: CAS on status (route raises unless 'printing') but
-    # intentionally FORCE w.r.t. printer connectivity — the cancel must stick
-    # even when stop_sent is False. Do NOT gate this on the stop command.
-    item.status = "cancelled"
-    item.completed_at = datetime.now(timezone.utc)
-    item.error_message = "Stopped by user" if stop_sent else "Stopped by user (printer was offline)"
-    await db.commit()
+    # lifecycle-polarity: CAS on ("printing",) (route raises unless 'printing')
+    # but intentionally FORCE w.r.t. printer connectivity — the cancel must
+    # stick even when stop_sent is False. Do NOT gate this on the stop command.
+    # A CAS mismatch here means on_print_complete already wrote a terminal
+    # status for this row; the stop command was still sent, nothing to undo.
+    cas = await printer_lifecycle.transition(
+        db,
+        item.id,
+        to_status="cancelled",
+        from_states=("printing",),
+        reason="stopped by user",
+        caller="print_queue.stop_queue_item",
+        extra={
+            "completed_at": datetime.now(timezone.utc),
+            "error_message": "Stopped by user" if stop_sent else "Stopped by user (printer was offline)",
+        },
+        item=item,
+    )
+    if not cas:
+        logger.warning(
+            "Queue item %s already left 'printing' (now %s) while /stop ran — keeping that status",
+            item_id,
+            cas.observed_status,
+        )
 
     logger.info("Stopped printing queue item %s (stop command sent: %s)", item_id, stop_sent)
 

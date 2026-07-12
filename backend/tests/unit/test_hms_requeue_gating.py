@@ -46,7 +46,7 @@ def _no_sleep(monkeypatch):
 @pytest.fixture
 def db_session():
     """Mock async_session; returns the mock DB and a captured items list."""
-    item = SimpleNamespace(status="printing", started_at="x")
+    item = SimpleNamespace(id=1, status="printing", started_at="x")
     result = MagicMock()
     result.scalars.return_value.all.return_value = [item]
 
