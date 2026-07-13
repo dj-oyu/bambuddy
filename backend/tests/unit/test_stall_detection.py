@@ -29,8 +29,18 @@ class TestStallCheck:
         assert app_main._stall_check(1, "PAUSE", 60.0) is False      # episode start
         assert app_main._stall_check(1, "PAUSE", 300.0) is False     # 240s elapsed
         assert app_main._stall_check(1, "PAUSE", 361.0) is True      # crossed 300s
-        assert app_main._stall_check(1, "PAUSE", 500.0) is False     # only once
+        app_main._stall_mark_notified(1)                             # send succeeded
+        assert app_main._stall_check(1, "PAUSE", 500.0) is False     # latched
         assert app_main._stall_episodes[1]["prev"] == "RUNNING"
+
+    def test_failed_send_retries_next_tick(self):
+        # The latch is only set after a SUCCESSFUL send; a transient failure
+        # must not consume the episode's one alert.
+        app_main._stall_check(1, "PAUSE", 0.0)
+        assert app_main._stall_check(1, "PAUSE", 301.0) is True      # send fails
+        assert app_main._stall_check(1, "PAUSE", 361.0) is True      # retried
+        app_main._stall_mark_notified(1)
+        assert app_main._stall_check(1, "PAUSE", 421.0) is False
 
     def test_recovery_ends_episode_and_rearms(self):
         app_main._stall_check(1, "RUNNING", 0.0)
@@ -47,6 +57,11 @@ class TestStallCheck:
         assert app_main._stall_check(1, "PAUSE", 0.0) is False
         assert app_main._stall_check(1, "PAUSE", 301.0) is True
         assert app_main._stall_episodes[1]["prev"] == "unknown"
+
+    def test_mark_notified_after_recovery_is_noop(self):
+        app_main._stall_check(1, "PAUSE", 0.0)
+        app_main._stall_check(1, "IDLE", 100.0)   # episode ended before mark
+        app_main._stall_mark_notified(1)          # must not crash or recreate
 
     def test_terminal_states_never_fire(self):
         for state in ("IDLE", "FINISH", "FAILED", "RUNNING", "", None):

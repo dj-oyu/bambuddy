@@ -4104,9 +4104,11 @@ _stall_watch_task: asyncio.Task | None = None
 
 def _stall_check(printer_id: int, state_str: str, now: float) -> bool:
     """Pure decision core: update the episode table for one observation and
-    return True when a stall notification should fire (exactly once per
-    episode). Any non-PAUSE state ends the episode (recovery, completion,
-    cancel and disconnect all look the same to notify-only logic)."""
+    return True when a stall notification should fire. The notified latch is
+    set by _stall_mark_notified AFTER a successful send — a failed send
+    retries on the next tick instead of silently dropping the one alert.
+    Any non-PAUSE state ends the episode (recovery, completion and cancel
+    all look the same to notify-only logic)."""
     s = (state_str or "").upper()
     ep = _stall_episodes.get(printer_id)
     if s not in _STALL_STATES:
@@ -4117,10 +4119,13 @@ def _stall_check(printer_id: int, state_str: str, now: float) -> bool:
     if ep is None:
         ep = {"since": now, "prev": _stall_prev_state.get(printer_id, "unknown"), "notified": False}
         _stall_episodes[printer_id] = ep
-    if ep["notified"] or (now - ep["since"]) < _STALL_NOTIFY_AFTER_S:
-        return False
-    ep["notified"] = True
-    return True
+    return not ep["notified"] and (now - ep["since"]) >= _STALL_NOTIFY_AFTER_S
+
+
+def _stall_mark_notified(printer_id: int) -> None:
+    ep = _stall_episodes.get(printer_id)
+    if ep is not None:
+        ep["notified"] = True
 
 
 async def _notify_stall(printer_id: int) -> None:
@@ -4169,10 +4174,19 @@ async def _stall_watch_loop() -> None:
         try:
             now = time.time()
             for printer_id, status in list(printer_manager.get_all_statuses().items()):
+                if not getattr(status, "connected", False):
+                    # A dropped connection freezes state at its last value; a
+                    # frozen "PAUSE" is a connectivity problem (covered by the
+                    # offline notification), not a stall. Freeze the episode
+                    # rather than end it — if the printer comes back still
+                    # paused, the original pause start still counts.
+                    continue
                 if _stall_check(printer_id, getattr(status, "state", ""), now):
                     try:
                         await _notify_stall(printer_id)
+                        _stall_mark_notified(printer_id)
                     except Exception:
+                        # Leave the episode un-latched: retry next tick.
                         logging.getLogger(__name__).exception(
                             "[STALL] notification failed for printer %s", printer_id
                         )
