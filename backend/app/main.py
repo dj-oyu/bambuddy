@@ -1474,9 +1474,17 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
                         short_code = f"{(error.attr >> 16) & 0xFFFF:04X}_{error_code_masked:04X}"
 
                         # Only notify for errors with known descriptions — printers
-                        # send many undocumented/phantom codes that aren't real errors.
+                        # send many undocumented/phantom codes that aren't real
+                        # errors. Codes bambuddy handles itself (HMS auto-clear
+                        # set) are also excluded: if auto-handling fails and the
+                        # print actually stalls, the stall watch notifies with
+                        # the codes included — no need to ping on every attempt.
                         description = get_error_description_full(error.attr, error_code_int)
-                        if not description or short_code in _HMS_NOTIFICATION_SUPPRESS:
+                        if (
+                            not description
+                            or short_code in _HMS_NOTIFICATION_SUPPRESS
+                            or short_code in _HMS_AUTO_CLEAR_CODES
+                        ):
                             continue
 
                         error_type = f"{module_name} Error"

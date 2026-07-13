@@ -54,3 +54,20 @@ class TestAutoClearDescriptionLogging:
                 app_main._maybe_auto_clear_hms(1, [_error(code)])
         warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
         assert any(code in m for m in warnings), warnings
+
+
+class TestAutoClearCodesSuppressedFromNotifications:
+    """Codes bambuddy auto-handles (409D family, 800B) must not ping the
+    printer_error notification channel on every occurrence — the stall watch
+    is the human-attention signal when auto-handling fails (user feedback
+    2026-07-13 after an AMS-firmware-mismatch reached Discord)."""
+
+    def test_gate_condition_covers_auto_clear_codes(self):
+        import inspect
+
+        from backend.app import main as app_main
+
+        src = inspect.getsource(app_main)
+        assert "short_code in _HMS_AUTO_CLEAR_CODES" in src
+        # And the permanent BMCU mismatch stays in the static suppress set.
+        assert "0500_0044" in src
