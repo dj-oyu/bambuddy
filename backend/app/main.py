@@ -1120,18 +1120,19 @@ def _format_hms_error_summary(hms_errors: list[dict]) -> str | None:
     """
     if not hms_errors:
         return None
-    from backend.app.services.hms_errors import get_error_description
+    from backend.app.services.hms_errors import get_error_description_full
 
     parts: list[str] = []
     for err in hms_errors:
         try:
             code_str = str(err.get("code", "")).replace("0x", "")
             error_num = int(code_str, 16) if code_str else 0
-            module_num = (int(err.get("attr", 0)) >> 16) & 0xFFFF
-            short_code = f"{module_num:04X}_{error_num:04X}"
+            attr_num = int(err.get("attr", 0))
+            module_num = (attr_num >> 16) & 0xFFFF
+            short_code = f"{module_num:04X}_{error_num & 0xFFFF:04X}"
         except (TypeError, ValueError):
             continue
-        description = get_error_description(short_code)
+        description = get_error_description_full(attr_num, error_num)
         parts.append(f"[{short_code}] {description}" if description else f"[{short_code}]")
     return "; ".join(parts) if parts else None
 
@@ -1451,7 +1452,7 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
                         0x12: "Chamber",
                     }
 
-                    from backend.app.services.hms_errors import get_error_description
+                    from backend.app.services.hms_errors import get_error_description_full
 
                     # Capture camera snapshot once for all error notifications
                     error_image_data = await _capture_snapshot_for_notification(
@@ -1469,7 +1470,7 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
 
                         # Only notify for errors with known descriptions — printers
                         # send many undocumented/phantom codes that aren't real errors.
-                        description = get_error_description(short_code)
+                        description = get_error_description_full(error.attr, error_code_int)
                         if not description or short_code in _HMS_NOTIFICATION_SUPPRESS:
                             continue
 

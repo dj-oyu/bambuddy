@@ -862,6 +862,38 @@ HMS_ERROR_DESCRIPTIONS: dict[str, str] = {
     "18FF_C00A": "Please observe the nozzle of the right extruder. If the filament has been extruded, select 'Continue'; if not, please push the filament forward slightly and then select 'Retry'.",
 }
 
+# Full 16-hex-digit codes (AAAAAAAA+CCCCCCCC) for errors the MMMM_EEEE short
+# scheme cannot represent: it drops attr's low 16 bits (submodule) and code's
+# high 16 bits, so e.g. 40 distinct official 0700-module codes collapse onto
+# "0700_0001". Consulted before the short-code table by
+# get_error_description_full(). Descriptions verbatim from Bambu's official
+# HMS database (https://e.bambulab.com/query.php?lang=en, ver 202607111942).
+HMS_ERROR_DESCRIPTIONS_FULL: dict[str, str] = {
+    "0500040000010044": "The firmware of AMS A does not match the printer. Please upgrade it on the \"Firmware\" page.",
+    "0700200000020001": "AMS A Slot 1 filament has run out. Please insert a new filament.",
+    "0700200000030001": "AMS A Slot 1 filament has run out. Please wait while old filament is purged.",
+    "0700210000020001": "AMS A Slot 2 filament has run out. Please insert a new filament.",
+    "0700210000030001": "AMS A Slot 2 filament has run out. Please wait while old filament is purged.",
+    "0700220000020001": "AMS A Slot 3 filament has run out. Please insert a new filament.",
+    "0700220000030001": "AMS A Slot 3 filament has run out. Please wait while old filament is purged.",
+    "0700230000020001": "AMS A Slot 4 filament has run out. Please insert a new filament.",
+    "0700230000030001": "AMS A Slot 4 filament has run out. Please wait while old filament is purged.",
+    "0700450000020001": "The filament cutter sensor is malfunctioning; please check whether the connector is properly plugged in.",
+}
+
+
+def get_error_description_full(attr: int, code: int) -> str | None:
+    """Description for an HMS error given the raw 32-bit attr and code.
+
+    Tries the exact full code first (disambiguates the short-scheme
+    collisions above), then falls back to the MMMM_EEEE short-code table.
+    """
+    full = f"{attr & 0xFFFFFFFF:08X}{code & 0xFFFFFFFF:08X}"
+    desc = HMS_ERROR_DESCRIPTIONS_FULL.get(full)
+    if desc:
+        return desc
+    return get_error_description(f"{(attr >> 16) & 0xFFFF:04X}_{code & 0xFFFF:04X}")
+
 
 def get_error_description(error_code: str) -> str | None:
     """Get human-readable description for an HMS error code.
