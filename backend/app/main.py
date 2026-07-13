@@ -438,6 +438,20 @@ def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
         attempts.append(now)
         _hms_auto_clear_attempts[key] = attempts
 
+        # Log the error's meaning BEFORE clearing it: auto-clear otherwise hides
+        # the text from humans entirely (2026-07-13 runout: nobody read 800B's
+        # "cutter is stuck / check filament sensor cable" hint until 9h later).
+        try:
+            from backend.app.services.hms_errors import get_error_description
+
+            description = get_error_description(short_code)
+        except Exception:
+            description = None
+        log.warning(
+            "[HMS] Auto-clearing %s on printer %s — meaning: %s",
+            short_code, printer_id, description or "(no description in HMS database)",
+        )
+
         cleared = client.clear_hms_errors()
         resumed = False
         # NOTE: the printer state field is PrinterState.state — there is no
