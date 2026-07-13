@@ -4078,6 +4078,127 @@ def stop_reconcile_sweep() -> None:
         logging.getLogger(__name__).info("Stale-print reconcile sweep stopped")
 
 
+# ---------------------------------------------------------------------------
+# Stall detection (private fork) — notify-only.
+#
+# A print that drops out of RUNNING into PAUSE and stays there is invisible:
+# no completion event fires, no notification path covers PAUSE, and the
+# 2026-07-13 runout loop ran unattended for 70+ minutes. This watcher polls
+# printer state (MQTT-derived, NOT log parsing) and, when a PAUSE episode
+# outlasts a threshold, sends ONE printer_error notification (Discord etc.,
+# whatever providers have on_printer_error enabled) with a camera snapshot,
+# the state transition, job progress and current HMS codes. Deliberately no
+# auto-remediation — the right response isn't known in advance; a human
+# decides from the photo. Disable with BAMBUDDY_STALL_NOTIFY=0; threshold via
+# BAMBUDDY_STALL_NOTIFY_AFTER_S (default 300).
+_STALL_NOTIFY_ENABLED = os.environ.get("BAMBUDDY_STALL_NOTIFY", "1") != "0"
+_STALL_NOTIFY_AFTER_S = float(os.environ.get("BAMBUDDY_STALL_NOTIFY_AFTER_S", "300"))
+_STALL_CHECK_INTERVAL_S = 60.0
+_STALL_STATES = ("PAUSE",)
+# printer_id -> {"since": float, "prev": str, "notified": bool}
+_stall_episodes: dict[int, dict] = {}
+# printer_id -> last observed non-episode state (what the pause interrupted)
+_stall_prev_state: dict[int, str] = {}
+_stall_watch_task: asyncio.Task | None = None
+
+
+def _stall_check(printer_id: int, state_str: str, now: float) -> bool:
+    """Pure decision core: update the episode table for one observation and
+    return True when a stall notification should fire (exactly once per
+    episode). Any non-PAUSE state ends the episode (recovery, completion,
+    cancel and disconnect all look the same to notify-only logic)."""
+    s = (state_str or "").upper()
+    ep = _stall_episodes.get(printer_id)
+    if s not in _STALL_STATES:
+        if ep is not None:
+            del _stall_episodes[printer_id]
+        _stall_prev_state[printer_id] = s
+        return False
+    if ep is None:
+        ep = {"since": now, "prev": _stall_prev_state.get(printer_id, "unknown"), "notified": False}
+        _stall_episodes[printer_id] = ep
+    if ep["notified"] or (now - ep["since"]) < _STALL_NOTIFY_AFTER_S:
+        return False
+    ep["notified"] = True
+    return True
+
+
+async def _notify_stall(printer_id: int) -> None:
+    from backend.app.services.hms_errors import get_error_description_full
+    from backend.app.services.notification_service import notification_service
+
+    log = logging.getLogger(__name__)
+    status = printer_manager.get_status(printer_id)
+    ep = _stall_episodes.get(printer_id) or {}
+    minutes = (time.time() - ep.get("since", time.time())) / 60.0
+    async with async_session() as db:
+        result = await db.execute(select(Printer).where(Printer.id == printer_id))
+        printer = result.scalar_one_or_none()
+        printer_name = printer.name if printer else f"Printer {printer_id}"
+
+        lines = [f"{ep.get('prev', 'unknown')} → PAUSE for {minutes:.0f} min without recovering."]
+        if status is not None:
+            if status.gcode_file:
+                lines.append(f"Job: {status.gcode_file}")
+            lines.append(
+                f"Progress: {status.progress:.0f}% (layer {status.layer_num}/{status.total_layers})"
+            )
+            for err in status.hms_errors:
+                code_int = int(str(err.code).replace("0x", ""), 16) if err.code else 0
+                short = f"{(err.attr >> 16) & 0xFFFF:04X}_{code_int & 0xFFFF:04X}"
+                desc = get_error_description_full(err.attr, code_int)
+                lines.append(f"HMS {short} (sev {err.severity}): {desc or 'no description'}")
+            if not status.hms_errors:
+                lines.append("No HMS errors reported — state and firmware may disagree.")
+        detail = "\n".join(lines)
+
+        image_data = None
+        if printer is not None:
+            image_data = await _capture_snapshot_for_notification(printer_id, printer, log)
+
+        log.warning("[STALL] printer %s stalled: %s", printer_id, detail.replace("\n", " | "))
+        await notification_service.on_printer_error(
+            printer_id, printer_name, "Print stalled (paused without recovering)",
+            db, detail, image_data=image_data,
+        )
+
+
+async def _stall_watch_loop() -> None:
+    while True:
+        await asyncio.sleep(_STALL_CHECK_INTERVAL_S)
+        try:
+            now = time.time()
+            for printer_id, status in list(printer_manager.get_all_statuses().items()):
+                if _stall_check(printer_id, getattr(status, "state", ""), now):
+                    try:
+                        await _notify_stall(printer_id)
+                    except Exception:
+                        logging.getLogger(__name__).exception(
+                            "[STALL] notification failed for printer %s", printer_id
+                        )
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.getLogger(__name__).warning("[STALL] watch loop error: %s", e)
+
+
+def start_stall_watch() -> None:
+    global _stall_watch_task
+    if _STALL_NOTIFY_ENABLED and _stall_watch_task is None:
+        _stall_watch_task = asyncio.create_task(_stall_watch_loop())
+        logging.getLogger(__name__).info(
+            "Stall watch started (threshold %.0fs)", _STALL_NOTIFY_AFTER_S
+        )
+
+
+def stop_stall_watch() -> None:
+    global _stall_watch_task
+    if _stall_watch_task:
+        _stall_watch_task.cancel()
+        _stall_watch_task = None
+        logging.getLogger(__name__).info("Stall watch stopped")
+
+
 async def on_finish_photo_moment(printer_id: int, data: dict):
     """Pre-capture a finish photo when the printer enters stage 22 / FINISH (#1721).
 
@@ -6517,6 +6638,10 @@ async def lifespan(app: FastAPI):
     # completion events; edge-triggered reconciles on connect remain)
     start_reconcile_sweep()
 
+    # Notify-only stall watch (private fork): unrecovered RUNNING→PAUSE
+    # episodes send a printer_error notification with a camera snapshot
+    start_stall_watch()
+
     # Event-loop stall watchdog: dumps all thread stacks to stderr if the loop
     # freezes (#1486 — silent "container hangs after adding a printer" reports).
     from backend.app.services.loop_watchdog import start_loop_watchdog
@@ -6564,6 +6689,7 @@ async def lifespan(app: FastAPI):
     stop_expected_prints_cleanup()
     stop_auth_cleanup()
     stop_reconcile_sweep()
+    stop_stall_watch()
     printer_manager.disconnect_all()
     await close_spoolman_client()
 
