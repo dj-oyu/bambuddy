@@ -1404,6 +1404,11 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
     # have known descriptions (e.g. user-initiated actions, not real errors).
     _HMS_NOTIFICATION_SUPPRESS = {
         "0500_400E",  # Printing was cancelled (user action, not an error)
+        # BMCU third-party AMS permanently reports a firmware mismatch
+        # (0500_0400_0001_0044, severity=info). It re-notifies on every
+        # restart/reconnect once on_printer_error is enabled — pure noise on
+        # this rig; the print-blocking 409D variant is handled by auto-clear.
+        "0500_0044",
     }
 
     # Check for new HMS errors and send notifications
