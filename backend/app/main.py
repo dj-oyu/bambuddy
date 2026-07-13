@@ -1518,6 +1518,33 @@ def _is_bambu_uuid(tray_uuid: str) -> bool:
     return bool(tray_uuid) and tray_uuid not in ("", "0" * len(tray_uuid))
 
 
+def _tray_report_is_transient_empty(tray_data: dict) -> bool:
+    """True when a tray report carries no usable identity WITHOUT the firmware
+    explicitly saying "empty" — the shape a BMCU emits for a few seconds after
+    boot/reconnect (tray_uuid all zeros, blank tray_type, state=3).
+
+    Such a report is re-detection in progress, not evidence that the slot is
+    empty or changed. Treating it as evidence is what unlinked every non-Bambu
+    slot assignment on each restart: _previous_ams_hash resets → first AMS
+    report always fires on_ams_change → BMCU's blank boot data mismatches the
+    fingerprint → DELETE (the Bambu-uuid protection can't apply because BMCU
+    tray_uuid is all zeros). filament_spoof_engine already ignores the same
+    boot flap (_note_identity_mismatch); this closes the asymmetry for slot
+    assignments. Fail-safe: keep the assignment. Explicit firmware empty
+    states (9/10) remain authoritative. Disable the protection with
+    BAMBUDDY_KEEP_ASSIGNMENTS_ON_EMPTY_TRAY=0 to restore upstream behaviour.
+    """
+    if os.environ.get("BAMBUDDY_KEEP_ASSIGNMENTS_ON_EMPTY_TRAY", "1") == "0":
+        return False
+    try:
+        state = int(tray_data.get("state"))
+    except (TypeError, ValueError):
+        state = None
+    if state in (9, 10):
+        return False
+    return not (tray_data.get("tray_type") or "").strip()
+
+
 def _strip_spoof_for_relay(units):
     """Return a copy of the AMS unit list with internal `_spoof` markers removed.
 
@@ -1726,6 +1753,20 @@ async def on_ams_change(printer_id: int, ams_data: list):
                             )
                         assignment.fingerprint_color = cur_color
                         assignment.fingerprint_type = cur_type
+                        continue
+
+                    if _tray_report_is_transient_empty(current_tray):
+                        # Blank identity without an explicit firmware "empty"
+                        # state = BMCU boot re-detection, not evidence. Keep the
+                        # assignment (fail-safe); a genuine change will still be
+                        # seen on the next populated report.
+                        logger.debug(
+                            "Auto-unlink: spool %d AMS%d-T%d — blank tray report without "
+                            "explicit empty state; keeping assignment (boot transient)",
+                            assignment.spool_id,
+                            assignment.ams_id,
+                            assignment.tray_id,
+                        )
                         continue
 
                     if not _colors_similar(cur_color, fp_color) or cur_type.upper() != fp_type.upper():
@@ -2124,7 +2165,12 @@ async def on_ams_change(printer_id: int, ams_data: list):
                     if not tray:
                         # Empty tray slot — record for local assignment cleanup
                         # and drop any cached unknown-tag broadcast so a
-                        # reinserted spool re-prompts.
+                        # reinserted spool re-prompts. EXCEPT when the report is
+                        # a blank-identity boot transient (BMCU re-detection):
+                        # deleting on it wiped Spoolman slot assignments on
+                        # every restart, same shape as the auto-unlink bug.
+                        if _tray_report_is_transient_empty(tray_data):
+                            continue
                         empty_slots.append((ams_id, tray_id_raw))
                         _clear_unknown_tag_dedup(printer_id, ams_id, tray_id_raw)
                         continue
