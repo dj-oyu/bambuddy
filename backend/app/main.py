@@ -405,24 +405,71 @@ _HMS_AUTO_CLEAR_CODES = {
     ).split(",")
     if c.strip()
 }
-# Rate-limit auto-clear so a persistent error can't cause a clear/reappear loop
+# Level-triggered retry machinery (see services/hms_retry.py for the design
+# and the 2026-07-13 incident it replaces the rate limiter for). Flag off =
+# legacy edge-triggered auto-clear with the 3/600s rate limit, exactly as
+# before (fail-safe fallback for upstream-merge accidents).
+_HMS_RETRY_ENABLED = os.environ.get("BAMBUDDY_HMS_RETRY", "1") != "0"
+_HMS_RETRY_TICK_S = float(os.environ.get("BAMBUDDY_HMS_RETRY_TICK_S", "15"))
+# Legacy rate limit (only used when BAMBUDDY_HMS_RETRY=0)
 _HMS_AUTO_CLEAR_MAX_ATTEMPTS = 3
 _HMS_AUTO_CLEAR_WINDOW_SECONDS = 600.0
 # {(printer_id, short_code): [attempt timestamps]}
 _hms_auto_clear_attempts: dict[tuple[int, str], list[float]] = {}
 
 
-def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
-    """Auto-clear configured HMS codes (e.g. BMCU firmware-mismatch warnings)."""
+def _attempt_hms_auto_clear(printer_id: int, short_code: str) -> bool:
+    """One clear+requeue attempt for an auto-clear code. Returns False when no
+    client is connected (nothing was attempted)."""
     log = logging.getLogger(__name__)
-    matched = [c for c in (_hms_short_code(e.attr, e.code) for e in new_errors) if c in _HMS_AUTO_CLEAR_CODES]
-    if not matched:
-        return
-
     from backend.app.services.printer_manager import printer_manager
 
     client = printer_manager.get_client(printer_id)
     if not client:
+        return False
+
+    # Log the error's meaning BEFORE clearing it: auto-clear otherwise hides
+    # the text from humans entirely (2026-07-13 runout: nobody read 800B's
+    # "cutter is stuck / check filament sensor cable" hint until 9h later).
+    try:
+        from backend.app.services.hms_errors import get_error_description
+
+        description = get_error_description(short_code)
+    except Exception:
+        description = None
+    log.warning(
+        "[HMS] Auto-clearing %s on printer %s — meaning: %s",
+        short_code, printer_id, description or "(no description in HMS database)",
+    )
+
+    cleared = client.clear_hms_errors()
+    resumed = False
+    # NOTE: the printer state field is PrinterState.state — there is no
+    # `gcode_state` attribute. The old getattr(..., "gcode_state") read
+    # always returned None, so this resume branch never fired and the
+    # requeue helper's idle check silently passed for every state.
+    if cleared and getattr(client.state, "state", None) == "PAUSE":
+        resumed = client.resume_print()
+    log.info(
+        "[HMS] Auto-cleared %s on printer %s (cleared=%s, resumed=%s)",
+        short_code, printer_id, cleared, resumed,
+    )
+    if cleared and not resumed:
+        # The BMCU 409D fires during print start and the printer rejects the
+        # job while staying IDLE — nothing to resume. Requeue the stuck item
+        # so the scheduler re-sends the print now that the error is cleared.
+        asyncio.create_task(_requeue_print_rejected_by_hms(printer_id, short_code))
+    return True
+
+
+def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
+    """LEGACY (BAMBUDDY_HMS_RETRY=0 only): edge-triggered auto-clear with a
+    3/600s rate limit. Known flaw: once rate-limited, a latched error never
+    counts as "new" again, so retries stop forever — the level-triggered
+    retry loop replaces this."""
+    log = logging.getLogger(__name__)
+    matched = [c for c in (_hms_short_code(e.attr, e.code) for e in new_errors) if c in _HMS_AUTO_CLEAR_CODES]
+    if not matched:
         return
 
     now = time.time()
@@ -435,40 +482,10 @@ def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
                 short_code, printer_id, len(attempts), _HMS_AUTO_CLEAR_WINDOW_SECONDS,
             )
             continue
+        if not _attempt_hms_auto_clear(printer_id, short_code):
+            continue
         attempts.append(now)
         _hms_auto_clear_attempts[key] = attempts
-
-        # Log the error's meaning BEFORE clearing it: auto-clear otherwise hides
-        # the text from humans entirely (2026-07-13 runout: nobody read 800B's
-        # "cutter is stuck / check filament sensor cable" hint until 9h later).
-        try:
-            from backend.app.services.hms_errors import get_error_description
-
-            description = get_error_description(short_code)
-        except Exception:
-            description = None
-        log.warning(
-            "[HMS] Auto-clearing %s on printer %s — meaning: %s",
-            short_code, printer_id, description or "(no description in HMS database)",
-        )
-
-        cleared = client.clear_hms_errors()
-        resumed = False
-        # NOTE: the printer state field is PrinterState.state — there is no
-        # `gcode_state` attribute. The old getattr(..., "gcode_state") read
-        # always returned None, so this resume branch never fired and the
-        # requeue helper's idle check silently passed for every state.
-        if cleared and getattr(client.state, "state", None) == "PAUSE":
-            resumed = client.resume_print()
-        log.info(
-            "[HMS] Auto-cleared %s on printer %s (cleared=%s, resumed=%s, attempt %d/%d)",
-            short_code, printer_id, cleared, resumed, len(attempts), _HMS_AUTO_CLEAR_MAX_ATTEMPTS,
-        )
-        if cleared and not resumed:
-            # The BMCU 409D fires during print start and the printer rejects the
-            # job while staying IDLE — nothing to resume. Requeue the stuck item
-            # so the scheduler re-sends the print now that the error is cleared.
-            asyncio.create_task(_requeue_print_rejected_by_hms(printer_id, short_code))
 
 
 async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> None:
@@ -1431,13 +1448,16 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
             new_errors = [e for e in current_hms_errors if f"{e.attr:08x}" in new_error_codes and e.severity >= 2]
 
             # Auto-clear configured codes regardless of severity (warnings like
-            # the BMCU firmware mismatch still block printing)
-            try:
-                _maybe_auto_clear_hms(
-                    printer_id, [e for e in current_hms_errors if f"{e.attr:08x}" in new_error_codes]
-                )
-            except Exception as e:
-                logging.getLogger(__name__).warning(f"HMS auto-clear failed: {e}")
+            # the BMCU firmware mismatch still block printing). With the
+            # level-triggered retry loop enabled, the loop owns all attempts —
+            # calling the legacy edge path too would double-fire clears.
+            if not _HMS_RETRY_ENABLED:
+                try:
+                    _maybe_auto_clear_hms(
+                        printer_id, [e for e in current_hms_errors if f"{e.attr:08x}" in new_error_codes]
+                    )
+                except Exception as e:
+                    logging.getLogger(__name__).warning(f"HMS auto-clear failed: {e}")
 
             try:
                 async with async_session() as db:
@@ -1476,9 +1496,9 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
                         # Only notify for errors with known descriptions — printers
                         # send many undocumented/phantom codes that aren't real
                         # errors. Codes bambuddy handles itself (HMS auto-clear
-                        # set) are also excluded: if auto-handling fails and the
-                        # print actually stalls, the stall watch notifies with
-                        # the codes included — no need to ping on every attempt.
+                        # set) are also excluded: the HMS retry loop escalates
+                        # to a human after repeated failed recoveries (and the
+                        # stall watch covers PAUSE) — no ping on every attempt.
                         description = get_error_description_full(error.attr, error_code_int)
                         if (
                             not description
@@ -4059,6 +4079,84 @@ async def reconcile_stale_active_prints(printer_id: int) -> int:
 _RECONCILE_SWEEP_INTERVAL = 300  # seconds
 _reconcile_sweep_task: asyncio.Task | None = None
 
+# Queue-item safety net (private fork): a queue item stuck in 'printing'
+# while the printer sits demonstrably idle means the dispatch never took
+# (2026-07-13: 409D-rejected job left item 99 in 'printing' for 40+ min with
+# the printer IDLE). Independent of the HMS retry machinery by design — it
+# rescues the stuck-item shape regardless of cause. Deliberately long
+# threshold (10 min default) so it can never race a slow job start; the
+# demonstrably-idle gate stack (dispatch hold, AMS motion, connectivity)
+# does the fine-grained safety work.
+#
+# Interaction with BAMBUDDY_HMS_RETRY=0 (legacy auto-clear): with no retry
+# episodes the dispatch gate always allows, so a permanently-rejecting
+# printer becomes a slow ping-pong — requeue every 10 min, re-dispatch,
+# reject. That is the deliberate trade-off: a visible 10-min loop in the
+# logs beats an item silently stuck in 'printing' forever (2026-07-13).
+_QUEUE_STUCK_REQUEUE_ENABLED = os.environ.get("BAMBUDDY_QUEUE_STUCK_REQUEUE", "1") != "0"
+_QUEUE_STUCK_REQUEUE_AFTER_S = float(os.environ.get("BAMBUDDY_QUEUE_STUCK_REQUEUE_AFTER_S", "600"))
+
+
+async def reconcile_stuck_queue_items(printer_id: int) -> int:
+    """Flip queue items stuck in 'printing' back to 'pending' when the printer
+    is demonstrably idle and the item is old enough. Returns requeued count."""
+    from datetime import datetime, timezone
+
+    from backend.app.models.print_queue import PrintQueueItem
+    from backend.app.services import printer_lifecycle
+    from backend.app.services.print_scheduler import scheduler
+    from backend.app.services.printer_manager import printer_manager as pm
+
+    log = logging.getLogger(__name__)
+    client = pm.get_client(printer_id)
+    verdict = printer_lifecycle.evaluate_demonstrably_idle(
+        getattr(client, "state", None),
+        in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
+    )
+    if not verdict:
+        return 0
+
+    now = datetime.now(timezone.utc)
+    requeued = 0
+    async with async_session() as db:
+        result = await db.execute(
+            select(PrintQueueItem).where(
+                PrintQueueItem.printer_id == printer_id,
+                PrintQueueItem.status == "printing",
+            )
+        )
+        for item in result.scalars().all():
+            started = item.started_at
+            if started is None:
+                continue
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            age = (now - started).total_seconds()
+            if age < _QUEUE_STUCK_REQUEUE_AFTER_S:
+                continue
+            # lifecycle-polarity: CAS on ("printing",) — a concurrent terminal
+            # write (completion handler / user stop) wins the row and we skip.
+            cas = await printer_lifecycle.transition(
+                db,
+                item.id,
+                to_status="pending",
+                from_states=("printing",),
+                reason=f"stuck in printing {age:.0f}s while printer idle",
+                caller="main.reconcile_stuck_queue_items",
+                extra={"started_at": None},
+                item=item,
+                commit=False,
+            )
+            if cas:
+                requeued += 1
+        if requeued:
+            await db.commit()
+            log.warning(
+                "[RECONCILE] Requeued %d queue item(s) stuck in 'printing' on idle printer %s",
+                requeued, printer_id,
+            )
+    return requeued
+
 
 async def _reconcile_sweep_loop() -> None:
     """Periodic background task: reconcile stale active prints for all printers."""
@@ -4070,6 +4168,8 @@ async def _reconcile_sweep_loop() -> None:
                 # (inside reconcile_stale_active_prints), so the sweep is
                 # silent in the steady state.
                 await reconcile_stale_active_prints(printer_id)
+                if _QUEUE_STUCK_REQUEUE_ENABLED:
+                    await reconcile_stuck_queue_items(printer_id)
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -4224,6 +4324,196 @@ def stop_stall_watch() -> None:
         _stall_watch_task.cancel()
         _stall_watch_task = None
         logging.getLogger(__name__).info("Stall watch stopped")
+
+
+# ---------------------------------------------------------------------------
+# HMS auto-clear retry loop (private fork) — level-triggered, never gives up.
+#
+# Drives services/hms_retry.py (see its docstring for the incident history and
+# the full design). This loop is the only caller of _attempt_hms_auto_clear
+# when BAMBUDDY_HMS_RETRY=1; the legacy edge-triggered path at the HMS
+# notification callback is skipped under the flag. Escalation/recovery
+# notifications go through on_printer_error like the stall watch — the
+# per-occurrence suppression of auto-handled codes stays untouched.
+_hms_retry_task: asyncio.Task | None = None
+
+
+def _hms_status_inputs(status) -> tuple[dict[str, int], list[str]]:
+    """Split a printer's current HMS list into (auto-clear codes present with
+    severity, descriptions of non-allowlisted serious/fatal errors)."""
+    from backend.app.services.hms_errors import get_error_description_full
+
+    autoclear_present: dict[str, int] = {}
+    other_serious: list[str] = []
+    for err in getattr(status, "hms_errors", []) or []:
+        short = _hms_short_code(err.attr, err.code)
+        if short in _HMS_AUTO_CLEAR_CODES:
+            # Keep the worst (lowest) severity if the code appears twice.
+            prev = autoclear_present.get(short)
+            autoclear_present[short] = min(prev, err.severity) if prev is not None else err.severity
+        elif err.severity <= 2:  # 1=fatal, 2=serious
+            try:
+                code_int = int(str(err.code).replace("0x", ""), 16) if err.code else 0
+                desc = get_error_description_full(err.attr, code_int)
+            except Exception:
+                desc = None
+            other_serious.append(f"{short} (sev {err.severity}): {desc or 'no description'}")
+    return autoclear_present, other_serious
+
+
+async def _notify_hms_escalation(printer_id: int, action) -> None:
+    from backend.app.services.hms_errors import get_error_description
+    from backend.app.services.hms_retry import hms_retry
+    from backend.app.services.notification_service import notification_service
+
+    log = logging.getLogger(__name__)
+    ep = hms_retry.episode_info(printer_id, action.code)
+    repeat = ep is not None and ep.notified_at_failures is not None
+    minutes = (time.time() - action.since) / 60.0 if action.since else 0.0
+    try:
+        description = get_error_description(action.code)
+    except Exception:
+        description = None
+
+    async with async_session() as db:
+        result = await db.execute(select(Printer).where(Printer.id == printer_id))
+        printer = result.scalar_one_or_none()
+        printer_name = printer.name if printer else f"Printer {printer_id}"
+
+        lines = [f"HMS {action.code}: {description or 'no description'}"]
+        if action.blocked_reason:
+            lines.append(f"Auto-retry HELD: {action.blocked_reason}")
+            lines.append("Not clearing errors / dispatching while the printer reports a serious fault.")
+        else:
+            lines.append(
+                f"Auto-clear failed {action.failures}x over {minutes:.0f} min "
+                "(cleared, requeued, but the print never started)."
+            )
+            lines.append("Retries continue automatically with backoff.")
+        lines.append("Suggested action: power-cycle the BMCU/AMS, then check the queue.")
+
+        from backend.app.models.print_queue import PrintQueueItem
+
+        from sqlalchemy import func as sa_func
+
+        q = await db.execute(
+            select(PrintQueueItem.status, sa_func.count())
+            .where(PrintQueueItem.printer_id == printer_id,
+                   PrintQueueItem.status.in_(("pending", "printing")))
+            .group_by(PrintQueueItem.status)
+        )
+        counts = dict(q.all())
+        if counts:
+            lines.append(
+                "Queue: " + ", ".join(f"{n} {s}" for s, n in sorted(counts.items()))
+            )
+
+        detail = "\n".join(lines)
+        image_data = None
+        if printer is not None:
+            image_data = await _capture_snapshot_for_notification(printer_id, printer, log)
+
+        title = (
+            f"HMS auto-recovery still failing ({action.code})" if repeat
+            else f"HMS auto-recovery needs attention ({action.code})"
+        )
+        log.warning("[HMS-RETRY] escalation printer %s: %s", printer_id, detail.replace("\n", " | "))
+        await notification_service.on_printer_error(
+            printer_id, printer_name, title, db, detail, image_data=image_data,
+        )
+
+
+async def _notify_hms_recovery(printer_id: int, action) -> None:
+    from backend.app.services.notification_service import notification_service
+
+    minutes = (time.time() - action.since) / 60.0 if action.since else 0.0
+    async with async_session() as db:
+        result = await db.execute(select(Printer).where(Printer.id == printer_id))
+        printer = result.scalar_one_or_none()
+        printer_name = printer.name if printer else f"Printer {printer_id}"
+        if action.print_active:
+            detail = (
+                f"HMS {action.code} is gone and the printer is printing again "
+                f"(after {action.failures} failed attempts over {minutes:.0f} min). "
+                "No action needed."
+            )
+        else:
+            detail = (
+                f"HMS {action.code} is gone and stayed clear "
+                f"(after {action.failures} failed attempts over {minutes:.0f} min). "
+                "The printer is idle — check the queue if a job should be running."
+            )
+        logging.getLogger(__name__).info("[HMS-RETRY] recovered printer %s: %s", printer_id, detail)
+        await notification_service.on_printer_error(
+            printer_id, printer_name, f"HMS auto-recovery succeeded ({action.code})", db, detail,
+        )
+
+
+async def _hms_retry_loop() -> None:
+    from backend.app.services import printer_lifecycle
+    from backend.app.services.hms_retry import ATTEMPT, ESCALATE, RECOVERED, hms_retry
+
+    log = logging.getLogger(__name__)
+    while True:
+        await asyncio.sleep(_HMS_RETRY_TICK_S)
+        now = time.time()
+        for printer_id, status in list(printer_manager.get_all_statuses().items()):
+            # Per-printer try: a failure on one printer must not skip the rest
+            # of the fleet for this tick.
+            try:
+                autoclear_present, other_serious = _hms_status_inputs(status)
+                actions = hms_retry.tick(
+                    printer_id,
+                    now=now,
+                    connected=getattr(status, "connected", False),
+                    print_active=printer_lifecycle.print_process_active(status),
+                    autoclear_present=autoclear_present,
+                    other_serious=other_serious,
+                )
+                for action in actions:
+                    if action.kind == ATTEMPT:
+                        if _attempt_hms_auto_clear(printer_id, action.code):
+                            hms_retry.mark_attempted(printer_id, action.code, time.time())
+                    elif action.kind == ESCALATE:
+                        try:
+                            await _notify_hms_escalation(printer_id, action)
+                            hms_retry.mark_notified(printer_id, action.code)
+                        except Exception:
+                            # Un-latched: retried next tick (stall-watch pattern).
+                            log.exception(
+                                "[HMS-RETRY] escalation notification failed for printer %s", printer_id
+                            )
+                    elif action.kind == RECOVERED:
+                        try:
+                            await _notify_hms_recovery(printer_id, action)
+                        except Exception:
+                            # Episode already closed — a lost recovery message
+                            # is acceptable; the escalation said retries continue.
+                            log.exception(
+                                "[HMS-RETRY] recovery notification failed for printer %s", printer_id
+                            )
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                log.warning("[HMS-RETRY] tick error for printer %s: %s", printer_id, e)
+
+
+def start_hms_retry_watch() -> None:
+    global _hms_retry_task
+    if _HMS_RETRY_ENABLED and _hms_retry_task is None:
+        _hms_retry_task = asyncio.create_task(_hms_retry_loop())
+        logging.getLogger(__name__).info(
+            "HMS retry watch started (tick %.0fs, codes: %s)",
+            _HMS_RETRY_TICK_S, ",".join(sorted(_HMS_AUTO_CLEAR_CODES)) or "none",
+        )
+
+
+def stop_hms_retry_watch() -> None:
+    global _hms_retry_task
+    if _hms_retry_task:
+        _hms_retry_task.cancel()
+        _hms_retry_task = None
+        logging.getLogger(__name__).info("HMS retry watch stopped")
 
 
 async def on_finish_photo_moment(printer_id: int, data: dict):
@@ -6669,6 +6959,10 @@ async def lifespan(app: FastAPI):
     # episodes send a printer_error notification with a camera snapshot
     start_stall_watch()
 
+    # Level-triggered HMS auto-clear retry (private fork): replaces the
+    # edge-triggered rate-limited path when BAMBUDDY_HMS_RETRY=1
+    start_hms_retry_watch()
+
     # Event-loop stall watchdog: dumps all thread stacks to stderr if the loop
     # freezes (#1486 — silent "container hangs after adding a printer" reports).
     from backend.app.services.loop_watchdog import start_loop_watchdog
@@ -6717,6 +7011,7 @@ async def lifespan(app: FastAPI):
     stop_auth_cleanup()
     stop_reconcile_sweep()
     stop_stall_watch()
+    stop_hms_retry_watch()
     printer_manager.disconnect_all()
     await close_spoolman_client()
 

@@ -1536,8 +1536,14 @@ class PrintScheduler:
 
         return True
 
-    def _is_printer_idle(self, printer_id: int, require_plate_clear: bool = True) -> bool:
-        """Check if a printer is connected and idle."""
+    def _is_printer_idle(
+        self, printer_id: int, require_plate_clear: bool = True, for_dispatch: bool = True
+    ) -> bool:
+        """Check if a printer is connected and idle.
+
+        for_dispatch=False (auto-drying etc.) skips the HMS retry backoff
+        gate — the backoff only exists to stop re-sending print jobs, and a
+        latched BMCU error must not suppress unrelated idle-time features."""
         if not printer_manager.is_connected(printer_id):
             logger.debug("Printer %d: not connected", printer_id)
             return False
@@ -1563,7 +1569,21 @@ class PrintScheduler:
         idle = state.state in printer_lifecycle.TERMINAL_GCODE_STATES
         if not idle:
             logger.debug("Printer %d: not idle — state=%s", printer_id, state.state)
-        return idle
+            return False
+
+        # HMS retry backoff gate (private fork): while an auto-clear code is
+        # present and the retry tracker is deliberately waiting (backoff or
+        # severity block), don't re-dispatch every 30s tick — the whole point
+        # of the backoff is to stop hammering a printer that keeps rejecting
+        # jobs. Fail-permissive inside dispatch_allowed: no episode / code
+        # absent / pending attempt all allow, so a stale episode can never
+        # wedge the queue.
+        from backend.app.services.hms_retry import hms_retry
+
+        if for_dispatch and not hms_retry.dispatch_allowed(printer_id, time.time()):
+            logger.debug("Printer %d: dispatch held by HMS retry backoff", printer_id)
+            return False
+        return True
 
     async def _get_setting(self, db: AsyncSession, key: str) -> str | None:
         """Read a setting value from the database."""
@@ -1880,7 +1900,7 @@ class PrintScheduler:
             if not printer_manager.is_connected(pid):
                 logger.debug("Auto-drying: printer %d skipped — not connected", pid)
                 continue
-            if not mid_print and not self._is_printer_idle(pid, require_plate_clear):
+            if not mid_print and not self._is_printer_idle(pid, require_plate_clear, for_dispatch=False):
                 logger.debug("Auto-drying: printer %d skipped — not idle", pid)
                 continue
 
