@@ -6331,3 +6331,58 @@ class TestLastLayerFinishPhotoTrigger:
 
         assert len(events) == 1
         assert len(completion_events) == 1
+
+
+class TestSpoofRunoutPrevTracking:
+    """Runout hook must see the last PHYSICAL tray as prev, not the 254/255
+    sentinels the firmware routes through on a real runout
+    (observed 2026-07-13: primary 0 → 254 external → 255 none → backup 2)."""
+
+    @pytest.fixture
+    def mqtt_client(self):
+        from backend.app.services.bambu_mqtt import BambuMQTTClient
+
+        client = BambuMQTTClient(
+            ip_address="192.168.1.100",
+            serial_number="TEST123",
+            access_code="12345678",
+        )
+        client.state.state = "RUNNING"
+        return client
+
+    def _set_tray(self, mqtt_client, tray_now):
+        mqtt_client._handle_ams_data({"tray_now": tray_now, "ams": []})
+
+    def test_prev_skips_254_255_sentinels(self, mqtt_client):
+        calls = []
+        mqtt_client._on_tray_now_change = (
+            lambda ams, tray, prev, state: calls.append((ams, tray, prev, state))
+        )
+        self._set_tray(mqtt_client, 0)      # primary active
+        self._set_tray(mqtt_client, 254)    # firmware reclassifies tail as external
+        self._set_tray(mqtt_client, 255)    # unloaded
+        self._set_tray(mqtt_client, 2)      # backup goes active
+        # First call is the initial load of the primary itself; the one that
+        # matters is the backup activation, which must see prev=0 (primary),
+        # not the 255 sentinel it directly transitioned from.
+        assert calls[-1] == (0, 2, 0, "RUNNING")
+
+    def test_direct_switch_passes_real_prev(self, mqtt_client):
+        calls = []
+        mqtt_client._on_tray_now_change = (
+            lambda ams, tray, prev, state: calls.append(prev)
+        )
+        self._set_tray(mqtt_client, 1)
+        self._set_tray(mqtt_client, 3)
+        assert calls[-1] == 1
+
+    def test_no_physical_history_keeps_sentinel(self, mqtt_client):
+        """Fresh client that only ever saw 255: pass the sentinel through
+        (fail-safe — engine keeps the spoof ENGAGED on prev≠primary)."""
+        calls = []
+        mqtt_client._on_tray_now_change = (
+            lambda ams, tray, prev, state: calls.append(prev)
+        )
+        self._set_tray(mqtt_client, 255)
+        self._set_tray(mqtt_client, 2)
+        assert calls == [255]

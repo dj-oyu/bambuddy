@@ -642,6 +642,10 @@ class BambuMQTTClient:
         # Optional callback (ams_id, tray_id, prev_global, gcode_state) invoked
         # when the active tray changes (runout detection). Set by the engine.
         self._on_tray_now_change = None
+        # Last physical AMS slot seen as tray_now (sentinels 254/255 excluded);
+        # used as the effective "prev" for runout detection because the firmware
+        # transitions primary → 254 → 255 → backup on a real runout.
+        self._spoof_last_real_tray: int | None = None
         # Optional callback () invoked once per AMS message (after the firmware
         # identity map is refreshed, below) so the engine can confirm PENDING
         # spoofs / revalidate off firmware truth. Set by FilamentSpoofEngine.
@@ -1934,16 +1938,30 @@ class BambuMQTTClient:
                     else:
                         _sp_ams = _sp_tray = None
                     if _sp_ams is not None:
+                        # A real runout routes through sentinel states before the
+                        # backup goes active (observed 2026-07-13 on A1 mini+BMCU:
+                        # primary 0 → 254 external → 255 none → backup 2), so the
+                        # immediate prev is a sentinel, never the primary slot.
+                        # Substitute the last physical tray; if none was ever seen,
+                        # keep the raw sentinel (fail-safe: engine keeps ENGAGED).
+                        _sp_prev = _spoof_prev_tray_now
+                        if not ((0 <= _sp_prev <= 15) or (128 <= _sp_prev <= 135)):
+                            if self._spoof_last_real_tray is not None:
+                                _sp_prev = self._spoof_last_real_tray
                         try:
                             # Pass prev active tray + gcode_state so the engine
                             # only treats a backup-slot activation as a genuine
                             # runout when it followed the primary running out
                             # mid-print (finding #7).
                             self._on_tray_now_change(
-                                _sp_ams, _sp_tray, _spoof_prev_tray_now, self.state.state
+                                _sp_ams, _sp_tray, _sp_prev, self.state.state
                             )
                         except Exception:
                             logger.debug("[%s] spoof tray_now hook raised", self.serial_number, exc_info=True)
+                # Track the last physical AMS slot for the runout hook's
+                # sentinel-skipping above (254/255 must not overwrite it).
+                if (0 <= tn_new <= 15) or (128 <= tn_new <= 135):
+                    self._spoof_last_real_tray = tn_new
 
             # NOTE: ams_status is parsed BEFORE tray_now (see above) to ensure correct
             # state when checking filament change mode for H2D disambiguation
