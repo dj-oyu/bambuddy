@@ -34,6 +34,7 @@ import { ColorCatalogSettings } from '../components/ColorCatalogSettings';
 import { ExternalLinksSettings } from '../components/ExternalLinksSettings';
 import { VirtualPrinterList } from '../components/VirtualPrinterList';
 import { SpoolBuddySettings } from '../components/SpoolBuddySettings';
+import { BMCULinkSettings } from '../components/BMCULinkSettings';
 import { GitHubBackupSettings } from '../components/GitHubBackupSettings';
 import { FailureDetectionSettings } from '../components/FailureDetectionSettings';
 import { EmailSettings } from '../components/EmailSettings';
@@ -42,7 +43,7 @@ import { TwoFactorSettings } from '../components/TwoFactorSettings';
 import { OIDCProviderSettings } from '../components/OIDCProviderSettings';
 import { SecurityStatusCard } from '../components/SecurityStatusCard';
 import { APIBrowser } from '../components/APIBrowser';
-import { virtualPrinterApi, spoolbuddyApi } from '../api/client';
+import { virtualPrinterApi, spoolbuddyApi, bmcuLinkApi } from '../api/client';
 import { defaultNavItems, getDefaultView, setDefaultView } from '../components/Layout';
 import { availableLanguages } from '../i18n';
 import { useToast } from '../contexts/ToastContext';
@@ -52,7 +53,7 @@ import { Palette } from 'lucide-react';
 import { registerSettingsSearch, getSettingsSearchEntries } from '../lib/settingsSearch';
 import type { UsersSubTab } from '../lib/settingsSearch';
 
-const validTabs = ['general', 'plugs', 'notifications', 'queue', 'filament', 'network', 'apikeys', 'virtual-printer', 'spoolbuddy', 'failure-detection', 'users', 'backup'] as const;
+const validTabs = ['general', 'plugs', 'notifications', 'queue', 'filament', 'network', 'apikeys', 'virtual-printer', 'spoolbuddy', 'bmcu-link', 'failure-detection', 'users', 'backup'] as const;
 type TabType = typeof validTabs[number];
 
 // Cross-tab search registrations for cards rendered inline in this file.
@@ -90,6 +91,7 @@ registerSettingsSearch({ labelKey: 'settings.apiBrowser', tab: 'apikeys', keywor
 registerSettingsSearch({ labelKey: 'cameraTokens.title', tab: 'apikeys', keywords: 'camera token long-lived home assistant frigate kiosk stream', anchor: 'card-camera-tokens' });
 registerSettingsSearch({ labelKey: 'settings.tabs.virtualPrinter', tab: 'virtual-printer', keywords: 'virtual printer proxy archive slicer bambustudio orcaslicer ip bind', anchor: 'card-vp' });
 registerSettingsSearch({ labelKey: 'settings.tabs.spoolbuddy', tab: 'spoolbuddy', keywords: 'spoolbuddy device scale nfc rfid kiosk unregister', anchor: 'card-spoolbuddy' });
+registerSettingsSearch({ labelKey: 'settings.tabs.bmcuLink', tab: 'bmcu-link', keywords: 'bmcu link adapter pico telemetry events ams monitor', anchor: 'card-bmcu-link' });
 registerSettingsSearch({ labelKey: 'settings.currentUser', tab: 'users', subTab: 'users', keywords: 'current user profile password change', anchor: 'card-currentuser' });
 registerSettingsSearch({ labelKey: 'settings.users', tab: 'users', subTab: 'users', keywords: 'users accounts list', anchor: 'card-users' });
 registerSettingsSearch({ labelKey: 'settings.groups', tab: 'users', subTab: 'users', keywords: 'groups roles permissions administrators operators viewers', anchor: 'card-groups' });
@@ -512,6 +514,15 @@ export function SettingsPage() {
   });
   const spoolbuddyDeviceCount = spoolbuddyDevices?.length ?? 0;
   const spoolbuddyAnyOnline = spoolbuddyDevices?.some((d) => d.online) ?? false;
+
+  // BMCU Link devices for tab indicator
+  const { data: bmcuLinkData } = useQuery({
+    queryKey: ['bmcu-link-devices'],
+    queryFn: () => bmcuLinkApi.getDevices(),
+    refetchInterval: 15000,
+  });
+  const bmcuLinkDeviceCount = bmcuLinkData?.devices?.length ?? 0;
+  const bmcuLinkAnyOnline = bmcuLinkData?.devices?.some((d) => d.link_state === 'online') ?? false;
 
   // Obico failure-detection service status for tab indicator
   const { data: obicoStatus } = useQuery({
@@ -1524,6 +1535,23 @@ export function SettingsPage() {
             </span>
           )}
           <span className={`w-2 h-2 rounded-full ${spoolbuddyAnyOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
+        </button>
+        <button
+          onClick={() => handleTabChange('bmcu-link')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px lg:border-b-0 lg:border-l-2 lg:-ml-px lg:mb-0 lg:justify-start flex items-center gap-2 ${
+            activeTab === 'bmcu-link'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-gray-900 dark:hover:text-white border-transparent'
+          }`}
+        >
+          <Cylinder className="w-4 h-4" />
+          {t('settings.tabs.bmcuLink')}
+          {bmcuLinkDeviceCount > 0 && (
+            <span className="text-xs bg-bambu-dark-tertiary px-1.5 py-0.5 rounded-full">
+              {bmcuLinkDeviceCount}
+            </span>
+          )}
+          <span className={`w-2 h-2 rounded-full ${bmcuLinkAnyOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
         </button>
         <button
           onClick={() => handleTabChange('failure-detection')}
@@ -4207,6 +4235,13 @@ export function SettingsPage() {
       {activeTab === 'spoolbuddy' && (
         <div id="card-spoolbuddy">
           <SpoolBuddySettings />
+        </div>
+      )}
+
+      {/* BMCU Link Tab */}
+      {activeTab === 'bmcu-link' && (
+        <div id="card-bmcu-link">
+          <BMCULinkSettings />
         </div>
       )}
 

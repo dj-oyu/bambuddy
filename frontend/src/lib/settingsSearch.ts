@@ -18,6 +18,7 @@ export type SettingsSearchTab =
   | 'apikeys'
   | 'virtual-printer'
   | 'spoolbuddy'
+  | 'bmcu-link'
   | 'users'
   | 'backup'
   | 'failure-detection';

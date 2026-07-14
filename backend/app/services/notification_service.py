@@ -1175,6 +1175,64 @@ class NotificationService:
             providers, title, message, db, "printer_offline", printer_id, printer_name, variables=variables
         )
 
+    async def on_bmcu_link_device_offline(
+        self,
+        device_id: str,
+        device_name: str,
+        printing_printer_names: list[str],
+        db: AsyncSession,
+        printer_id: int | None = None,
+    ):
+        """BMCU Link bridge went offline while a print is running.
+
+        Fans out to on_printer_error subscribers (NotificationProvider has no
+        dedicated BMCU column; a dead filament-unit bridge during a print is
+        an error-class event). printer_id is the (first) currently-printing
+        printer so printer-scoped providers for idle printers are not paged.
+        _build_message_from_template falls back to a generic rendering when
+        no "bmcu_link_offline" template exists.
+        """
+        providers = await self._get_providers_for_event(db, "on_printer_error", printer_id)
+        if not providers:
+            return
+
+        variables = {
+            "device": device_name or device_id,
+            "printers": ", ".join(printing_printer_names) or "unknown",
+        }
+
+        title, message = await self._build_message_from_template(db, "bmcu_link_offline", variables)
+        await self._send_to_providers(
+            providers,
+            title,
+            message,
+            db,
+            "bmcu_link_offline",
+            printer_id,
+            device_name or device_id,
+            variables=variables,
+        )
+
+    async def on_bmcu_link_anomaly(
+        self, device_id: str, kind: str, summary: str, db: AsyncSession, printer_id: int | None = None
+    ):
+        """BMCU Link bridge reported an anomaly / dropped-frame event.
+
+        printer_id is the currently-printing printer when there is one, else
+        None — tradeoff: idle-time anomalies then also reach printer-scoped
+        providers, which beats silently dropping the alert.
+        """
+        providers = await self._get_providers_for_event(db, "on_printer_error", printer_id)
+        if not providers:
+            return
+
+        variables = {"device": device_id, "kind": kind, "summary": summary}
+
+        title, message = await self._build_message_from_template(db, "bmcu_link_anomaly", variables)
+        await self._send_to_providers(
+            providers, title, message, db, "bmcu_link_anomaly", printer_id, device_id, variables=variables
+        )
+
     async def on_printer_error(
         self,
         printer_id: int,

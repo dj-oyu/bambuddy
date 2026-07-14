@@ -423,6 +423,19 @@ export function useWebSocket() {
         debouncedInvalidate('spoolbuddy-update-check');
         break;
 
+      case 'bmcu_link_device_state':
+      case 'bmcu_link_device_registered':
+        debouncedInvalidate('bmcu-link-devices');
+        break;
+
+      case 'bmcu_link_status':
+        window.dispatchEvent(new CustomEvent('bmcu-link-status', { detail: message }));
+        break;
+
+      case 'bmcu_link_anomaly':
+        window.dispatchEvent(new CustomEvent('bmcu-link-anomaly', { detail: message }));
+        break;
+
       // Dispatch toast lifecycle (#1625 follow-up — restored the upload
       // progress UI that the scheduler unification removed). Four backend
       // event types collapse to one frontend channel. No

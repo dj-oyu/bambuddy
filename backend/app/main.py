@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import logging
 import mimetypes as _mimetypes
@@ -23,6 +24,7 @@ from backend.app.api.routes import (
     archive_purge,
     archives,
     auth,
+    bmcu_link,
     bug_report,
     camera,
     cloud,
@@ -6449,6 +6451,42 @@ def stop_spoolbuddy_watchdog():
         logging.getLogger(__name__).info("SpoolBuddy watchdog stopped")
 
 
+# BMCU Link watchdog (private fork): 1s cadence tick for link-state
+# transitions, time-based flushes and retention pruning.
+_bmcu_link_watchdog_task: asyncio.Task | None = None
+
+
+async def _bmcu_link_watchdog_loop():
+    from backend.app.services.bmcu_link import bmcu_link_service
+
+    while True:
+        try:
+            await bmcu_link_service.watchdog_tick()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.getLogger(__name__).warning("BMCU Link watchdog failed: %s", e)
+        await asyncio.sleep(1)
+
+
+def start_bmcu_link_watchdog():
+    global _bmcu_link_watchdog_task
+    if _bmcu_link_watchdog_task is None:
+        _bmcu_link_watchdog_task = asyncio.create_task(_bmcu_link_watchdog_loop())
+        logging.getLogger(__name__).info("BMCU Link watchdog started")
+
+
+async def stop_bmcu_link_watchdog():
+    """Cancel AND await the watchdog so no tick races the final flush."""
+    global _bmcu_link_watchdog_task
+    if _bmcu_link_watchdog_task:
+        _bmcu_link_watchdog_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await _bmcu_link_watchdog_task
+        _bmcu_link_watchdog_task = None
+        logging.getLogger(__name__).info("BMCU Link watchdog stopped")
+
+
 # Camera stream orphan cleanup
 _camera_cleanup_task: asyncio.Task | None = None
 CAMERA_CLEANUP_INTERVAL = 60
@@ -6941,6 +6979,12 @@ async def lifespan(app: FastAPI):
     # Start SpoolBuddy device watchdog
     start_spoolbuddy_watchdog()
 
+    # Start BMCU Link watchdog (private fork; toggle: BAMBUDDY_BMCU_LINK)
+    from backend.app.services.bmcu_link import bmcu_link_enabled
+
+    if bmcu_link_enabled():
+        start_bmcu_link_watchdog()
+
     # Start camera stream orphan cleanup
     start_camera_cleanup()
 
@@ -6995,6 +7039,14 @@ async def lifespan(app: FastAPI):
     stop_printer_sensor_history_recording()
     stop_runtime_tracking()
     stop_spoolbuddy_watchdog()
+    await stop_bmcu_link_watchdog()
+    # Final flush so pending BMCU Link rows aren't lost on shutdown
+    try:
+        from backend.app.services.bmcu_link import bmcu_link_service
+
+        await bmcu_link_service.flush()
+    except Exception as e:
+        logging.warning("BMCU Link final flush failed: %s", e)
     stop_camera_cleanup()
     from backend.app.services.loop_watchdog import stop_loop_watchdog
 
@@ -7499,6 +7551,7 @@ app.include_router(obico.router, prefix=app_settings.api_prefix)
 app.include_router(metrics.router, prefix=app_settings.api_prefix)
 app.include_router(virtual_printers.router, prefix=app_settings.api_prefix)
 app.include_router(spoolbuddy.router, prefix=app_settings.api_prefix)
+app.include_router(bmcu_link.router, prefix=app_settings.api_prefix)
 
 
 # Serve static files (React build)
