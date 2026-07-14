@@ -171,6 +171,10 @@ async def init_db():
         api_key,
         archive,
         auth_ephemeral,
+        # bmcu_link_* tables are created by create_all below; hand-migration
+        # ALTERs in run_migrations() are only needed for FUTURE column changes.
+        bmcu_link_device,
+        bmcu_link_event,
         bug_report,
         color_catalog,
         external_link,

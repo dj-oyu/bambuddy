@@ -7534,6 +7534,81 @@ export const spoolbuddyApi = {
     ),
 };
 
+// BMCU Link types
+export interface BMCULinkDevice {
+  device_id: string;
+  name: string;
+  firmware: string;
+  protocol_min: number;
+  protocol_max: number;
+  capabilities: number;
+  mode: 'production_monitor' | 'bench_stub';
+  link_state: 'online' | 'stale' | 'offline';
+  pico_boot_session: number;
+  bmcu_boot_session: number;
+  last_seen_at: string | null;
+  first_seen_at: string | null;
+  last_status: Record<string, unknown> | null;
+  envelope_count: number;
+  dropped_count: number;
+}
+
+export interface BMCULinkEvent {
+  id: number;
+  device_id: string;
+  kind: string;
+  kind_id: number;
+  protocol: number;
+  received_at_us: number;
+  server_received_at: string;
+  transaction_id: number | null;
+  data: Record<string, unknown>;
+}
+
+export interface BMCULinkDevicesResponse {
+  enabled: boolean;
+  devices: BMCULinkDevice[];
+}
+
+export interface BMCULinkTransaction {
+  transaction_id: number;
+  first_at: string;
+  last_at: string;
+  event_count: number;
+  events: BMCULinkEvent[];
+}
+
+export interface BMCULinkEnums {
+  registry_version?: number;
+  [table: string]: Record<string, string> | number | undefined;
+}
+
+// BMCU Link API
+export const bmcuLinkApi = {
+  getDevices: () =>
+    request<BMCULinkDevicesResponse>('/bmcu-link/devices'),
+
+  getDevice: (deviceId: string) =>
+    request<BMCULinkDevice>(`/bmcu-link/devices/${deviceId}`),
+
+  getEvents: (deviceId: string, params?: { kind?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.kind) searchParams.set('kind', params.kind);
+    if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+    if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
+    const query = searchParams.toString();
+    return request<BMCULinkEvent[]>(`/bmcu-link/devices/${deviceId}/events${query ? `?${query}` : ''}`);
+  },
+
+  getTransactions: (deviceId: string, limit?: number) =>
+    request<BMCULinkTransaction[]>(
+      `/bmcu-link/devices/${deviceId}/transactions${limit !== undefined ? `?limit=${limit}` : ''}`
+    ),
+
+  getEnums: () =>
+    request<BMCULinkEnums>('/bmcu-link/enums'),
+};
+
 export interface BugReportRequest {
   description: string;
   email?: string;

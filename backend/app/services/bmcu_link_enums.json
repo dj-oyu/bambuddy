@@ -1,0 +1,26 @@
+{
+  "registry_version": 1,
+  "kind": {
+    "0": "hello",
+    "1": "heartbeat",
+    "2": "status",
+    "3": "printer_transaction",
+    "4": "anomaly",
+    "5": "dropped"
+  },
+  "severity": {
+    "0": "info",
+    "1": "warning",
+    "2": "error"
+  },
+  "outcome": {
+    "0": "ok",
+    "1": "failed",
+    "2": "timeout"
+  },
+  "reason": {
+    "0": "unknown",
+    "1": "uart_desync",
+    "2": "buffer_overflow"
+  }
+}
