@@ -329,7 +329,53 @@ async def test_null_tolerance(service):
 
 
 @pytest.mark.asyncio
-async def test_ingest_error_does_not_raise(service, monkeypatch):
-    poller = make_poller(service, [make_body()])
+async def test_ingest_error_does_not_raise_and_retains_state(service, monkeypatch):
+    ev = make_event(tick=100, severity=4)
+    b1 = make_body(bmcu={"events": [ev]})
+    b2 = make_body(bmcu={"events": [ev]})
+    poller = make_poller(service, [b1, b2])
+    real_ingest = service.ingest
     monkeypatch.setattr(service, "ingest", AsyncMock(side_effect=RuntimeError("db down")))
-    assert await poller.poll_once()  # translation/ingest errors swallowed
+    assert await poller.poll_once()  # ingest error swallowed
+    # State must NOT have advanced: nothing was persisted.
+    assert not poller._seen_events_set
+    assert poller._last_status_key is None
+    assert not poller._hello_sent
+
+    # Next poll retries the same content successfully.
+    monkeypatch.setattr(service, "ingest", real_ingest)
+    assert await poller.poll_once()
+    await service.flush()
+    rows = await event_rows(service)
+    assert sorted(r.kind for r in rows) == ["anomaly", "hello", "status"]
+    assert poller._hello_sent
+    assert poller._seen_events_set
+
+
+@pytest.mark.asyncio
+async def test_channel_change_emits_status(service):
+    b1 = make_body()
+    b1["bmcu"]["channels"] = [{"channel": 0, "online": True, "sensor_validity": 1, "raw_angle": 10}, None, None, None]
+    b2 = make_body()
+    b2["bmcu"]["channels"] = [{"channel": 0, "online": True, "sensor_validity": 1, "raw_angle": 999}, None, None, None]
+    b3 = make_body()
+    b3["bmcu"]["channels"] = [{"channel": 0, "online": False, "sensor_validity": 3, "raw_angle": 999}, None, None, None]
+    poller = make_poller(service, [b1, b2, b3])
+    for _ in range(3):
+        await poller.poll_once()
+    await service.flush()
+    rows = await event_rows(service)
+    # raw_angle churn (b2) is volatile; online/validity change (b3) is semantic
+    assert [r.kind for r in rows] == ["hello", "status", "status"]
+
+
+@pytest.mark.asyncio
+async def test_decoder_counter_change_emits_status(service):
+    b1 = make_body()
+    b2 = make_body(bmcu={"decoder_crc_errors": 5})
+    poller = make_poller(service, [b1, b2])
+    for _ in range(2):
+        await poller.poll_once()
+    await service.flush()
+    rows = await event_rows(service)
+    assert [r.kind for r in rows] == ["hello", "status", "status"]

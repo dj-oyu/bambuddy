@@ -18,7 +18,6 @@ import random
 import time
 import uuid
 from collections import deque
-from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
@@ -65,6 +64,7 @@ class BMCULinkPoller:
     # Analog fields that change on nearly every poll; excluding them from the
     # change key keeps DB row volume bounded during long prints.
     STATUS_VOLATILE_FIELDS = ("hw_tick32", "pressure", "pull_pct")
+    CHANNEL_VOLATILE_FIELDS = ("raw_angle", "position_delta", "motor_pwm", "pull_pct")
     ANOMALY_SEVERITY_MIN = 4  # firmware severity enum: 4 error, 5 critical
 
     def __init__(
@@ -110,7 +110,10 @@ class BMCULinkPoller:
             # connection per request and keep timeouts tight.
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(
-                    connect=self.CONNECT_TIMEOUT, read=self.READ_TIMEOUT, write=self.CONNECT_TIMEOUT, pool=self.CONNECT_TIMEOUT
+                    connect=self.CONNECT_TIMEOUT,
+                    read=self.READ_TIMEOUT,
+                    write=self.CONNECT_TIMEOUT,
+                    pool=self.CONNECT_TIMEOUT,
                 ),
                 limits=httpx.Limits(max_keepalive_connections=0, max_connections=1),
                 headers={"Connection": "close"},
@@ -152,33 +155,29 @@ class BMCULinkPoller:
             "data": data,
         }
 
-    def _status_key(self, status: dict, link_state: str) -> str:
-        trimmed = {k: v for k, v in status.items() if k not in self.STATUS_VOLATILE_FIELDS}
-        trimmed["_link"] = link_state
+    def _status_key(self, status_data: dict) -> str:
+        """Change-detection key over the full emitted status payload, minus
+        per-poll analog noise (ticks, pressure, encoder/PWM samples)."""
+        trimmed = {k: v for k, v in status_data.items() if k not in self.STATUS_VOLATILE_FIELDS}
+        channels = trimmed.get("channels")
+        if isinstance(channels, list):
+            trimmed["channels"] = [
+                {k: v for k, v in ch.items() if k not in self.CHANNEL_VOLATILE_FIELDS}
+                if isinstance(ch, dict)
+                else ch
+                for ch in channels
+            ]
         return json.dumps(trimmed, sort_keys=True, default=str)
 
-    def _new_ring_events(self, events: list) -> list[dict]:
-        fresh = []
-        for ev in events:
-            if not isinstance(ev, dict):
-                continue
-            fp = (
-                ev.get("hw_tick32"),
-                ev.get("record_type"),
-                ev.get("source"),
-                ev.get("payload"),
-            )
-            if fp in self._seen_events_set:
-                continue
-            if len(self._seen_events) == self._seen_events.maxlen:
-                self._seen_events_set.discard(self._seen_events[0])
-            self._seen_events.append(fp)
-            self._seen_events_set.add(fp)
-            fresh.append(ev)
-        return fresh
+    @staticmethod
+    def _event_fingerprint(ev: dict) -> tuple:
+        return (ev.get("hw_tick32"), ev.get("record_type"), ev.get("source"), ev.get("payload"))
 
-    def _translate(self, body: dict) -> list[dict]:
-        """Pure snapshot → envelope-dict translation (unit-testable)."""
+    def _translate(self, body: dict) -> tuple[list[dict], dict]:
+        """Snapshot → (envelope dicts, staged state). Poller state is only
+        advanced by :meth:`_commit` AFTER a successful ingest, so a transient
+        ingest failure re-emits the same events instead of losing them
+        (mirrors the service's record-dedup-key-after-staging discipline)."""
         envelopes: list[dict] = []
         bmcu = body.get("bmcu") or {}
         wifi = body.get("wifi") or {}
@@ -198,44 +197,70 @@ class BMCULinkPoller:
         # Pico↔BMCU UART going stale is an anomaly even though the Pico
         # itself (and therefore this device) stays online.
         if link_state == "stale" and self._prev_bmcu_link not in (None, "stale"):
-            envelopes.append(
-                self._make_envelope("anomaly", {"reason": "bmcu_uart_stale"}, link_state)
-            )
+            envelopes.append(self._make_envelope("anomaly", {"reason": "bmcu_uart_stale"}, link_state))
         recovered = link_state != "stale" and self._prev_bmcu_link == "stale"
-        self._prev_bmcu_link = link_state
 
         # Event-ring turnover after non-empty usually means a Pico reboot;
         # forget fingerprints so the next generation is not misdeduped.
-        if events:
-            self._ring_was_nonempty = True
-        elif self._ring_was_nonempty:
-            self._ring_was_nonempty = False
-            self._seen_events.clear()
-            self._seen_events_set.clear()
-
-        for ev in self._new_ring_events(events):
+        ring_reset = not events and self._ring_was_nonempty
+        seen = set() if ring_reset else self._seen_events_set
+        new_fingerprints: list[tuple] = []
+        staged_seen: set[tuple] = set()
+        for ev in events:
+            if not isinstance(ev, dict):
+                continue
+            fp = self._event_fingerprint(ev)
+            if fp in seen or fp in staged_seen:
+                continue
+            new_fingerprints.append(fp)
+            staged_seen.add(fp)
             severity = ev.get("severity")
             kind = "anomaly" if isinstance(severity, int) and severity >= self.ANOMALY_SEVERITY_MIN else "event"
             envelopes.append(self._make_envelope(kind, ev, link_state))
 
-        status_key = self._status_key(status, link_state)
+        data = dict(status)
+        data["link"] = link_state
+        data["wifi_state"] = wifi.get("state")
+        data["channels"] = bmcu.get("channels")
+        data["decoder_crc_errors"] = bmcu.get("decoder_crc_errors")
+        data["decoder_frame_errors"] = bmcu.get("decoder_frame_errors")
+        status_key = self._status_key(data)
         now = self._clock()
-        if (
+        status_emitted = (
             status_key != self._last_status_key
             or recovered
             or now - self._last_status_emit >= self.STATUS_HEARTBEAT_S
-        ):
-            self._last_status_key = status_key
-            self._last_status_emit = now
-            data = dict(status)
-            data["link"] = link_state
-            data["wifi_state"] = wifi.get("state")
-            data["channels"] = bmcu.get("channels")
-            data["decoder_crc_errors"] = bmcu.get("decoder_crc_errors")
-            data["decoder_frame_errors"] = bmcu.get("decoder_frame_errors")
+        )
+        if status_emitted:
             envelopes.append(self._make_envelope("status", data, link_state))
 
-        return envelopes
+        staged = {
+            "link_state": link_state,
+            "ring_reset": ring_reset,
+            "ring_nonempty": bool(events),
+            "new_fingerprints": new_fingerprints,
+            "status_key": status_key if status_emitted else None,
+            "status_emit_at": now if status_emitted else None,
+        }
+        return envelopes, staged
+
+    def _commit(self, staged: dict) -> None:
+        self._prev_bmcu_link = staged["link_state"]
+        if staged["ring_reset"]:
+            self._seen_events.clear()
+            self._seen_events_set.clear()
+        if staged["ring_nonempty"]:
+            self._ring_was_nonempty = True
+        elif staged["ring_reset"]:
+            self._ring_was_nonempty = False
+        for fp in staged["new_fingerprints"]:
+            if len(self._seen_events) == self._seen_events.maxlen:
+                self._seen_events_set.discard(self._seen_events[0])
+            self._seen_events.append(fp)
+            self._seen_events_set.add(fp)
+        if staged["status_key"] is not None:
+            self._last_status_key = staged["status_key"]
+            self._last_status_emit = staged["status_emit_at"]
 
     # ----------------------------------------------------------------- loop
 
@@ -254,15 +279,15 @@ class BMCULinkPoller:
                 # offline→online transition is persisted, not just marked.
                 self._last_status_key = None
                 self._fail_count = 0
-            envelopes = self._translate(body)
+            envelopes, staged = self._translate(body)
             service = self._get_service()
             if envelopes:
                 parsed = [BMCULinkEnvelope.model_validate(e) for e in envelopes]
                 await service.ingest(parsed)
-                if not self._hello_sent:
-                    self._hello_sent = True
+                self._hello_sent = True
             else:
                 service.mark_seen(self.device_id)
+            self._commit(staged)
         except Exception:
             logger.exception("BMCU Link poll translation/ingest failed for %s", self.url)
         return True
@@ -278,11 +303,6 @@ class BMCULinkPoller:
         while True:
             try:
                 await self.poll_once()
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                logger.exception("BMCU Link poll cycle failed")
-            try:
                 await asyncio.sleep(self._next_delay())
             except asyncio.CancelledError:
                 break
