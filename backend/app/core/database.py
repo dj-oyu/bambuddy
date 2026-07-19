@@ -3338,6 +3338,12 @@ async def run_migrations(conn):
     # names by appending " Email" (#1792). See ``_migrate_rename_user_print_template_names``.
     await _migrate_rename_user_print_template_names(conn)
 
+    # Migration (private fork): PICO_BAMBUDDY_ENVELOPE.md added a link id for
+    # multi-BMCU bridges; part of the dedup tuple, defaulted for old rows.
+    await _safe_execute(
+        conn, "ALTER TABLE bmcu_link_events ADD COLUMN link_id VARCHAR(50) NOT NULL DEFAULT 'default'"
+    )
+
 
 _USER_PRINT_TEMPLATE_RENAMES: tuple[tuple[str, str, str], ...] = (
     ("user_print_start", "User Print Started", "User Print Started Email"),

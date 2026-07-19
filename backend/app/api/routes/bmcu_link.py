@@ -83,7 +83,15 @@ async def bmcu_link_websocket(websocket: WebSocket, token: str | None = Query(de
                 continue
             result = await bmcu_link_service.ingest(envelopes)
             await websocket.send_json(
-                {"type": "ack", "accepted": result.accepted, "deduplicated": result.deduplicated}
+                {
+                    "type": "ack",
+                    "accepted": result.accepted,
+                    "deduplicated": result.deduplicated,
+                    # Replay-buffer watermark (PICO_BAMBUDDY_ENVELOPE.md §2):
+                    # the bridge may discard only envelopes at or below these
+                    # keys. Lags accepted counts because rows batch-flush.
+                    "persisted": [k.model_dump() for k in result.persisted],
+                }
             )
     except WebSocketDisconnect:
         pass

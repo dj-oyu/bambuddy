@@ -27,7 +27,12 @@ from backend.app.core.config import settings
 from backend.app.core.websocket import ws_manager
 from backend.app.models.bmcu_link_device import BMCULinkDevice
 from backend.app.models.bmcu_link_event import BMCULinkEvent
-from backend.app.schemas.bmcu_link import BMCULinkEnvelope, BMCULinkHelloData, BMCULinkIngestResponse
+from backend.app.schemas.bmcu_link import (
+    BMCULinkEnvelope,
+    BMCULinkHelloData,
+    BMCULinkIngestResponse,
+    BMCULinkPersistedKey,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +55,23 @@ def get_enum_registry() -> dict[str, Any]:
         try:
             if path.exists():
                 with open(path, encoding="utf-8") as f:
-                    return json.load(f)
+                    raw = json.load(f)
+                # The firmware-distributed bmcu_link_enum_registry.json nests
+                # its tables under "enums"; flatten to the id→name maps the
+                # frontend consumes, keeping registry metadata alongside.
+                if isinstance(raw.get("enums"), dict):
+                    return {
+                        "registry_version": raw.get("registry_version", 0),
+                        "wire_protocol": raw.get("wire_protocol"),
+                        **raw["enums"],
+                    }
+                return raw
         except Exception as e:
             logger.warning("Failed to load BMCU Link enum registry from %s: %s", path, e)
     return {"registry_version": 0}
 
 
-ANOMALY_KINDS = {"anomaly", "dropped"}
+ANOMALY_KINDS = {"anomaly", "dropped", "transport_drop"}
 
 
 class BMCULinkService:
@@ -73,13 +88,22 @@ class BMCULinkService:
     RETENTION_DELETE_BATCH = 5_000
     ANOMALY_NOTIFY_COOLDOWN_S = 60.0  # per-device latch on provider notifications
     MAX_TRACKED_DEVICES = 16  # in-memory device cap (ingest may be unauthenticated)
+    MAX_LINKS_PER_DEVICE = 8  # per-device link.id cap (same rationale as device cap)
     MAX_BATCH = 500  # max envelopes per ingest call / WS message
     EVICT_AFTER_S = 60 * 60  # drop in-memory state for devices offline this long
 
     def __init__(self) -> None:
         self._pending: list[dict[str, Any]] = []
-        # device_id -> (boot_key, deque of dedup keys, set of dedup keys)
-        self._dedup: dict[str, tuple[tuple[str, int], deque, set]] = {}
+        # (device_id, link_id) -> (boot_key, deque of dedup keys, set of dedup keys)
+        self._dedup: dict[tuple[str, str], tuple[tuple[str, int], deque, set]] = {}
+        # (device_id, link_id) -> (pico_boot_session, bmcu_boot_session, sequence)
+        # of the newest row confirmed flushed to DB (replay-buffer watermark).
+        self._persisted_key: dict[tuple[str, str], tuple[str, int, int]] = {}
+        # (device_id, link_id) -> boot_key of a session in which a staged row
+        # was dropped before commit. While set, the watermark must NOT advance
+        # for that session — otherwise the Pico would trim replay-buffer
+        # entries covering the gap. A new boot session clears it.
+        self._watermark_gap: dict[tuple[str, str], tuple[str, int]] = {}
         self._last_seen: dict[str, float] = {}  # device_id -> monotonic
         self._link_state: dict[str, str] = {}  # device_id -> online|stale|offline
         self._last_status: dict[str, str] = {}  # device_id -> JSON, persisted on flush
@@ -124,16 +148,22 @@ class BMCULinkService:
     # ------------------------------------------------------------------ dedup
 
     def _dedup_key(self, env: BMCULinkEnvelope) -> tuple:
-        return (env.device_id, env.link.pico_boot_session, env.link.bmcu_boot_session, env.link.uart_sequence)
+        return (
+            env.device_id,
+            env.link.id,
+            env.link.pico_boot_session,
+            env.link.bmcu_boot_session,
+            env.link.uart_sequence,
+        )
 
     def _dedup_entry(self, env: BMCULinkEnvelope) -> tuple[tuple[str, int], deque, set]:
-        """Per-device dedup window; a boot-session change (either Pico or
-        BMCU) resets it — sequences restart after reboot, old keys are stale."""
+        """Per-(device, link) dedup window; a boot-session change (either Pico
+        or BMCU) resets it — sequences restart after reboot, old keys are stale."""
         boot_key = (env.link.pico_boot_session, env.link.bmcu_boot_session)
-        entry = self._dedup.get(env.device_id)
+        entry = self._dedup.get((env.device_id, env.link.id))
         if entry is None or entry[0] != boot_key:
             entry = (boot_key, deque(), set())
-            self._dedup[env.device_id] = entry
+            self._dedup[(env.device_id, env.link.id)] = entry
         return entry
 
     def _check_duplicate(self, env: BMCULinkEnvelope) -> bool:
@@ -162,6 +192,24 @@ class BMCULinkService:
     def mark_seen(self, device_id: str) -> None:
         self._last_seen[device_id] = self._clock()
 
+    def persisted_keys(self, pairs: set[tuple[str, str]]) -> list[BMCULinkPersistedKey]:
+        """Replay-buffer watermarks for the given (device_id, link_id) pairs.
+        The Pico may discard buffered envelopes up to (and including) these
+        keys; anything newer must be replayed on reconnect."""
+        out = []
+        for pair in sorted(pairs):
+            wm = self._persisted_key.get(pair)
+            if wm is not None:
+                out.append(
+                    BMCULinkPersistedKey(
+                        link_id=pair[1],
+                        pico_boot_session=wm[0],
+                        bmcu_boot_session=wm[1],
+                        sequence=wm[2],
+                    )
+                )
+        return out
+
     # ----------------------------------------------------------------- ingest
 
     def _device_admitted(self, device_id: str) -> bool:
@@ -179,6 +227,32 @@ class BMCULinkService:
             )
         return False
 
+    def _link_admitted(self, env: BMCULinkEnvelope) -> bool:
+        """Cap distinct link ids per device — link.id is wire-controlled and
+        each (device, link) pair holds a dedup window in memory."""
+        pair = (env.device_id, env.link.id)
+        if pair in self._dedup:
+            return True
+        links = sum(1 for k in self._dedup if k[0] == env.device_id)
+        if links < self.MAX_LINKS_PER_DEVICE:
+            return True
+        self._rejected_device_envelopes += 1
+        return False
+
+    def _unrecord_dropped_row(self, row: dict) -> None:
+        """A staged row was dropped before commit: un-record its dedup key so
+        a Pico replay is not silently deduplicated, and freeze the watermark
+        for its boot session so the replay buffer is not trimmed past it."""
+        pair = (row["device_id"], row["link_id"])
+        boot_key = (row["pico_boot_session"], row["bmcu_boot_session"])
+        entry = self._dedup.get(pair)
+        if entry is not None and entry[0] == boot_key:
+            entry[2].discard(
+                (row["device_id"], row["link_id"], row["pico_boot_session"],
+                 row["bmcu_boot_session"], row["uart_sequence"])
+            )
+        self._watermark_gap[pair] = boot_key
+
     async def ingest(self, envelopes: list[BMCULinkEnvelope]) -> BMCULinkIngestResponse:
         if len(envelopes) > self.MAX_BATCH:
             logger.warning("BMCU Link ingest batch of %d exceeds MAX_BATCH=%d; truncating",
@@ -189,6 +263,8 @@ class BMCULinkService:
         for env in envelopes:
             try:
                 if not self._device_admitted(env.device_id):
+                    continue
+                if not self._link_admitted(env):
                     continue
                 if self._check_duplicate(env):
                     deduplicated += 1
@@ -204,7 +280,11 @@ class BMCULinkService:
                 await self.flush()
         except Exception:
             logger.exception("BMCU Link flush after ingest failed")
-        return BMCULinkIngestResponse(accepted=accepted, deduplicated=deduplicated)
+        return BMCULinkIngestResponse(
+            accepted=accepted,
+            deduplicated=deduplicated,
+            persisted=self.persisted_keys({(e.device_id, e.link.id) for e in envelopes}),
+        )
 
     async def _ingest_one(self, env: BMCULinkEnvelope) -> None:
         now_dt = self._utcnow()
@@ -219,6 +299,7 @@ class BMCULinkService:
 
         row = {
             "device_id": env.device_id,
+            "link_id": env.link.id,
             "pico_boot_session": env.link.pico_boot_session,
             "bmcu_boot_session": env.link.bmcu_boot_session,
             "uart_sequence": env.link.uart_sequence,
@@ -235,7 +316,7 @@ class BMCULinkService:
         }
         if len(self._pending) >= self.PENDING_CAP:
             # Drop-oldest so fresh data survives a DB stall; count and shout.
-            self._pending.pop(0)
+            self._unrecord_dropped_row(self._pending.pop(0))
             self._server_dropped += 1
             with contextlib.suppress(Exception):
                 await ws_manager.broadcast(
@@ -303,7 +384,7 @@ class BMCULinkService:
             device.protocol_min = hello.protocol_min
             device.protocol_max = hello.protocol_max
             device.capabilities = json.dumps(hello.capabilities)
-            device.mode = hello.mode
+            device.mode = env.mode or hello.mode
             device.link_state = "online"
             device.pico_boot_session = env.link.pico_boot_session
             device.bmcu_boot_session = env.link.bmcu_boot_session
@@ -370,6 +451,19 @@ class BMCULinkService:
                             device.link_state = self._link_state.get(did, device.link_state)
                     await db.commit()
                 self._flush_retry_pending = False
+                # Rows are committed: advance the per-(device, link) replay
+                # watermark to the newest row of each pair (ingest order) —
+                # unless this boot session has a drop gap, in which case the
+                # watermark stays put so the Pico keeps replaying the gap.
+                for r in rows:
+                    pair = (r["device_id"], r["link_id"])
+                    boot_key = (r["pico_boot_session"], r["bmcu_boot_session"])
+                    gap = self._watermark_gap.get(pair)
+                    if gap == boot_key:
+                        continue
+                    if gap is not None:
+                        del self._watermark_gap[pair]  # new session: gap moot
+                    self._persisted_key[pair] = (boot_key[0], boot_key[1], r["uart_sequence"])
             except Exception:
                 if not self._flush_retry_pending and rows:
                     # One implicit retry: put the rows back for the next flush,
@@ -378,6 +472,8 @@ class BMCULinkService:
                     self._pending = rows + self._pending
                     overflow = len(self._pending) - self.PENDING_CAP
                     if overflow > 0:
+                        for dropped in self._pending[:overflow]:
+                            self._unrecord_dropped_row(dropped)
                         del self._pending[:overflow]
                         self._server_dropped += overflow
                     self._dropped_dirty |= dropped_dirty
@@ -423,8 +519,10 @@ class BMCULinkService:
 
     def _evict_device(self, device_id: str) -> None:
         """Drop in-memory state for a long-offline device (DB rows stay)."""
+        for keyed in (self._dedup, self._persisted_key, self._watermark_gap):
+            for key in [k for k in keyed if k[0] == device_id]:
+                keyed.pop(key, None)
         for store in (
-            self._dedup,
             self._last_seen,
             self._link_state,
             self._last_status,
