@@ -32,6 +32,7 @@ from backend.app.schemas.bmcu_link import (
     BMCULinkHelloData,
     BMCULinkIngestResponse,
     BMCULinkPersistedKey,
+    BMCULinkRejected,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,14 +97,14 @@ class BMCULinkService:
         self._pending: list[dict[str, Any]] = []
         # (device_id, link_id) -> (boot_key, deque of dedup keys, set of dedup keys)
         self._dedup: dict[tuple[str, str], tuple[tuple[str, int], deque, set]] = {}
-        # (device_id, link_id) -> (pico_boot_session, bmcu_boot_session, sequence)
+        # (device_id, link_id) -> (pico_boot_session, transport_sequence)
         # of the newest row confirmed flushed to DB (replay-buffer watermark).
-        self._persisted_key: dict[tuple[str, str], tuple[str, int, int]] = {}
-        # (device_id, link_id) -> boot_key of a session in which a staged row
-        # was dropped before commit. While set, the watermark must NOT advance
+        self._persisted_key: dict[tuple[str, str], tuple[str, int]] = {}
+        # (device_id, link_id) -> pico_boot_session in which a staged row was
+        # dropped before commit. While set, the watermark must NOT advance
         # for that session — otherwise the Pico would trim replay-buffer
         # entries covering the gap. A new boot session clears it.
-        self._watermark_gap: dict[tuple[str, str], tuple[str, int]] = {}
+        self._watermark_gap: dict[tuple[str, str], str] = {}
         self._last_seen: dict[str, float] = {}  # device_id -> monotonic
         self._link_state: dict[str, str] = {}  # device_id -> online|stale|offline
         self._last_status: dict[str, str] = {}  # device_id -> JSON, persisted on flush
@@ -114,7 +115,7 @@ class BMCULinkService:
         # latest value per (device, boot session); on a boot-session change
         # the previous session's final value is folded into a running total.
         # device.dropped_count = DB baseline + folded sessions + current latest.
-        self._dropped_session: dict[str, tuple[tuple[str, int], int]] = {}  # device -> (boot_key, latest)
+        self._dropped_session: dict[str, tuple[str, int]] = {}  # device -> (pico_boot_session, latest)
         self._dropped_folded: dict[str, int] = {}  # device -> folded past-session totals (this process)
         self._dropped_baseline: dict[str, int] = {}  # device -> DB value captured on first flush
         self._dropped_dirty: set[str] = set()
@@ -148,18 +149,19 @@ class BMCULinkService:
     # ------------------------------------------------------------------ dedup
 
     def _dedup_key(self, env: BMCULinkEnvelope) -> tuple:
+        # Issue #2 contract: transport_sequence (u64, unique per envelope) is
+        # the key; bmcu_boot_session/BMCU sequence are diagnostics only.
         return (
             env.device_id,
             env.link.id,
             env.link.pico_boot_session,
-            env.link.bmcu_boot_session,
-            env.link.uart_sequence,
+            env.link.dedup_sequence,
         )
 
-    def _dedup_entry(self, env: BMCULinkEnvelope) -> tuple[tuple[str, int], deque, set]:
-        """Per-(device, link) dedup window; a boot-session change (either Pico
-        or BMCU) resets it — sequences restart after reboot, old keys are stale."""
-        boot_key = (env.link.pico_boot_session, env.link.bmcu_boot_session)
+    def _dedup_entry(self, env: BMCULinkEnvelope) -> tuple[str, deque, set]:
+        """Per-(device, link) dedup window; a Pico boot-session change resets
+        it — transport sequences restart after reboot, old keys are stale."""
+        boot_key = env.link.pico_boot_session
         entry = self._dedup.get((env.device_id, env.link.id))
         if entry is None or entry[0] != boot_key:
             entry = (boot_key, deque(), set())
@@ -204,8 +206,7 @@ class BMCULinkService:
                     BMCULinkPersistedKey(
                         link_id=pair[1],
                         pico_boot_session=wm[0],
-                        bmcu_boot_session=wm[1],
-                        sequence=wm[2],
+                        transport_sequence=wm[1],
                     )
                 )
         return out
@@ -244,14 +245,12 @@ class BMCULinkService:
         a Pico replay is not silently deduplicated, and freeze the watermark
         for its boot session so the replay buffer is not trimmed past it."""
         pair = (row["device_id"], row["link_id"])
-        boot_key = (row["pico_boot_session"], row["bmcu_boot_session"])
+        boot = row["pico_boot_session"]
         entry = self._dedup.get(pair)
-        if entry is not None and entry[0] == boot_key:
-            entry[2].discard(
-                (row["device_id"], row["link_id"], row["pico_boot_session"],
-                 row["bmcu_boot_session"], row["uart_sequence"])
-            )
-        self._watermark_gap[pair] = boot_key
+        if entry is not None and entry[0] == boot:
+            seq = row["transport_sequence"] if row["transport_sequence"] is not None else row["uart_sequence"]
+            entry[2].discard((row["device_id"], row["link_id"], boot, seq))
+        self._watermark_gap[pair] = boot
 
     async def ingest(self, envelopes: list[BMCULinkEnvelope]) -> BMCULinkIngestResponse:
         if len(envelopes) > self.MAX_BATCH:
@@ -260,11 +259,19 @@ class BMCULinkService:
             envelopes = envelopes[: self.MAX_BATCH]
         accepted = 0
         deduplicated = 0
-        for env in envelopes:
+        rejected: list[BMCULinkRejected] = []
+        for idx, env in enumerate(envelopes):
+            tseq = env.link.transport_sequence
             try:
                 if not self._device_admitted(env.device_id):
+                    rejected.append(
+                        BMCULinkRejected(index=idx, transport_sequence=tseq, code="device_cap", retryable=False)
+                    )
                     continue
                 if not self._link_admitted(env):
+                    rejected.append(
+                        BMCULinkRejected(index=idx, transport_sequence=tseq, code="link_cap", retryable=False)
+                    )
                     continue
                 if self._check_duplicate(env):
                     deduplicated += 1
@@ -275,6 +282,9 @@ class BMCULinkService:
                 accepted += 1
             except Exception:
                 logger.exception("BMCU Link ingest failed for device %s", getattr(env, "device_id", "?"))
+                rejected.append(
+                    BMCULinkRejected(index=idx, transport_sequence=tseq, code="internal", retryable=True)
+                )
         try:
             if len(self._pending) >= self.FLUSH_BATCH_SIZE:
                 await self.flush()
@@ -283,6 +293,7 @@ class BMCULinkService:
         return BMCULinkIngestResponse(
             accepted=accepted,
             deduplicated=deduplicated,
+            rejected=rejected,
             persisted=self.persisted_keys({(e.device_id, e.link.id) for e in envelopes}),
         )
 
@@ -302,7 +313,8 @@ class BMCULinkService:
             "link_id": env.link.id,
             "pico_boot_session": env.link.pico_boot_session,
             "bmcu_boot_session": env.link.bmcu_boot_session,
-            "uart_sequence": env.link.uart_sequence,
+            "uart_sequence": env.link.uart_sequence if env.link.uart_sequence is not None else 0,
+            "transport_sequence": env.link.transport_sequence,
             "kind": kind,
             "kind_id": env.frame.kind_id,
             "protocol": env.frame.protocol,
@@ -353,9 +365,10 @@ class BMCULinkService:
         dropped = data.get("dropped_count")
         if kind in ANOMALY_KINDS or dropped:
             if dropped:
-                # Cumulative-since-boot value: keep the latest per boot
-                # session, folding finished sessions into a running total.
-                boot_key = (env.link.pico_boot_session, env.link.bmcu_boot_session)
+                # Contract: dropped_count is cumulative per PICO boot and
+                # never resets otherwise — keep the latest per Pico session,
+                # folding finished sessions into a running total.
+                boot_key = env.link.pico_boot_session
                 prev = self._dropped_session.get(env.device_id)
                 if prev is not None and prev[0] != boot_key:
                     self._dropped_folded[env.device_id] = self._dropped_folded.get(env.device_id, 0) + prev[1]
@@ -457,13 +470,14 @@ class BMCULinkService:
                 # watermark stays put so the Pico keeps replaying the gap.
                 for r in rows:
                     pair = (r["device_id"], r["link_id"])
-                    boot_key = (r["pico_boot_session"], r["bmcu_boot_session"])
+                    boot = r["pico_boot_session"]
                     gap = self._watermark_gap.get(pair)
-                    if gap == boot_key:
+                    if gap == boot:
                         continue
                     if gap is not None:
                         del self._watermark_gap[pair]  # new session: gap moot
-                    self._persisted_key[pair] = (boot_key[0], boot_key[1], r["uart_sequence"])
+                    seq = r["transport_sequence"] if r["transport_sequence"] is not None else r["uart_sequence"]
+                    self._persisted_key[pair] = (boot, seq)
             except Exception:
                 if not self._flush_retry_pending and rows:
                     # One implicit retry: put the rows back for the next flush,

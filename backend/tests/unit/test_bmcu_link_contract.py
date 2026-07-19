@@ -39,10 +39,11 @@ def service(test_engine, ws_mock, notif_mock):
     return svc
 
 
-def make_envelope(seq=1, link_id=None, kind="event", **link_extra):
+def make_envelope(seq=1, link_id=None, kind="event", tseq=None, **link_extra):
     link = {
         "state": "online",
-        "sequence": seq,  # contract spelling
+        "sequence": seq,  # BMCU u16 spelling (diagnostics)
+        "transport_sequence": tseq if tseq is not None else seq,
         "pico_boot_session": "boot-a",
         "bmcu_boot_session": 1,
         **link_extra,
@@ -112,13 +113,12 @@ async def test_persisted_watermark_advances_on_flush(service):
     assert len(result.persisted) == 1
     wm = result.persisted[0]
     assert wm.link_id == "default"
-    assert wm.sequence == 3  # newest committed row, not the staged seq=4
+    assert wm.transport_sequence == 3  # newest committed row, not the staged seq=4
     assert wm.pico_boot_session == "boot-a"
-    assert wm.bmcu_boot_session == 1
 
     await service.flush()
     keys = service.persisted_keys({("pico-1", "default")})
-    assert keys[0].sequence == 4
+    assert keys[0].transport_sequence == 4
 
 
 @pytest.mark.asyncio
@@ -176,6 +176,78 @@ async def test_watermark_frozen_after_pending_drop(service):
     await service.flush()
     keys = service.persisted_keys({("pico-1", "default")})
     assert keys and keys[0].pico_boot_session == "boot-b"
+
+
+@pytest.mark.asyncio
+async def test_bmcu_sequence_wrap_not_deduped(service):
+    """Same BMCU u16 sequence (wrap / shared full-status request seq) must
+    not dedup when transport_sequence differs (issue #2 rationale)."""
+    envs = [
+        BMCULinkEnvelope.model_validate(make_envelope(seq=50, tseq=100)),
+        BMCULinkEnvelope.model_validate(make_envelope(seq=50, tseq=101)),
+        BMCULinkEnvelope.model_validate(make_envelope(seq=50, tseq=100)),  # true dup
+    ]
+    result = await service.ingest(envs)
+    assert result.accepted == 2
+    assert result.deduplicated == 1
+
+
+def test_transport_sequence_optional_legacy():
+    legacy = make_envelope(seq=7)
+    del legacy["link"]["transport_sequence"]
+    env = BMCULinkEnvelope.model_validate(legacy)
+    assert env.link.transport_sequence is None
+    assert env.link.dedup_sequence == 7
+    # neither sequence present → invalid
+    import pydantic
+
+    bad = make_envelope()
+    del bad["link"]["transport_sequence"]
+    del bad["link"]["sequence"]
+    with pytest.raises(pydantic.ValidationError):
+        BMCULinkEnvelope.model_validate(bad)
+
+
+@pytest.mark.asyncio
+async def test_partial_accept_rejected_codes(service):
+    from backend.app.api.routes.bmcu_link import _ingest_partial
+    import backend.app.api.routes.bmcu_link as routes_mod
+
+    orig = routes_mod.bmcu_link_service
+    routes_mod.bmcu_link_service = service
+    try:
+        batch = [
+            make_envelope(seq=1, tseq=1),
+            {"garbage": True},
+            make_envelope(seq=2, tseq=2),
+        ]
+        result = await _ingest_partial(batch)
+        assert result.accepted == 2
+        assert len(result.rejected) == 1
+        r = result.rejected[0]
+        assert (r.index, r.code, r.retryable) == (1, "validation_error", False)
+    finally:
+        routes_mod.bmcu_link_service = orig
+
+
+@pytest.mark.asyncio
+async def test_partial_accept_internal_retryable(service, monkeypatch):
+    from backend.app.api.routes.bmcu_link import _ingest_partial
+    import backend.app.api.routes.bmcu_link as routes_mod
+
+    async def boom(env):
+        raise RuntimeError("staging failed")
+
+    monkeypatch.setattr(service, "_ingest_one", boom)
+    orig = routes_mod.bmcu_link_service
+    routes_mod.bmcu_link_service = service
+    try:
+        result = await _ingest_partial([make_envelope(seq=1, tseq=9)])
+        assert result.accepted == 0
+        r = result.rejected[0]
+        assert (r.index, r.transport_sequence, r.code, r.retryable) == (0, 9, "internal", True)
+    finally:
+        routes_mod.bmcu_link_service = orig
 
 
 # --------------------------------------------------------- transport_drop

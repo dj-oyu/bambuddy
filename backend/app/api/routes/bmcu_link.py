@@ -3,7 +3,7 @@
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ from backend.app.schemas.bmcu_link import (
     BMCULinkEnvelope,
     BMCULinkEventResponse,
     BMCULinkIngestResponse,
+    BMCULinkRejected,
 )
 from backend.app.services.bmcu_link import bmcu_link_enabled, bmcu_link_service, get_enum_registry
 
@@ -32,10 +33,45 @@ _WS_CLOSE_UNAUTHORIZED = 4401
 _WS_CLOSE_DISABLED = 4404
 
 
-def _parse_envelopes(payload) -> list[BMCULinkEnvelope]:
-    if isinstance(payload, list):
-        return [BMCULinkEnvelope.model_validate(item) for item in payload]
-    return [BMCULinkEnvelope.model_validate(payload)]
+def _extract_transport_sequence(item) -> int | None:
+    try:
+        v = item.get("link", {}).get("transport_sequence")
+        return int(v) if v is not None else None
+    except Exception:
+        return None
+
+
+def _parse_envelopes_partial(payload) -> tuple[list[tuple[int, BMCULinkEnvelope]], list[BMCULinkRejected]]:
+    """Partial-accept parse (issue #2): invalid items become `rejected`
+    entries (0-based batch index, non-retryable) instead of failing the
+    whole batch; valid items keep their original index for error mapping."""
+    items = payload if isinstance(payload, list) else [payload]
+    parsed: list[tuple[int, BMCULinkEnvelope]] = []
+    rejected: list[BMCULinkRejected] = []
+    for idx, item in enumerate(items):
+        try:
+            parsed.append((idx, BMCULinkEnvelope.model_validate(item)))
+        except ValidationError:
+            rejected.append(
+                BMCULinkRejected(
+                    index=idx,
+                    transport_sequence=_extract_transport_sequence(item) if isinstance(item, dict) else None,
+                    code="validation_error",
+                    retryable=False,
+                )
+            )
+    return parsed, rejected
+
+
+async def _ingest_partial(payload) -> BMCULinkIngestResponse:
+    parsed, rejected = _parse_envelopes_partial(payload)
+    result = await bmcu_link_service.ingest([env for _, env in parsed])
+    # Service rejected-indices are relative to the surviving list; map back
+    # to original batch positions.
+    for r in result.rejected:
+        r.index = parsed[r.index][0]
+    result.rejected = sorted(rejected + result.rejected, key=lambda r: r.index)
+    return result
 
 
 @router.websocket("/ws")
@@ -58,6 +94,11 @@ async def bmcu_link_websocket(websocket: WebSocket, token: str | None = Query(de
         return
 
     if auth_required:
+        # Bearer header is preferred (keeps the token out of URLs/logs);
+        # query token remains supported for clients without header control.
+        auth_header = websocket.headers.get("authorization", "")
+        if not token and auth_header.lower().startswith("bearer "):
+            token = auth_header[7:]
         if not token:
             await websocket.close(code=_WS_CLOSE_UNAUTHORIZED)
             return
@@ -72,21 +113,22 @@ async def bmcu_link_websocket(websocket: WebSocket, token: str | None = Query(de
             raw = await websocket.receive_text()
             try:
                 payload = json.loads(raw)
-                if isinstance(payload, list) and len(payload) > bmcu_link_service.MAX_BATCH:
-                    await websocket.send_json(
-                        {"type": "error", "detail": f"batch exceeds {bmcu_link_service.MAX_BATCH} envelopes"}
-                    )
-                    continue
-                envelopes = _parse_envelopes(payload)
-            except (ValueError, ValidationError) as e:
+            except ValueError as e:
+                # Whole message unreadable — the only non-partial error path.
                 await websocket.send_json({"type": "error", "detail": str(e)[:500]})
                 continue
-            result = await bmcu_link_service.ingest(envelopes)
+            if isinstance(payload, list) and len(payload) > bmcu_link_service.MAX_BATCH:
+                await websocket.send_json(
+                    {"type": "error", "detail": f"batch exceeds {bmcu_link_service.MAX_BATCH} envelopes"}
+                )
+                continue
+            result = await _ingest_partial(payload)
             await websocket.send_json(
                 {
                     "type": "ack",
                     "accepted": result.accepted,
                     "deduplicated": result.deduplicated,
+                    "rejected": [r.model_dump() for r in result.rejected],
                     # Replay-buffer watermark (PICO_BAMBUDDY_ENVELOPE.md §2):
                     # the bridge may discard only envelopes at or below these
                     # keys. Lags accepted counts because rows batch-flush.
@@ -101,15 +143,34 @@ async def bmcu_link_websocket(websocket: WebSocket, token: str | None = Query(de
 
 @router.post("/ingest", response_model=BMCULinkIngestResponse)
 async def ingest_envelopes(
-    body: BMCULinkEnvelope | list[BMCULinkEnvelope],
+    request: Request,
     _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_UPDATE),
 ):
+    """Ingest one envelope, a JSON array, or NDJSON (one envelope per line,
+    Content-Type: application/x-ndjson) — the WebSocket-unavailable fallback
+    from PICO_BAMBUDDY_TRANSPORT.md §6. Partial accept per issue #2."""
     if not bmcu_link_enabled():
         raise HTTPException(status_code=404, detail="BMCU Link is disabled")
-    envelopes = body if isinstance(body, list) else [body]
-    if len(envelopes) > bmcu_link_service.MAX_BATCH:
+    content_type = request.headers.get("content-type", "")
+    body = await request.body()
+    if "ndjson" in content_type:
+        payload = []
+        for line in body.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                payload.append(json.loads(line))
+            except ValueError:
+                payload.append(None)  # rejected as validation_error by index
+    else:
+        try:
+            payload = json.loads(body)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"invalid JSON: {str(e)[:200]}")
+    if isinstance(payload, list) and len(payload) > bmcu_link_service.MAX_BATCH:
         raise HTTPException(status_code=413, detail=f"batch exceeds {bmcu_link_service.MAX_BATCH} envelopes")
-    return await bmcu_link_service.ingest(envelopes)
+    return await _ingest_partial(payload)
 
 
 @router.get("/devices")

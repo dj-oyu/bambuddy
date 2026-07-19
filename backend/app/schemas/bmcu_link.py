@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -18,15 +18,33 @@ class BMCULinkFrame(BaseModel):
 
 
 class BMCULinkLink(BaseModel):
-    # PICO_BAMBUDDY_ENVELOPE.md (alpha.3) renamed uart_sequence → sequence and
-    # added a link id for multi-BMCU bridges; accept both spellings so older
-    # bridges keep working.
+    """Link identity per issue #2 contract: `transport_sequence` (u64,
+    monotonic per Pico boot, unique per envelope) is the dedup/ordering key;
+    the BMCU UART sequence (u16, wraps, shared across full-status records) is
+    kept as `bmcu_sequence` for gap diagnostics only. Older spellings
+    `sequence`/`uart_sequence` are accepted for the BMCU value."""
+
     state: str
-    uart_sequence: int = Field(validation_alias=AliasChoices("sequence", "uart_sequence"))
+    transport_sequence: int | None = None
+    uart_sequence: int | None = Field(
+        default=None, validation_alias=AliasChoices("bmcu_sequence", "sequence", "uart_sequence")
+    )
     pico_boot_session: str
     bmcu_boot_session: int
     id: str = "default"
     queue_depth: int | None = None
+
+    @model_validator(mode="after")
+    def _require_some_sequence(self):
+        if self.transport_sequence is None and self.uart_sequence is None:
+            raise ValueError("link requires transport_sequence or bmcu_sequence")
+        return self
+
+    @property
+    def dedup_sequence(self) -> int:
+        """transport_sequence when present (production), else the legacy
+        BMCU sequence (commissioning poller / pre-contract bridges)."""
+        return self.transport_sequence if self.transport_sequence is not None else self.uart_sequence
 
 
 class BMCULinkEnvelope(BaseModel):
@@ -66,17 +84,28 @@ class BMCULinkHelloData(BaseModel):
 
 class BMCULinkPersistedKey(BaseModel):
     """Highest fully persisted dedup key for one (device, link) — the Pico
-    may discard its replay buffer only up to this point."""
+    may discard its replay buffer only up to this point (issue #2 shape)."""
 
     link_id: str
     pico_boot_session: str
-    bmcu_boot_session: int
-    sequence: int
+    transport_sequence: int
+
+
+class BMCULinkRejected(BaseModel):
+    """One rejected envelope in a partial-accept batch (issue #2 contract).
+    Codes are append-only stable strings; retryable=False means the bridge
+    must quarantine the record (count it as dropped) and move on."""
+
+    index: int
+    transport_sequence: int | None = None
+    code: str  # validation_error | batch_too_large | device_cap | link_cap | internal
+    retryable: bool
 
 
 class BMCULinkIngestResponse(BaseModel):
     accepted: int
     deduplicated: int
+    rejected: list[BMCULinkRejected] = Field(default_factory=list)
     # Per-link persistence watermark; lags accepted counts because rows are
     # batch-flushed. Absent until the first flush lands.
     persisted: list[BMCULinkPersistedKey] = Field(default_factory=list)
@@ -113,6 +142,7 @@ class BMCULinkEventResponse(BaseModel):
     pico_boot_session: str
     bmcu_boot_session: int
     uart_sequence: int
+    transport_sequence: int | None = None
     kind: str
     kind_id: int | None = None
     protocol: int | None = None

@@ -3343,6 +3343,9 @@ async def run_migrations(conn):
     await _safe_execute(
         conn, "ALTER TABLE bmcu_link_events ADD COLUMN link_id VARCHAR(50) NOT NULL DEFAULT 'default'"
     )
+    # Migration (private fork): issue #2 contract — u64 Pico transport
+    # sequence becomes the dedup/ordering key (BMCU u16 wraps).
+    await _safe_execute(conn, "ALTER TABLE bmcu_link_events ADD COLUMN transport_sequence BIGINT")
 
 
 _USER_PRINT_TEMPLATE_RENAMES: tuple[tuple[str, str, str], ...] = (

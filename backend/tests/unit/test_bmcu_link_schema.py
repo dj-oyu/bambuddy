@@ -59,11 +59,12 @@ def test_schema_mismatch_warns_not_rejects(caplog):
 
 
 def test_array_parse():
-    from backend.app.api.routes.bmcu_link import _parse_envelopes
+    from backend.app.api.routes.bmcu_link import _parse_envelopes_partial
 
-    envs = _parse_envelopes([make_envelope(), make_envelope(device_id="other")])
-    assert len(envs) == 2
-    assert envs[1].device_id == "other"
+    envs, rejected = _parse_envelopes_partial([make_envelope(), make_envelope(device_id="other")])
+    assert len(envs) == 2 and not rejected
+    assert envs[1][1].device_id == "other"
+    assert [i for i, _ in envs] == [0, 1]
 
-    single = _parse_envelopes(make_envelope())
-    assert len(single) == 1
+    single, rejected = _parse_envelopes_partial(make_envelope())
+    assert len(single) == 1 and not rejected

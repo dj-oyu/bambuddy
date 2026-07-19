@@ -145,6 +145,7 @@ class BMCULinkPoller:
             "received_at_us": time.time_ns() // 1000,
             "link": {
                 "state": link_state,
+                "transport_sequence": self._seq,
                 "uart_sequence": self._seq,
                 "pico_boot_session": self._boot_session,
                 # /api/status exposes no BMCU boot identity; hw_tick32 wrap

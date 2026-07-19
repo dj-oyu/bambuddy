@@ -41,10 +41,13 @@ def test_window_eviction():
 def test_boot_session_reset():
     svc = BMCULinkService()
     assert svc.is_duplicate(make_env(seq=1, bmcu=1)) is False
-    assert svc.is_duplicate(make_env(seq=1, bmcu=2)) is False  # new BMCU boot -> reset
+    # BMCU boot alone no longer resets the window (transport_sequence /
+    # pico session own ordering per issue #2); same key -> duplicate.
     assert svc.is_duplicate(make_env(seq=1, bmcu=2)) is True
-    # Old boot session now also resets the window again (key changed)
-    assert svc.is_duplicate(make_env(seq=1, bmcu=1)) is False
+    assert svc.is_duplicate(make_env(seq=1, bmcu=2)) is True
+    assert svc.is_duplicate(make_env(seq=1, bmcu=1)) is True
+    # A PICO boot change resets the window; sequences may repeat.
+    assert svc.is_duplicate(make_env(seq=1, pico="pico-B")) is False
 
 
 def test_dedup_isolated_per_device():

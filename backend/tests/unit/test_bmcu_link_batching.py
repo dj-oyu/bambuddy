@@ -109,8 +109,16 @@ async def test_dropped_count_cumulative_not_summed(service, db_session):
         device = await db.get(BMCULinkDevice, 1)
         assert device.dropped_count == 7  # latest, NOT 3+7
 
-    # New boot session: previous final value folds in, new cumulative starts
-    await service.ingest([make_dropped_env(1, 2, bmcu=2)])
+    # BMCU reboot alone does NOT reset the cumulative (issue #2 contract:
+    # dropped_count is per PICO boot); a stale lower value keeps the max.
+    await service.ingest([make_dropped_env(3, 2, bmcu=2)])
+    await service.flush()
+    async with service._sessionmaker()() as db:
+        device = await db.get(BMCULinkDevice, 1)
+        assert device.dropped_count == 7
+
+    # New PICO boot session: previous final value folds in, new run starts
+    await service.ingest([make_dropped_env(1, 2, pico="picoB")])
     await service.flush()
     async with service._sessionmaker()() as db:
         device = await db.get(BMCULinkDevice, 1)
