@@ -290,22 +290,22 @@ export function ScheduleOptionsPanel({
         </div>
       )}
 
-      {/* Deferred tail unload (private fork): explicit control over whether
-          the machine-end AMS pull-back is stripped (swap happens at the
-          next job's start instead). 'auto' = follow the G-code injection flag. */}
+      {/* Unload edit mode (private fork): when does the filament unload
+          happen, and does bambuddy edit the G-code at all. */}
       <div className="flex items-center gap-2">
-        <label htmlFor="deferUnload" className="text-sm text-bambu-gray">
-          {t('printModal.deferUnload', 'Deferred unload (skip tail unload)')}
+        <label htmlFor="unloadEdit" className="text-sm text-bambu-gray">
+          {t('printModal.unloadEdit', 'Filament unload')}
         </label>
         <select
-          id="deferUnload"
-          value={options.deferUnload}
-          onChange={(e) => onChange({ ...options, deferUnload: e.target.value as 'auto' | 'on' | 'off' })}
+          id="unloadEdit"
+          value={options.unloadEdit}
+          onChange={(e) => onChange({ ...options, unloadEdit: e.target.value as 'auto' | 'start' | 'end' | 'none' })}
           className="px-2 py-1 text-sm bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
         >
-          <option value="auto">{t('printModal.deferUnloadAuto', 'Auto (follow G-code injection)')}</option>
-          <option value="on">{t('printModal.deferUnloadOn', 'Defer (swap at next print start)')}</option>
-          <option value="off">{t('printModal.deferUnloadOff', 'Unload at end of print')}</option>
+          <option value="auto">{t('printModal.unloadEditAuto', 'Auto')}</option>
+          <option value="start">{t('printModal.unloadEditStart', 'Force unload at start (guarded swap)')}</option>
+          <option value="end">{t('printModal.unloadEditEnd', 'Unload at end of print')}</option>
+          <option value="none">{t('printModal.unloadEditNone', 'No G-code edits')}</option>
         </select>
       </div>
 

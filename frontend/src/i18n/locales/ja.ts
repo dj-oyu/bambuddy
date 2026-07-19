@@ -4624,10 +4624,11 @@ export default {
     staggerTotal: '合計: {{minutes}}分',
     staggerToPrinters: '{{count}}台のプリンターに段階的に送信',
     gcodeInjection: '自動印刷G-codeを挿入',
-    deferUnload: 'ディファードアンロード',
-    deferUnloadAuto: '自動(G-code挿入に追従)',
-    deferUnloadOn: '保留する(次の印刷冒頭で交換)',
-    deferUnloadOff: '印刷終了時にアンロード',
+    unloadEdit: 'フィラメントアンロード',
+    unloadEditAuto: '自動',
+    unloadEditStart: '冒頭でアンロード(強制引き戻し)',
+    unloadEditEnd: '末尾でアンロード',
+    unloadEditNone: '無編集',
   },
 
   // Backup

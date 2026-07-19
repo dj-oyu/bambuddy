@@ -172,7 +172,7 @@ class TestDeferUnloadTriState:
         from backend.app.services import print_scheduler
 
         src = inspect.getsource(print_scheduler)
-        assert "item.defer_unload if item.defer_unload is not None else bool(item.gcode_injection)" in src
+        assert "mode = item.unload_edit" in src
         assert 'os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"' in src
 
 
@@ -225,3 +225,102 @@ async def test_deferred_unload_state_endpoint(async_client, db_session):
     resp = await async_client.get("/api/v1/queue/printer/1/deferred-unload-state")
     body = resp.json()
     assert body["withheld"] is True and body["item_id"] == 42 and body["trays"] == [3]
+
+
+# ------------------------------------------------- unload_edit 4-mode (fork)
+
+
+class TestForcedStartUnload:
+    """unload_edit="start": the canonical pull-back block is inserted right
+    before the start swap (M620 M), guaranteeing an unload at this job's
+    start even when the printer's tray state is desynced."""
+
+    START = "; EXECUTABLE_BLOCK_START\nG28 X\nG1 X0.0 F30000\nM620 M ;enable remap\nM620 S3A   ; switch material if AMS exist\n    T3\nM621 S3A\nG1 Z5\n"
+
+    def test_injects_before_remap_enable(self):
+        from backend.app.utils.threemf_tools import _FORCED_START_UNLOAD_BLOCK, _inject_start_unload
+
+        out, injected = _inject_start_unload(self.START)
+        assert injected is True
+        assert out.index(_FORCED_START_UNLOAD_BLOCK) < out.index("M620 M")
+        # pull-back precedes the swap load
+        assert out.index("M620 S255") < out.index("M620 S3A")
+        assert "T255" in out
+
+    def test_no_swap_is_noop(self):
+        from backend.app.utils.threemf_tools import _inject_start_unload
+
+        out, injected = _inject_start_unload("; EXECUTABLE_BLOCK_START\nG28\nG1 X0\n")
+        assert injected is False and "M620 S255" not in out
+
+    def test_falls_back_to_plain_swap_line(self):
+        from backend.app.utils.threemf_tools import _inject_start_unload
+
+        gc = "; EXECUTABLE_BLOCK_START\nG28 X\nM620 S2A\nT2\nM621 S2A\n"
+        out, injected = _inject_start_unload(gc)
+        assert injected is True
+        assert out.index("M620 S255") < out.index("M620 S2A")
+
+
+class TestUnloadEditModeMapping:
+    """Dispatch-time mapping of unload_edit -> (tail strip, forced start)."""
+
+    @staticmethod
+    def _decide(unload_edit, defer_unload, gcode_injection, env="1"):
+        mode = unload_edit
+        if mode is None:
+            if defer_unload is True:
+                mode = "auto" if gcode_injection else "start-less-defer"
+            elif defer_unload is False:
+                mode = "end"
+            else:
+                mode = "auto"
+        env_ok = env != "0"
+        if mode in ("none", "end"):
+            return False, False
+        if mode == "start":
+            return bool(gcode_injection) and env_ok, True
+        if mode == "start-less-defer":
+            return env_ok, False
+        return bool(gcode_injection) and env_ok, False
+
+    def test_none_touches_nothing(self):
+        assert self._decide("none", None, True) == (False, False)
+
+    def test_end_keeps_tail(self):
+        assert self._decide("end", True, True) == (False, False)
+
+    def test_start_forces_pullback_tail_auto(self):
+        assert self._decide("start", None, True) == (True, True)
+        assert self._decide("start", None, False) == (False, True)
+
+    def test_auto_legacy(self):
+        assert self._decide("auto", None, True) == (True, False)
+        assert self._decide(None, None, False) == (False, False)
+        assert self._decide(None, True, False) == (True, False)
+        assert self._decide(None, False, True) == (False, False)
+
+    def test_env_kill_switch(self):
+        assert self._decide("start", None, True, env="0") == (False, True)
+
+
+@pytest.mark.asyncio
+async def test_queue_create_roundtrips_unload_edit(async_client, db_session):
+    from backend.app.models.archive import PrintArchive
+
+    archive = PrintArchive(filename="y.3mf", file_path="archive/y.3mf", file_size=1)
+    db_session.add(archive)
+    await db_session.commit()
+    resp = await async_client.post(
+        "/api/v1/queue/",
+        json={"archive_id": archive.id, "unload_edit": "start", "skip_filament_check": True},
+    )
+    assert resp.status_code == 200, resp.text
+    item = resp.json()
+    assert item["unload_edit"] == "start"
+    resp = await async_client.patch(f"/api/v1/queue/{item['id']}", json={"unload_edit": "none"})
+    assert resp.json()["unload_edit"] == "none"
+    resp = await async_client.post(
+        "/api/v1/queue/", json={"archive_id": archive.id, "unload_edit": "bogus"}
+    )
+    assert resp.status_code == 422

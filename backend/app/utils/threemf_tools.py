@@ -791,12 +791,53 @@ def _strip_tail_unload(gcode_content: str) -> tuple[str, str | None]:
     return gcode_content[:marker_idx] + new_tail, block
 
 
+# Canonical A1-series pull-back block, byte-identical to what the slicer puts
+# in the machine end G-code (and what _strip_tail_unload removes). Injected
+# before the start-gcode swap for unload_edit="start": positions the head
+# (XY is already homed at that point in the stock start sequence), cuts and
+# pulls the filament back to the AMS regardless of what the printer THINKS
+# is loaded — the guard against tray-state desync after an aborted swap.
+_FORCED_START_UNLOAD_BLOCK = (
+    "; bambuddy: forced pull-back before swap (unload_edit=start)\n"
+    "M620 S255\n"
+    "G1 X181 F12000\n"
+    "T255\n"
+    "G1 X0 F18000\n"
+    "G1 X-13.0 F3000\n"
+    "G1 X0 F18000 ; wipe\n"
+    "M621 S255\n"
+)
+
+
+def _inject_start_unload(gcode_content: str) -> tuple[str, bool]:
+    """Insert the canonical pull-back block immediately before the start
+    G-code's material swap (the first `M620 M` remap-enable line, falling
+    back to the first `M620 S<n>A`). At that point the stock start sequence
+    has already homed XY, so the block's positioning moves are safe.
+
+    Returns (new_content, injected). Fail-safe: no recognizable swap line ->
+    unchanged (a job without an AMS swap has nothing to guard).
+    """
+    import re
+
+    exec_start = gcode_content.find("; EXECUTABLE_BLOCK_START")
+    search_from = exec_start if exec_start != -1 else 0
+    m = re.search(r"^[^\S\n]*M620 M\b[^\n]*$", gcode_content[search_from:], re.MULTILINE)
+    if m is None:
+        m = re.search(r"^[^\S\n]*M620 S\d+A[^\n]*$", gcode_content[search_from:], re.MULTILINE)
+    if m is None:
+        return gcode_content, False
+    insert_at = search_from + m.start()
+    return gcode_content[:insert_at] + _FORCED_START_UNLOAD_BLOCK + gcode_content[insert_at:], True
+
+
 def inject_gcode_into_3mf(
     source_path: Path,
     plate_id: int,
     start_gcode: str | None,
     end_gcode: str | None,
     strip_tail_unload: dict | None = None,
+    force_start_unload: bool = False,
 ):
     """Create a temp copy of a 3MF with G-code injected at start/end.
 
@@ -825,7 +866,7 @@ def inject_gcode_into_3mf(
     """
     import tempfile
 
-    if not start_gcode and not end_gcode and strip_tail_unload is None:
+    if not start_gcode and not end_gcode and strip_tail_unload is None and not force_start_unload:
         return None
 
     try:
@@ -858,9 +899,24 @@ def inject_gcode_into_3mf(
                     logger.info("G-code injection [%s]: tail AMS unload stripped (deferred)", target_gcode)
                 else:
                     logger.info("G-code injection [%s]: tail unload pattern not found — leaving as-is", target_gcode)
-                    if not start_gcode and not end_gcode:
+                    if not start_gcode and not end_gcode and not force_start_unload:
                         # Nothing to change at all — skip the pointless re-zip
                         return None
+
+            if force_start_unload:
+                gcode_content, injected = _inject_start_unload(gcode_content)
+                if injected:
+                    logger.info("G-code injection [%s]: forced pull-back inserted before start swap", target_gcode)
+                else:
+                    logger.warning(
+                        "G-code injection [%s]: no start swap (M620) found — forced pull-back skipped", target_gcode
+                    )
+                    if (
+                        not start_gcode
+                        and not end_gcode
+                        and (strip_tail_unload is None or "block" not in strip_tail_unload)
+                    ):
+                        return None  # nothing actually changed — skip the re-zip
 
             if start_gcode:
                 resolved = _substitute_placeholders(start_gcode, header)

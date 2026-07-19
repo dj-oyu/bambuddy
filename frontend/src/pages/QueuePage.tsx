@@ -98,8 +98,12 @@ function traysEqual(a: number[] | null, b: number[] | null): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
-function effectiveDefer(item: PrintQueueItem): boolean {
-  return item.defer_unload ?? !!item.gcode_injection;
+function tailDeferred(item: PrintQueueItem): boolean {
+  const m = item.unload_edit;
+  if (m === 'none' || m === 'end') return false;
+  // 'start' and 'auto' both keep the tail decision on auto rules
+  if (m == null && item.defer_unload != null) return item.defer_unload;
+  return !!item.gcode_injection;
 }
 
 export function computeUnloadTiming(
@@ -122,9 +126,12 @@ export function computeUnloadTiming(
     let carry: number[] | null = state?.withheld ? (state.trays ?? []) : null;
     for (const item of list) {
       const trays = normalizeTrays(item.ams_mapping);
-      const defer = effectiveDefer(item);
+      const defer = tailDeferred(item);
+      // unload_edit='start' guarantees a pull-back at this job's start
+      // regardless of what the chain says is still loaded.
+      const forcedStart = item.unload_edit === 'start';
       map.set(item.id, {
-        start: carry !== null && !traysEqual(carry, trays),
+        start: forcedStart || (carry !== null && !traysEqual(carry, trays)),
         end: !defer,
       });
       carry = defer ? trays : null;

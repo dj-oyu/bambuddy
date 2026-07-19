@@ -2155,6 +2155,8 @@ export interface PrintQueueItem {
   // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
   // true=strip tail unload (swap at next start), false=keep sliced tail unload
   defer_unload?: boolean | null;
+  // 4-mode unload edit selector; null/undefined = auto (legacy defer_unload)
+  unload_edit?: 'auto' | 'start' | 'end' | 'none' | null;
   cleanup_library_after_dispatch?: boolean;
 }
 
@@ -2208,6 +2210,8 @@ export interface PrintQueueItemCreate {
   // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
   // true=strip tail unload (swap at next start), false=keep sliced tail unload
   defer_unload?: boolean | null;
+  // 4-mode unload edit selector; null/undefined = auto (legacy defer_unload)
+  unload_edit?: 'auto' | 'start' | 'end' | 'none' | null;
   // Batch: create multiple copies (creates a batch if > 1)
   quantity?: number;
   // Existing batch to add this item into (multi-plate auto-batch flow).
@@ -2255,6 +2259,8 @@ export interface PrintQueueItemUpdate {
   // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
   // true=strip tail unload (swap at next start), false=keep sliced tail unload
   defer_unload?: boolean | null;
+  // 4-mode unload edit selector; null/undefined = auto (legacy defer_unload)
+  unload_edit?: 'auto' | 'start' | 'end' | 'none' | null;
 }
 
 export interface PrintQueueBulkUpdate {
@@ -2279,6 +2285,8 @@ export interface PrintQueueBulkUpdate {
   // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
   // true=strip tail unload (swap at next start), false=keep sliced tail unload
   defer_unload?: boolean | null;
+  // 4-mode unload edit selector; null/undefined = auto (legacy defer_unload)
+  unload_edit?: 'auto' | 'start' | 'end' | 'none' | null;
 }
 
 export interface PrintQueueBulkUpdateResponse {

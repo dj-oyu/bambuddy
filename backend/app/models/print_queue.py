@@ -73,6 +73,15 @@ class PrintQueueItem(Base):
     # Always gated by BAMBUDDY_DEFER_TAIL_UNLOAD (0 disables = fail-safe).
     defer_unload: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
 
+    # Unload G-code edit mode (private fork, supersedes defer_unload):
+    #   None / "auto" -> legacy auto (tail stripped iff gcode_injection)
+    #   "start" -> inject a forced pull-back before the start swap (guards
+    #              against tray-state desync); tail handling stays auto
+    #   "end"   -> keep the sliced tail unload (never strip)
+    #   "none"  -> touch nothing: no strip, no forced pull-back, no snippets
+    # defer_unload is consulted only when this is NULL (legacy rows).
+    unload_edit: Mapped[str | None] = mapped_column(String(8), nullable=True, default=None)
+
     # H2C dual-nozzle-rack slicer pick preservation (#1780). BambuStudio's
     # project_file MQTT command for rack-swap-capable models (O1C2 today)
     # carries per-filament physical nozzle position IDs in `nozzle_mapping`,

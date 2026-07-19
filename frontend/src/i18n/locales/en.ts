@@ -4702,10 +4702,11 @@ export default {
     staggerTotal: 'total: {{minutes}} min',
     staggerToPrinters: 'Stagger to {{count}} printers',
     gcodeInjection: 'Inject auto-print G-code',
-    deferUnload: 'Deferred unload (skip tail unload)',
-    deferUnloadAuto: 'Auto (follow G-code injection)',
-    deferUnloadOn: 'Defer (swap at next print start)',
-    deferUnloadOff: 'Unload at end of print',
+    unloadEdit: 'Filament unload',
+    unloadEditAuto: 'Auto',
+    unloadEditStart: 'Force unload at start (guarded swap)',
+    unloadEditEnd: 'Unload at end of print',
+    unloadEditNone: 'No G-code edits',
   },
 
   // Backup

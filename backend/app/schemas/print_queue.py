@@ -60,6 +60,9 @@ class PrintQueueItemCreate(BaseModel):
     # Deferred tail unload: None=auto (follow gcode_injection), True=force
     # strip, False=keep sliced tail unload. See model comment.
     defer_unload: bool | None = None
+    # Unload edit mode: "auto" | "start" | "end" | "none" (None = auto /
+    # legacy defer_unload). Supersedes defer_unload when set.
+    unload_edit: Literal["auto", "start", "end", "none"] | None = None
     # Batch: create multiple copies (creates a batch if > 1)
     quantity: int = 1
     # Existing batch to add this item into. When set, the item's batch_id is
@@ -100,6 +103,7 @@ class PrintQueueItemUpdate(BaseModel):
     # Deferred tail unload tri-state (None clears back to auto is NOT
     # possible via PATCH — omit the field to leave unchanged)
     defer_unload: bool | None = None
+    unload_edit: Literal["auto", "start", "end", "none"] | None = None
     # H2C dual-nozzle-rack slicer pick (#1780). list[int] per-filament
     # physical nozzle position IDs from BambuStudio's project_file MQTT
     # body; sent back to the printer verbatim on dispatch.
@@ -189,6 +193,8 @@ class PrintQueueItemResponse(BaseModel):
     # Deferred tail unload tri-state (see queue model); effective value =
     # defer_unload if not None else gcode_injection
     defer_unload: bool | None = None
+    # 4-mode unload edit selector; None = auto/legacy
+    unload_edit: str | None = None
     cleanup_library_after_dispatch: bool = False
 
     # H2C dual-nozzle-rack slicer pick (#1780). Surface for any future

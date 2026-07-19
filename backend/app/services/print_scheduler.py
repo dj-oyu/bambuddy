@@ -2795,26 +2795,55 @@ class PrintScheduler:
         # G-code injection for auto-print systems (#422)
         injected_path = None
         deferred_unload_block: str | None = None
-        # Tri-state defer_unload: explicit per-item value wins; None falls
-        # back to the legacy "deferred iff gcode_injection" behavior. The
-        # env kill-switch always applies (0 = never strip, fail-safe).
-        _defer_requested = item.defer_unload if item.defer_unload is not None else bool(item.gcode_injection)
-        defer_unload = _defer_requested and os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
-        if item.gcode_injection or defer_unload:
+        # Unload edit mode (4-way, supersedes the boolean tri-state):
+        #   auto  -> tail stripped iff gcode_injection (legacy)
+        #   start -> forced pull-back injected before the start swap;
+        #            tail handling stays auto
+        #   end   -> keep the sliced tail unload
+        #   none  -> touch nothing at all (skips snippets too)
+        # Legacy defer_unload is consulted only when unload_edit is NULL.
+        mode = item.unload_edit
+        if mode is None:
+            if item.defer_unload is True:
+                mode = "auto" if item.gcode_injection else "start-less-defer"  # legacy True: tail strip only
+            elif item.defer_unload is False:
+                mode = "end"
+            else:
+                mode = "auto"
+        env_ok = os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
+        if mode == "none":
+            defer_unload = False
+            force_start_unload = False
+        elif mode == "end":
+            defer_unload = False
+            force_start_unload = False
+        elif mode == "start":
+            defer_unload = bool(item.gcode_injection) and env_ok
+            force_start_unload = True
+        elif mode == "start-less-defer":  # legacy defer_unload=True without injection
+            defer_unload = env_ok
+            force_start_unload = False
+        else:  # auto
+            defer_unload = bool(item.gcode_injection) and env_ok
+            force_start_unload = False
+        if mode != "none" and (item.gcode_injection or defer_unload or force_start_unload):
             try:
                 snippets_raw = await self._get_setting(db, "gcode_snippets")
-                if snippets_raw or defer_unload:
+                if snippets_raw or defer_unload or force_start_unload:
                     snippets = json.loads(snippets_raw) if snippets_raw else {}
                     model_snippets = snippets.get(printer.model, {})
-                    start_gc = (model_snippets.get("start_gcode") or "").strip()
-                    end_gc = (model_snippets.get("end_gcode") or "").strip()
-                    if start_gc or end_gc or defer_unload:
+                    # Snippets ride on the gcode_injection flag only; the
+                    # unload edits are independent of it.
+                    start_gc = (model_snippets.get("start_gcode") or "").strip() if item.gcode_injection else ""
+                    end_gc = (model_snippets.get("end_gcode") or "").strip() if item.gcode_injection else ""
+                    if start_gc or end_gc or defer_unload or force_start_unload:
                         from backend.app.utils.threemf_tools import inject_gcode_into_3mf
 
                         strip_result: dict | None = {} if defer_unload else None
                         injected_path = inject_gcode_into_3mf(
                             file_path, item.plate_id or 1, start_gc or None, end_gc or None,
                             strip_tail_unload=strip_result,
+                            force_start_unload=force_start_unload,
                         )
                         if injected_path:
                             file_path = injected_path
@@ -3092,11 +3121,15 @@ class PrintScheduler:
             # Deferred-unload bookkeeping happens only now that the printer
             # accepted the job — a failed upload/start leaves the previous
             # job's withheld-unload record untouched (review finding #3).
-            if defer_unload:
-                try:
-                    await self._resolve_deferred_unload(db, item, deferred_unload_block)
-                except Exception as e:
-                    logger.warning("Queue item %s: deferred-unload bookkeeping failed: %s", item.id, e)
+            # Runs on EVERY successful dispatch (not just deferring ones):
+            # any dispatched job consumes the previous withheld entry — its
+            # start G-code either performed the swap or didn't need one —
+            # so leaving the old record would poison the timing chain the
+            # queue UI computes from it.
+            try:
+                await self._resolve_deferred_unload(db, item, deferred_unload_block)
+            except Exception as e:
+                logger.warning("Queue item %s: deferred-unload bookkeeping failed: %s", item.id, e)
             # No dispatch-toast event here: the legacy bg-dispatch path kept
             # status='processing' from upload start until the printer acked
             # (or timed out). The frontend derives "Awaiting printer…" purely

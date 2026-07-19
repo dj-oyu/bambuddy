@@ -206,6 +206,7 @@ def _enrich_response(item: PrintQueueItem) -> PrintQueueItemResponse:
         "gcode_injection": item.gcode_injection,
         # Deferred tail unload tri-state (private fork)
         "defer_unload": item.defer_unload,
+        "unload_edit": item.unload_edit,
         # H2C rack-swap nozzle pick (#1780)
         "nozzle_mapping": nozzle_mapping_parsed,
         "nozzles_info": nozzles_info_parsed,
@@ -642,6 +643,7 @@ async def add_to_queue(
             preheat_chamber_target_override=data.preheat_chamber_target_override,
             gcode_injection=data.gcode_injection,
             defer_unload=data.defer_unload,
+            unload_edit=data.unload_edit,
             cleanup_library_after_dispatch=data.cleanup_library_after_dispatch,
             project_id=data.project_id,
             position=start_position + i,

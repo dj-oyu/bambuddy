@@ -3356,6 +3356,9 @@ async def run_migrations(conn):
     # Migration (private fork): explicit tri-state deferred-tail-unload flag
     # on queue items (NULL = legacy auto behavior via gcode_injection).
     await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN defer_unload BOOLEAN")
+    # Migration (private fork): 4-mode unload edit selector (auto / start /
+    # end / none) superseding the boolean defer_unload tri-state.
+    await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN unload_edit VARCHAR(8)")
 
 
 _USER_PRINT_TEMPLATE_RENAMES: tuple[tuple[str, str, str], ...] = (
