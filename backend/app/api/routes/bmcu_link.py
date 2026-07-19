@@ -31,6 +31,9 @@ router = APIRouter(prefix="/bmcu-link", tags=["bmcu-link"])
 # (private-use range 4000-4999 per RFC 6455).
 _WS_CLOSE_UNAUTHORIZED = 4401
 _WS_CLOSE_DISABLED = 4404
+# 500 envelopes * ~1 KiB each with headroom; ingest can be unauthenticated,
+# so cap the buffered body instead of trusting Content-Length.
+_MAX_INGEST_BODY = 2 * 1024 * 1024
 
 
 def _extract_transport_sequence(item) -> int | None:
@@ -153,6 +156,8 @@ async def ingest_envelopes(
         raise HTTPException(status_code=404, detail="BMCU Link is disabled")
     content_type = request.headers.get("content-type", "")
     body = await request.body()
+    if len(body) > _MAX_INGEST_BODY:
+        raise HTTPException(status_code=413, detail="request body too large")
     if "ndjson" in content_type:
         payload = []
         for line in body.decode("utf-8", errors="replace").splitlines():

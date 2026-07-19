@@ -160,7 +160,12 @@ class BMCULinkService:
 
     def _dedup_entry(self, env: BMCULinkEnvelope) -> tuple[str, deque, set]:
         """Per-(device, link) dedup window; a Pico boot-session change resets
-        it — transport sequences restart after reboot, old keys are stale."""
+        it — transport sequences restart after reboot, old keys are stale.
+
+        Known trade (issue #2): legacy senders without transport_sequence can
+        be falsely deduplicated when the BMCU reboots mid-Pico-session (u16
+        sequence restarts inside a live window). Production bridges and the
+        commissioning poller are immune (monotonic transport_sequence)."""
         boot_key = env.link.pico_boot_session
         entry = self._dedup.get((env.device_id, env.link.id))
         if entry is None or entry[0] != boot_key:
