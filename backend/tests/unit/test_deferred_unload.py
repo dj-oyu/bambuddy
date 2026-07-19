@@ -138,3 +138,90 @@ class TestInjectWithStrip:
             assert inject_gcode_into_3mf(src, 1, None, None) is None
         finally:
             src.unlink()
+
+
+# ---------------------------------------------------- tri-state defer_unload
+
+
+class TestDeferUnloadTriState:
+    """Explicit per-item defer_unload (private fork UI feature): None=auto
+    (follow gcode_injection), True=force strip, False=keep tail unload."""
+
+    @staticmethod
+    def _decide(defer_unload, gcode_injection, env="1"):
+        # Mirrors the dispatch-time expression in print_scheduler.py.
+        requested = defer_unload if defer_unload is not None else bool(gcode_injection)
+        return requested and env != "0"
+
+    def test_auto_follows_gcode_injection(self):
+        assert self._decide(None, True) is True
+        assert self._decide(None, False) is False
+
+    def test_explicit_true_without_injection(self):
+        assert self._decide(True, False) is True
+
+    def test_explicit_false_wins_over_injection(self):
+        assert self._decide(False, True) is False
+
+    def test_env_kill_switch_always_wins(self):
+        assert self._decide(True, True, env="0") is False
+
+    def test_scheduler_source_matches_contract(self):
+        import inspect
+
+        from backend.app.services import print_scheduler
+
+        src = inspect.getsource(print_scheduler)
+        assert "item.defer_unload if item.defer_unload is not None else bool(item.gcode_injection)" in src
+        assert 'os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"' in src
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.asyncio
+async def test_queue_create_roundtrips_defer_unload(async_client, db_session):
+    from backend.app.models.archive import PrintArchive
+
+    archive = PrintArchive(filename="x.3mf", file_path="archive/x.3mf", file_size=1)
+    db_session.add(archive)
+    await db_session.commit()
+
+    resp = await async_client.post(
+        "/api/v1/queue/",
+        json={"archive_id": archive.id, "defer_unload": True, "skip_filament_check": True},
+    )
+    assert resp.status_code == 200, resp.text
+    item = resp.json()
+    assert item["defer_unload"] is True
+
+    # PATCH pending item to explicit False
+    resp = await async_client.patch(f"/api/v1/queue/{item['id']}", json={"defer_unload": False})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["defer_unload"] is False
+
+    # default is None (auto)
+    resp = await async_client.post(
+        "/api/v1/queue/", json={"archive_id": archive.id, "skip_filament_check": True}
+    )
+    assert resp.json()["defer_unload"] is None
+
+
+@pytest.mark.asyncio
+async def test_deferred_unload_state_endpoint(async_client, db_session):
+    from backend.app.models.settings import Settings
+
+    resp = await async_client.get("/api/v1/queue/printer/1/deferred-unload-state")
+    assert resp.status_code == 200
+    assert resp.json() == {"withheld": False, "item_id": None, "trays": None}
+
+    db_session.add(
+        Settings(
+            key="deferred_unload_state:1",
+            value='{"item_id": 42, "ams_mapping": "[-1, -1, 3]", "block": "M620 S255"}',
+        )
+    )
+    await db_session.commit()
+    resp = await async_client.get("/api/v1/queue/printer/1/deferred-unload-state")
+    body = resp.json()
+    assert body["withheld"] is True and body["item_id"] == 42 and body["trays"] == [3]

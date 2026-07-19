@@ -1257,6 +1257,10 @@ export default {
       requiresPrevious: '前の成功が必要',
       autoPowerOff: '自動電源オフ',
       gcodeInjection: 'G-code',
+      unloadAtStart: '冒頭でアンロード(交換)',
+      noUnloadAtStart: '冒頭アンロードなし',
+      unloadAtEnd: '末尾でアンロード',
+      unloadCarriedOver: '末尾アンロードなし(次へ持ち越し)',
     },
     // Empty state
     empty: {
@@ -4620,6 +4624,10 @@ export default {
     staggerTotal: '合計: {{minutes}}分',
     staggerToPrinters: '{{count}}台のプリンターに段階的に送信',
     gcodeInjection: '自動印刷G-codeを挿入',
+    deferUnload: 'ディファードアンロード',
+    deferUnloadAuto: '自動(G-code挿入に追従)',
+    deferUnloadOn: '保留する(次の印刷冒頭で交換)',
+    deferUnloadOff: '印刷終了時にアンロード',
   },
 
   // Backup

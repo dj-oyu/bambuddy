@@ -2152,6 +2152,9 @@ export interface PrintQueueItem {
   been_jumped?: boolean;
   // Auto-print G-code injection
   gcode_injection?: boolean;
+  // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
+  // true=strip tail unload (swap at next start), false=keep sliced tail unload
+  defer_unload?: boolean | null;
   cleanup_library_after_dispatch?: boolean;
 }
 
@@ -2202,6 +2205,9 @@ export interface PrintQueueItemCreate {
   preheat_chamber_target_override?: number | null;
   // Auto-print G-code injection
   gcode_injection?: boolean;
+  // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
+  // true=strip tail unload (swap at next start), false=keep sliced tail unload
+  defer_unload?: boolean | null;
   // Batch: create multiple copies (creates a batch if > 1)
   quantity?: number;
   // Existing batch to add this item into (multi-plate auto-batch flow).
@@ -2246,6 +2252,9 @@ export interface PrintQueueItemUpdate {
   preheat_chamber_target_override?: number | null;
   // Auto-print G-code injection
   gcode_injection?: boolean;
+  // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
+  // true=strip tail unload (swap at next start), false=keep sliced tail unload
+  defer_unload?: boolean | null;
 }
 
 export interface PrintQueueBulkUpdate {
@@ -2267,6 +2276,9 @@ export interface PrintQueueBulkUpdate {
   preheat_chamber_target_override?: number | null;
   // Auto-print G-code injection
   gcode_injection?: boolean;
+  // Deferred tail unload tri-state: null/undefined=auto (follow gcode_injection),
+  // true=strip tail unload (swap at next start), false=keep sliced tail unload
+  defer_unload?: boolean | null;
 }
 
 export interface PrintQueueBulkUpdateResponse {
@@ -4969,6 +4981,12 @@ export const api = {
     return request<PrintQueueItem[]>(`/queue/?${params}`);
   },
   getQueueItem: (id: number) => request<PrintQueueItem>(`/queue/${id}`),
+  // Deferred-unload patch: what unload the previous job withheld on this
+  // printer — drives the queue UI's "unload happens at start?" badges.
+  getDeferredUnloadState: (printerId: number) =>
+    request<{ withheld: boolean; item_id: number | null; trays: number[] | null }>(
+      `/queue/printer/${printerId}/deferred-unload-state`
+    ),
   addToQueue: (data: PrintQueueItemCreate) =>
     request<PrintQueueItem>('/queue/', {
       method: 'POST',

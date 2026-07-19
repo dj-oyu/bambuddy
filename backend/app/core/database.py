@@ -3353,6 +3353,9 @@ async def run_migrations(conn):
     await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_key_set_at TIMESTAMP")
     await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_session_nonce VARCHAR(100)")
     await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_sequence BIGINT NOT NULL DEFAULT 0")
+    # Migration (private fork): explicit tri-state deferred-tail-unload flag
+    # on queue items (NULL = legacy auto behavior via gcode_injection).
+    await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN defer_unload BOOLEAN")
 
 
 _USER_PRINT_TEMPLATE_RENAMES: tuple[tuple[str, str, str], ...] = (

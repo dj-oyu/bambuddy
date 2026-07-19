@@ -2795,8 +2795,12 @@ class PrintScheduler:
         # G-code injection for auto-print systems (#422)
         injected_path = None
         deferred_unload_block: str | None = None
-        defer_unload = bool(item.gcode_injection) and os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
-        if item.gcode_injection:
+        # Tri-state defer_unload: explicit per-item value wins; None falls
+        # back to the legacy "deferred iff gcode_injection" behavior. The
+        # env kill-switch always applies (0 = never strip, fail-safe).
+        _defer_requested = item.defer_unload if item.defer_unload is not None else bool(item.gcode_injection)
+        defer_unload = _defer_requested and os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
+        if item.gcode_injection or defer_unload:
             try:
                 snippets_raw = await self._get_setting(db, "gcode_snippets")
                 if snippets_raw or defer_unload:

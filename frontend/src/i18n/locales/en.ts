@@ -1275,6 +1275,10 @@ export default {
       requiresPrevious: 'Requires previous success',
       autoPowerOff: 'Auto power off',
       gcodeInjection: 'G-code',
+      unloadAtStart: 'Unloads at start (swap)',
+      noUnloadAtStart: 'No unload at start',
+      unloadAtEnd: 'Unloads at end',
+      unloadCarriedOver: 'No end unload (carried to next)',
     },
     // Empty state
     empty: {
@@ -4698,6 +4702,10 @@ export default {
     staggerTotal: 'total: {{minutes}} min',
     staggerToPrinters: 'Stagger to {{count}} printers',
     gcodeInjection: 'Inject auto-print G-code',
+    deferUnload: 'Deferred unload (skip tail unload)',
+    deferUnloadAuto: 'Auto (follow G-code injection)',
+    deferUnloadOn: 'Defer (swap at next print start)',
+    deferUnloadOff: 'Unload at end of print',
   },
 
   // Backup

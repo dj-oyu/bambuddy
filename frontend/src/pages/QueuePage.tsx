@@ -81,6 +81,58 @@ function formatWeight(g: number, useKg = false): string {
   return `${Math.round(g)}g`;
 }
 
+// ---- Deferred-unload timing (private fork) --------------------------------
+// Answers, per pending item, "when does a filament unload actually happen?":
+//   start = this item's start G-code will unload the still-loaded filament
+//           (a previous job withheld its tail unload and the trays differ)
+//   end   = this item keeps its sliced tail unload (not deferred)
+export type UnloadTiming = { start: boolean; end: boolean };
+
+function normalizeTrays(mapping: number[] | null | undefined): number[] | null {
+  if (!mapping) return null;
+  return Array.from(new Set(mapping.filter(v => v >= 0 && v < 255))).sort((a, b) => a - b);
+}
+
+function traysEqual(a: number[] | null, b: number[] | null): boolean {
+  if (!a || !b) return false;
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+function effectiveDefer(item: PrintQueueItem): boolean {
+  return item.defer_unload ?? !!item.gcode_injection;
+}
+
+export function computeUnloadTiming(
+  pendingItems: PrintQueueItem[],
+  deferredStates: Record<number, { withheld: boolean; trays: number[] | null } | undefined>,
+): Map<number, UnloadTiming> {
+  const map = new Map<number, UnloadTiming>();
+  const byPrinter = new Map<number, PrintQueueItem[]>();
+  for (const item of pendingItems) {
+    if (item.printer_id == null || item.status !== 'pending') continue;
+    const list = byPrinter.get(item.printer_id) ?? [];
+    list.push(item);
+    byPrinter.set(item.printer_id, list);
+  }
+  for (const [printerId, list] of byPrinter.entries()) {
+    list.sort((a, b) => a.position - b.position);
+    // What will still be loaded when the first pending item starts: the
+    // withheld entry of the last dispatched job on this printer.
+    const state = deferredStates[printerId];
+    let carry: number[] | null = state?.withheld ? (state.trays ?? []) : null;
+    for (const item of list) {
+      const trays = normalizeTrays(item.ams_mapping);
+      const defer = effectiveDefer(item);
+      map.set(item.id, {
+        start: carry !== null && !traysEqual(carry, trays),
+        end: !defer,
+      });
+      carry = defer ? trays : null;
+    }
+  }
+  return map;
+}
+
 function StatusBadge({ status, waitingReason, printerState, t }: { status: PrintQueueItem['status']; waitingReason?: string | null; printerState?: string | null; t: (key: string) => string }) {
   // Special case: pending with waiting_reason shows as "Waiting"
   if (status === 'pending' && waitingReason) {
@@ -316,6 +368,7 @@ function SortableQueueItem({
   hasPermission,
   canModify,
   printerState,
+  unloadTiming,
   t,
 }: {
   item: PrintQueueItem;
@@ -332,6 +385,7 @@ function SortableQueueItem({
   hasPermission: (permission: Permission) => boolean;
   canModify: (resource: 'queue' | 'archives' | 'library', action: 'update' | 'delete' | 'reprint', createdById: number | null | undefined) => boolean;
   printerState?: string | null;
+  unloadTiming?: UnloadTiming;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   // Fetch printer status every 30 seconds while printing to monitor progress
@@ -589,6 +643,30 @@ function SortableQueueItem({
                 {t('queue.badges.gcodeInjection')}
               </span>
             )}
+            {/* Deferred-unload timing (private fork): when does the filament
+                unload actually happen for this job? */}
+            {unloadTiming && (
+              <>
+                <span
+                  className={
+                    unloadTiming.start
+                      ? 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-500/20'
+                      : 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-bambu-dark text-bambu-gray rounded-full border border-bambu-dark-tertiary'
+                  }
+                >
+                  {unloadTiming.start ? t('queue.badges.unloadAtStart') : t('queue.badges.noUnloadAtStart')}
+                </span>
+                <span
+                  className={
+                    unloadTiming.end
+                      ? 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 rounded-full border border-sky-200 dark:border-sky-500/20'
+                      : 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full border border-emerald-200 dark:border-emerald-500/20'
+                  }
+                >
+                  {unloadTiming.end ? t('queue.badges.unloadAtEnd') : t('queue.badges.unloadCarriedOver')}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Progress bar for printing items - TODO: integrate with WebSocket */}
@@ -769,6 +847,7 @@ interface QueueRowRenderProps {
   canModify: (resource: any, action: any, createdById?: number | null) => boolean;
   t: (key: string, options?: Record<string, unknown>) => string;
   aggregateForRows: (rows: QueueRow[]) => { count: number; time: number; weight: number };
+  unloadTimingMap: Map<number, UnloadTiming>;
 }
 
 /** Renders either a single item or a collapsible batch group containing N
@@ -786,12 +865,14 @@ function QueueRowRender(props: QueueRowRenderProps) {
     hasPermission,
     canModify,
     t,
+    unloadTimingMap,
   } = props;
 
   if (row.kind === 'item') {
     return (
       <SortableQueueItem
         item={row.item}
+        unloadTiming={unloadTimingMap.get(row.item.id)}
         onEdit={() => setEditItem(row.item)}
         onCancel={() => setConfirmAction({ type: 'cancel', item: row.item })}
         onRemove={() => {}}
@@ -829,6 +910,7 @@ function SortableBatchRow({
   canModify,
   t,
   aggregateForRows,
+  unloadTimingMap,
 }: QueueRowRenderProps) {
   // Dispatcher (QueueRowRender) only mounts this with row.kind === 'batch';
   // narrow up-front so the hook below can reference batchId unconditionally.
@@ -969,6 +1051,7 @@ function SortableBatchRow({
             <SortableQueueItem
               key={child.id}
               item={child}
+              unloadTiming={unloadTimingMap.get(child.id)}
               onEdit={() => setEditItem(child)}
               onCancel={() => setConfirmAction({ type: 'cancel', item: child })}
               onRemove={() => {}}
@@ -1619,6 +1702,32 @@ export function QueuePage() {
     });
     return map;
   }, [activePrinterIds, printerStatusQueries]);
+
+  // Deferred-unload timing (private fork): per-printer withheld state +
+  // per-item "unload at start / at end" map for the queue badges.
+  const pendingPrinterIds = useMemo(() => {
+    const ids = new Set<number>();
+    pendingItems.forEach(item => {
+      if (item.printer_id) ids.add(item.printer_id);
+    });
+    return Array.from(ids);
+  }, [pendingItems]);
+
+  const deferredStateQueries = useQueries({
+    queries: pendingPrinterIds.map(printerId => ({
+      queryKey: ['deferredUnloadState', printerId],
+      queryFn: () => api.getDeferredUnloadState(printerId),
+      refetchInterval: 15000,
+    })),
+  });
+
+  const unloadTimingMap = useMemo(() => {
+    const states: Record<number, { withheld: boolean; trays: number[] | null } | undefined> = {};
+    pendingPrinterIds.forEach((printerId, index) => {
+      states[printerId] = deferredStateQueries[index]?.data;
+    });
+    return computeUnloadTiming(pendingItems, states);
+  }, [pendingItems, pendingPrinterIds, deferredStateQueries]);
 
   // Build a map of printer_id -> full status for timeline view
   const printerStatusMap = useMemo(() => {
@@ -2308,6 +2417,7 @@ export function QueuePage() {
                           setEditItem={setEditItem}
                           setConfirmAction={setConfirmAction}
                           startMutation={startMutation}
+                          unloadTimingMap={unloadTimingMap}
                           selectedItems={selectedItems}
                           handleToggleSelect={handleToggleSelect}
                           timeFormat={timeFormat}
@@ -2344,6 +2454,7 @@ export function QueuePage() {
                                   setEditItem={setEditItem}
                                   setConfirmAction={setConfirmAction}
                                   startMutation={startMutation}
+                                  unloadTimingMap={unloadTimingMap}
                                   selectedItems={selectedItems}
                                   handleToggleSelect={handleToggleSelect}
                                   timeFormat={timeFormat}

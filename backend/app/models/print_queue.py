@@ -65,6 +65,14 @@ class PrintQueueItem(Base):
     # Auto-print G-code injection (#422)
     gcode_injection: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Deferred tail unload (private fork). Tri-state:
+    #   None  -> auto: follow gcode_injection (legacy behavior)
+    #   True  -> explicitly strip the machine-end AMS pull-back; the next
+    #            job's start G-code performs the swap
+    #   False -> explicitly keep the sliced tail unload
+    # Always gated by BAMBUDDY_DEFER_TAIL_UNLOAD (0 disables = fail-safe).
+    defer_unload: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+
     # H2C dual-nozzle-rack slicer pick preservation (#1780). BambuStudio's
     # project_file MQTT command for rack-swap-capable models (O1C2 today)
     # carries per-filament physical nozzle position IDs in `nozzle_mapping`,

@@ -87,6 +87,9 @@ export interface ScheduleOptions {
   requirePreviousSuccess: boolean;
   autoOffAfter: boolean;
   gcodeInjection: boolean;
+  // Deferred tail unload tri-state (private fork): 'auto' follows
+  // gcodeInjection, 'on' always strips the tail unload, 'off' never does.
+  deferUnload: 'auto' | 'on' | 'off';
   staggerEnabled: boolean;
   staggerGroupSize: number;
   staggerIntervalMinutes: number;
@@ -102,6 +105,7 @@ export const DEFAULT_SCHEDULE_OPTIONS: ScheduleOptions = {
   requirePreviousSuccess: false,
   autoOffAfter: false,
   gcodeInjection: false,
+  deferUnload: 'auto',
   staggerEnabled: false,
   staggerGroupSize: 2,
   staggerIntervalMinutes: 5,

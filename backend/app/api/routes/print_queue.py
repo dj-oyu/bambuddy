@@ -204,6 +204,8 @@ def _enrich_response(item: PrintQueueItem) -> PrintQueueItemResponse:
         "been_jumped": item.been_jumped,
         # Auto-print G-code injection
         "gcode_injection": item.gcode_injection,
+        # Deferred tail unload tri-state (private fork)
+        "defer_unload": item.defer_unload,
         # H2C rack-swap nozzle pick (#1780)
         "nozzle_mapping": nozzle_mapping_parsed,
         "nozzles_info": nozzles_info_parsed,
@@ -639,6 +641,7 @@ async def add_to_queue(
             preheat_override=data.preheat_override,
             preheat_chamber_target_override=data.preheat_chamber_target_override,
             gcode_injection=data.gcode_injection,
+            defer_unload=data.defer_unload,
             cleanup_library_after_dispatch=data.cleanup_library_after_dispatch,
             project_id=data.project_id,
             position=start_position + i,
@@ -1241,6 +1244,38 @@ async def resume_queue_after_failure(
         restored,
     )
     return {"acknowledged": len(to_ack), "restored": restored}
+
+
+@router.get("/printer/{printer_id}/deferred-unload-state")
+async def get_deferred_unload_state(
+    printer_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User | None = RequirePermissionIfAuthEnabled(Permission.QUEUE_READ_ALL),
+):
+    """What the deferred-unload patch has withheld for this printer (private
+    fork). The UI uses this to tell whether the FIRST pending item's start
+    G-code will actually unload a still-loaded filament: a withheld entry
+    with a different tray set means the swap (unload+load) happens at that
+    item's start; same trays or no entry means no unload occurs there."""
+    from backend.app.models.settings import Settings as SettingsModel
+    from backend.app.services.print_scheduler import PrintScheduler
+
+    key = f"{PrintScheduler._DEFERRED_UNLOAD_KEY_PREFIX}{printer_id}"
+    result = await db.execute(select(SettingsModel).where(SettingsModel.key == key))
+    row = result.scalar_one_or_none()
+    entry = None
+    if row and row.value:
+        try:
+            entry = json.loads(row.value)
+        except ValueError:
+            entry = None
+    if not entry:
+        return {"withheld": False, "item_id": None, "trays": None}
+    return {
+        "withheld": True,
+        "item_id": entry.get("item_id"),
+        "trays": PrintScheduler._normalize_ams_mapping(entry.get("ams_mapping")),
+    }
 
 
 @router.post("/{item_id}/cancel")
