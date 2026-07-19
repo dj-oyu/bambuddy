@@ -317,7 +317,9 @@ class BMCULinkService:
             "device_id": env.device_id,
             "link_id": env.link.id,
             "pico_boot_session": env.link.pico_boot_session,
-            "bmcu_boot_session": env.link.bmcu_boot_session,
+            # Transport-link envelopes carry no BMCU session; the events
+            # column is NOT NULL, so store 0 (diagnostics-only field).
+            "bmcu_boot_session": env.link.bmcu_boot_session if env.link.bmcu_boot_session is not None else 0,
             "uart_sequence": env.link.uart_sequence if env.link.uart_sequence is not None else 0,
             "transport_sequence": env.link.transport_sequence,
             "kind": kind,
@@ -405,7 +407,10 @@ class BMCULinkService:
             device.mode = env.mode or hello.mode
             device.link_state = "online"
             device.pico_boot_session = env.link.pico_boot_session
-            device.bmcu_boot_session = env.link.bmcu_boot_session
+            # A transport HELLO (link.id == "transport") has no BMCU session;
+            # keep the last known one instead of clobbering it with None.
+            if env.link.bmcu_boot_session is not None:
+                device.bmcu_boot_session = env.link.bmcu_boot_session
             device.last_seen_at = now_dt
             if device.first_seen_at is None:
                 device.first_seen_at = now_dt

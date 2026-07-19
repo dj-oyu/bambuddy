@@ -30,7 +30,11 @@ class BMCULinkLink(BaseModel):
         default=None, validation_alias=AliasChoices("bmcu_sequence", "sequence", "uart_sequence")
     )
     pico_boot_session: str
-    bmcu_boot_session: int
+    # Optional since the Phase 5 interop spec: transport-link envelopes
+    # (link.id == "transport", e.g. the transport HELLO) describe the Pico
+    # itself and may carry no BMCU session. Rejecting them would quarantine
+    # the HELLO on the bridge and stall its sequencing.
+    bmcu_boot_session: int | None = None
     id: str = "default"
     queue_depth: int | None = None
 

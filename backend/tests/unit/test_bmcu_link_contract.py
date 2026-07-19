@@ -282,3 +282,73 @@ def test_flat_override_registry_still_supported(tmp_path, monkeypatch):
     monkeypatch.setattr("backend.app.services.bmcu_link.settings.base_dir", tmp_path)
     reg = get_enum_registry()
     assert reg == {"registry_version": 1, "kind": {"0": "hello"}}
+
+
+# ------------------------------------------- Phase 5 transport HELLO interop
+
+
+def make_transport_hello(tseq=0):
+    """Transport HELLO per the Phase 5 interop spec: frame.kind == "hello",
+    link.id == "transport", no BMCU session (describes the Pico itself)."""
+    return {
+        "schema": "bmcu.management.v2",
+        "registry_version": "alpha.3",
+        "device_id": "pico-1",
+        "mode": "production_monitor",
+        "received_at_us": 100,
+        "link": {
+            "state": "online",
+            "transport_sequence": tseq,
+            "pico_boot_session": "boot-a",
+            "id": "transport",
+        },
+        "frame": {"kind": "hello"},
+        "data": {"firmware": "pico-0.5.0", "capabilities": ["telemetry"], "dropped_count": 0},
+    }
+
+
+def test_transport_hello_validates_without_bmcu_session():
+    env = BMCULinkEnvelope.model_validate(make_transport_hello())
+    assert env.link.bmcu_boot_session is None
+    assert env.link.id == "transport"
+    assert env.frame.kind == "hello"
+
+
+@pytest.mark.asyncio
+async def test_transport_hello_accepted_and_watermarked(service):
+    """The spec requires link.id == "transport" to be a normal per-link
+    watermark target: accepted, persisted-ACKed, device row upserted."""
+    result = await service.ingest([BMCULinkEnvelope.model_validate(make_transport_hello(tseq=0))])
+    assert result.accepted == 1 and result.rejected == []
+
+    await service.flush()
+    keys = service.persisted_keys({("pico-1", "transport")})
+    assert len(keys) == 1
+    assert keys[0].link_id == "transport"
+    assert keys[0].transport_sequence == 0
+
+    from backend.app.models.bmcu_link_device import BMCULinkDevice
+
+    async with service._sessionmaker()() as db:
+        device = (
+            await db.execute(select(BMCULinkDevice).where(BMCULinkDevice.device_id == "pico-1"))
+        ).scalar_one()
+        assert device.firmware == "pico-0.5.0"
+        assert device.bmcu_boot_session is None  # not fabricated
+
+
+@pytest.mark.asyncio
+async def test_transport_hello_does_not_clobber_bmcu_session(service):
+    """A BMCU-link hello sets bmcu_boot_session; a later transport HELLO
+    (no BMCU session) must keep the last known value."""
+    bmcu_hello = make_envelope(seq=1, kind="hello")
+    await service.ingest([BMCULinkEnvelope.model_validate(bmcu_hello)])
+    await service.ingest([BMCULinkEnvelope.model_validate(make_transport_hello(tseq=0))])
+
+    from backend.app.models.bmcu_link_device import BMCULinkDevice
+
+    async with service._sessionmaker()() as db:
+        device = (
+            await db.execute(select(BMCULinkDevice).where(BMCULinkDevice.device_id == "pico-1"))
+        ).scalar_one()
+        assert device.bmcu_boot_session == 1
