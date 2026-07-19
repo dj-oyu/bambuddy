@@ -4244,6 +4244,10 @@ def _stall_mark_notified(printer_id: int) -> None:
 
 
 async def _notify_stall(printer_id: int) -> None:
+    # Local import mirrors the cce03ce1 fix for the HMS escalation path —
+    # main.py has no module-level Printer import, and the missing name only
+    # explodes at first real stall (NameError swallowed = no Discord alert).
+    from backend.app.models.printer import Printer
     from backend.app.services.hms_errors import get_error_description_full
     from backend.app.services.notification_service import notification_service
 
