@@ -145,6 +145,39 @@ async def test_link_id_stored_in_rows(service):
         assert row.uart_sequence == 1
 
 
+@pytest.mark.asyncio
+async def test_link_cap_per_device(service):
+    for i in range(BMCULinkService.MAX_LINKS_PER_DEVICE):
+        r = await service.ingest([BMCULinkEnvelope.model_validate(make_envelope(seq=1, link_id=f"l{i}"))])
+        assert r.accepted == 1
+    r = await service.ingest([BMCULinkEnvelope.model_validate(make_envelope(seq=1, link_id="overflow"))])
+    assert r.accepted == 0
+    # Existing links keep working
+    r = await service.ingest([BMCULinkEnvelope.model_validate(make_envelope(seq=2, link_id="l0"))])
+    assert r.accepted == 1
+
+
+@pytest.mark.asyncio
+async def test_watermark_frozen_after_pending_drop(service):
+    service.PENDING_CAP = 2
+    envs = [BMCULinkEnvelope.model_validate(make_envelope(seq=s)) for s in (1, 2, 3)]
+    await service.ingest(envs)  # seq=1 dropped by cap, 2..3 staged
+    await service.flush()
+    # Watermark must not advance past the seq=1 gap in this boot session.
+    assert service.persisted_keys({("pico-1", "default")}) == []
+    # Replay of the dropped seq=1 must not be deduplicated.
+    r = await service.ingest([BMCULinkEnvelope.model_validate(make_envelope(seq=1))])
+    assert r.accepted == 1 and r.deduplicated == 0
+
+    # A new boot session clears the gap; watermark advances again.
+    new = make_envelope(seq=1)
+    new["link"]["pico_boot_session"] = "boot-b"
+    await service.ingest([BMCULinkEnvelope.model_validate(new)])
+    await service.flush()
+    keys = service.persisted_keys({("pico-1", "default")})
+    assert keys and keys[0].pico_boot_session == "boot-b"
+
+
 # --------------------------------------------------------- transport_drop
 
 
