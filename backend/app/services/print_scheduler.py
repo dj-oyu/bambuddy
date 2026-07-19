@@ -377,7 +377,10 @@ class PrintScheduler:
                                 )
                             continue
 
-                    # Compute AMS mapping if not already set
+                    # Compute AMS mapping if not already set; validate a
+                    # pre-set one against the 3MF + loaded trays (a stale
+                    # mapping copied from another job can silently print the
+                    # wrong colour — 2026-07-19 incident).
                     if not item.ams_mapping:
                         computed_mapping = await self._compute_ams_mapping_for_printer(db, item.printer_id, item)
                         if computed_mapping:
@@ -386,6 +389,8 @@ class PrintScheduler:
                                 f"Queue item {item.id}: Computed AMS mapping for printer {item.printer_id}: {computed_mapping}"
                             )
                             await db.commit()
+                    elif not await self._ensure_valid_ams_mapping(db, item.printer_id, item):
+                        continue
 
                     # Filament-deficit pre-dispatch check (#1496). If the
                     # assigned spool can't satisfy any required slot grams,
@@ -513,6 +518,8 @@ class PrintScheduler:
                                     f"Queue item {item.id}: Computed AMS mapping for printer {printer_id}: {computed_mapping}"
                                 )
                                 await db.commit()
+                        elif not await self._ensure_valid_ams_mapping(db, printer_id, item):
+                            continue
 
                         # Filament-deficit pre-dispatch check (#1496).
                         if await self._block_on_filament_deficit(db, item):
@@ -968,6 +975,139 @@ class PrintScheduler:
         return self._match_filaments_to_slots(
             filament_reqs, loaded_filaments, prefer_lowest, inventory_remain_overrides, fts_installed
         )
+
+    def _validate_stored_ams_mapping(
+        self, mapping: list[int], filament_reqs: list[dict], loaded: list[dict]
+    ) -> list[dict]:
+        """Validate a stored AMS mapping against the 3MF requirements and the
+        trays actually loaded. Returns machine-readable problem dicts (empty
+        list = valid). Structural checks are shared with the API boundary
+        (``validate_mapping_against_requirements``); on top of those, each
+        used slot's mapped tray must exist, match the required filament type,
+        and be a similar colour.
+        """
+        from backend.app.services.filament_requirements import validate_mapping_against_requirements
+
+        problems = list(validate_mapping_against_requirements(mapping, filament_reqs))
+        if any(p["issue"] == "mapping_too_short" for p in problems):
+            return problems
+
+        loaded_by_tray = {f["global_tray_id"]: f for f in loaded}
+        for req in filament_reqs:
+            tray = mapping[req["slot_id"] - 1]
+            if tray == -1:
+                continue  # already reported as used_slot_unmapped
+            fil = loaded_by_tray.get(tray)
+            if fil is None:
+                problems.append({"issue": "mapped_tray_not_loaded", "slot_id": req["slot_id"], "tray": tray})
+            elif req.get("type") and fil["type"] != req["type"]:
+                problems.append(
+                    {
+                        "issue": "mapped_tray_type_mismatch",
+                        "slot_id": req["slot_id"],
+                        "tray": tray,
+                        "required_type": req["type"],
+                        "loaded_type": fil["type"],
+                    }
+                )
+            elif req.get("color") and not self._colors_are_similar(req["color"], fil["color"]):
+                problems.append(
+                    {
+                        "issue": "mapped_tray_color_mismatch",
+                        "slot_id": req["slot_id"],
+                        "tray": tray,
+                        "required_color": req["color"],
+                        "loaded_color": fil["color"],
+                    }
+                )
+        return problems
+
+    _MAPPING_INVALID_CODE = "ams_mapping_invalid"
+
+    async def _ensure_valid_ams_mapping(self, db: AsyncSession, printer_id: int, item: PrintQueueItem) -> bool:
+        """Gate dispatch on the stored ``ams_mapping`` being consistent with
+        the 3MF and the loaded trays.
+
+        A stale mapping (copied from another job, or preserved verbatim by
+        the HMS auto-clear requeue loop) otherwise dispatches the print on
+        the wrong tray — the 2026-07-19 red-instead-of-black incident.
+
+        Behaviour on mismatch (fail-safe: never silently print a wrong
+        colour):
+
+        1. Recompute the mapping from the 3MF + live AMS state. If the
+           recomputed mapping validates, adopt it (action ``recomputed``).
+        2. Otherwise HOLD the item: ``waiting_reason`` is set to a compact
+           JSON reason (``code``/``problems``/``required``/``loaded_trays``/
+           ``recovery_hint``) so a UI or automated agent can read the exact
+           cause and fix it (load the right filament, or clear/correct the
+           mapping). Re-validated every scheduler tick, so the hold clears
+           itself once the cause is fixed.
+
+        Returns True when dispatch may proceed. Cannot-validate situations
+        (unreadable 3MF, printer status unavailable, toggle off via
+        ``BAMBUDDY_VALIDATE_AMS_MAPPING=0``) return True — legacy behaviour.
+        """
+        if os.environ.get("BAMBUDDY_VALIDATE_AMS_MAPPING", "1") == "0":
+            return True
+        try:
+            mapping = json.loads(item.ams_mapping)
+        except (json.JSONDecodeError, TypeError):
+            mapping = None
+        if not isinstance(mapping, list) or not mapping:
+            return True
+
+        filament_reqs = await self._get_filament_requirements(db, item)
+        status = printer_manager.get_status(printer_id)
+        if not filament_reqs or not status:
+            return True
+        loaded = self._build_loaded_filaments(status)
+        if not loaded:
+            return True
+
+        problems = self._validate_stored_ams_mapping(mapping, filament_reqs, loaded)
+        if not problems:
+            # Clear a hold we set earlier once the cause is fixed.
+            if item.waiting_reason and self._MAPPING_INVALID_CODE in item.waiting_reason:
+                item.waiting_reason = None
+                await db.commit()
+            return True
+
+        reason = {
+            "code": self._MAPPING_INVALID_CODE,
+            "stored_mapping": mapping,
+            "problems": problems,
+            "required": [
+                {"slot_id": r["slot_id"], "type": r.get("type", ""), "color": r.get("color", "")}
+                for r in filament_reqs
+            ],
+            "loaded_trays": [
+                {"tray": f["global_tray_id"], "type": f["type"], "color": f["color"]} for f in loaded
+            ],
+        }
+
+        computed = await self._compute_ams_mapping_for_printer(db, printer_id, item)
+        if computed and not self._validate_stored_ams_mapping(computed, filament_reqs, loaded):
+            reason["action"] = "recomputed"
+            reason["recomputed_mapping"] = computed
+            item.ams_mapping = json.dumps(computed)
+            if item.waiting_reason and self._MAPPING_INVALID_CODE in item.waiting_reason:
+                item.waiting_reason = None
+            await db.commit()
+            logger.warning("Queue item %s: stored AMS mapping rejected, recomputed: %s", item.id, json.dumps(reason))
+            return True
+
+        reason["action"] = "held"
+        reason["recovery_hint"] = (
+            "load a matching filament in the AMS, or PATCH the queue item's ams_mapping "
+            "(null = recompute at dispatch); re-checked every scheduler tick"
+        )
+        reason_json = json.dumps(reason)
+        if item.waiting_reason != reason_json:
+            item.waiting_reason = reason_json
+            await db.commit()
+        logger.warning("Queue item %s: dispatch held — %s", item.id, reason_json)
+        return False
 
     def _build_override_direct_mapping(self, force_overrides: list[dict], status) -> list[int] | None:
         """Build an AMS mapping directly from force-color overrides without a 3MF.

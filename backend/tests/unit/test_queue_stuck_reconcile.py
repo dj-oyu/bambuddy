@@ -120,6 +120,34 @@ class TestReconcileStuckQueueItems:
         result.scalars.return_value.all.return_value = [_item(age_s=700)]
         assert _run(FakeSession, _client("IDLE", ams_status_main=768)) == 0
 
+    def test_ams_busy_hard_stuck_override(self, db_session):
+        """2026-07-19: BMCU wedged at ams_status_main=3 after a 409D-rejected
+        start keeps the AMS-busy gate closed forever. Past the hard-stuck
+        threshold (30 min) that one gate is overridden."""
+        FakeSession, result = db_session
+        item = _item(age_s=2000)
+        result.scalars.return_value.all.return_value = [item]
+        assert _run(FakeSession, _client("IDLE", ams_status_main=3)) == 1
+        assert item.status == "pending"
+
+    def test_ams_busy_below_hard_threshold_still_skips(self, db_session):
+        FakeSession, result = db_session
+        item = _item(age_s=1200)  # > 600s soft, < 1800s hard
+        result.scalars.return_value.all.return_value = [item]
+        assert _run(FakeSession, _client("IDLE", ams_status_main=3)) == 0
+        assert item.status == "printing"
+
+    def test_hard_threshold_does_not_override_other_gates(self, db_session):
+        """Only the AMS-busy gate is overridable — disconnected/hold/running
+        stay hard requirements no matter how old the item is."""
+        FakeSession, result = db_session
+        result.scalars.return_value.all.return_value = [_item(age_s=5000)]
+        assert _run(FakeSession, _client("IDLE", connected=False)) == 0
+        result.scalars.return_value.all.return_value = [_item(age_s=5000)]
+        assert _run(FakeSession, _client("RUNNING")) == 0
+        result.scalars.return_value.all.return_value = [_item(age_s=5000)]
+        assert _run(FakeSession, _client("IDLE"), hold=True) == 0
+
     def test_cas_loss_not_counted(self, db_session):
         # A concurrent terminal write wins the row: rowcount=0 -> skip, no commit.
         FakeSession, result = db_session

@@ -4097,6 +4097,14 @@ _reconcile_sweep_task: asyncio.Task | None = None
 # logs beats an item silently stuck in 'printing' forever (2026-07-13).
 _QUEUE_STUCK_REQUEUE_ENABLED = os.environ.get("BAMBUDDY_QUEUE_STUCK_REQUEUE", "1") != "0"
 _QUEUE_STUCK_REQUEUE_AFTER_S = float(os.environ.get("BAMBUDDY_QUEUE_STUCK_REQUEUE_AFTER_S", "600"))
+# Hard-stuck escalation (2026-07-19): a 409D-rejected start can leave the BMCU
+# reporting ams_status_main != 0 indefinitely, which keeps the demonstrably-idle
+# gate closed and the 10-min requeue dead — items 113/119/120 sat in 'printing'
+# for 20+ min each with the printer visibly IDLE. After this much stuck time
+# (default 30 min) the AMS-busy gate alone is overridden: state must still be
+# terminal, connected, and outside the dispatch hold. An AMS "busy" for 30 min
+# under a terminal gcode_state is itself a wedge, not motion.
+_QUEUE_STUCK_HARD_AFTER_S = float(os.environ.get("BAMBUDDY_QUEUE_STUCK_HARD_AFTER_S", "1800"))
 
 
 async def reconcile_stuck_queue_items(printer_id: int) -> int:
@@ -4111,11 +4119,21 @@ async def reconcile_stuck_queue_items(printer_id: int) -> int:
 
     log = logging.getLogger(__name__)
     client = pm.get_client(printer_id)
+    state = getattr(client, "state", None)
     verdict = printer_lifecycle.evaluate_demonstrably_idle(
-        getattr(client, "state", None),
+        state,
         in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
     )
-    if not verdict:
+    # Hard-stuck escalation: the AMS-busy gate (and only that gate) may be
+    # overridden for items stuck far beyond the normal threshold. Terminal
+    # state, connectivity, and the dispatch hold stay mandatory.
+    ams_busy_only = (
+        not verdict
+        and verdict.reason.startswith("AMS busy")
+    )
+    if not verdict and not ams_busy_only:
+        # Gate closed for a non-overridable reason (unknown state, print
+        # visibly running, dispatch hold, disconnected) — nothing to rescue.
         return 0
 
     now = datetime.now(timezone.utc)
@@ -4136,6 +4154,22 @@ async def reconcile_stuck_queue_items(printer_id: int) -> int:
             age = (now - started).total_seconds()
             if age < _QUEUE_STUCK_REQUEUE_AFTER_S:
                 continue
+            if ams_busy_only:
+                if age >= _QUEUE_STUCK_HARD_AFTER_S:
+                    log.warning(
+                        "[RECONCILE] item %s stuck %.0fs — overriding '%s' gate "
+                        "(hard-stuck threshold %.0fs; gcode_state is terminal)",
+                        item.id, age, verdict.reason, _QUEUE_STUCK_HARD_AFTER_S,
+                    )
+                else:
+                    # Visibility (2026-07-19): the sweep used to skip silently,
+                    # so a permanently-wedged AMS-busy gate looked like "no
+                    # stuck items" while the queue sat dead.
+                    log.info(
+                        "[RECONCILE] item %s stuck in 'printing' %.0fs but not requeued: %s",
+                        item.id, age, verdict.reason,
+                    )
+                    continue
             # lifecycle-polarity: CAS on ("printing",) — a concurrent terminal
             # write (completion handler / user stop) wins the row and we skip.
             cas = await printer_lifecycle.transition(

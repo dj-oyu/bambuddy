@@ -116,6 +116,49 @@ def _extract_filament_types_from_3mf(file_path: Path, plate_id: int | None = Non
 _extract_print_time_from_3mf = extract_print_time_from_3mf
 
 
+def _reject_inconsistent_ams_mapping(
+    mapping: list[int] | None,
+    source_path: Path | None,
+    plate_id: int | None,
+) -> None:
+    """422 when a client-supplied ams_mapping is structurally inconsistent
+    with the source 3MF's used filament slots (e.g. a mapping copied from a
+    different job — the 2026-07-19 wrong-colour incident came in through this
+    route from a localhost script). The detail payload is machine-readable
+    (``code`` + ``problems`` + ``required``) so an automated caller can
+    correct itself. Best-effort: an unreadable 3MF skips validation
+    (dispatch-time validation still guards the print itself).
+    """
+    if not mapping or not source_path or not source_path.exists():
+        return
+    from backend.app.services.filament_requirements import (
+        extract_filament_requirements,
+        validate_mapping_against_requirements,
+    )
+
+    requirements = extract_filament_requirements(source_path, plate_id=plate_id)
+    if not requirements:
+        return
+    problems = validate_mapping_against_requirements(mapping, requirements)
+    if problems:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_ams_mapping",
+                "message": "ams_mapping is inconsistent with the 3MF's used filament slots",
+                "ams_mapping": mapping,
+                "plate_id": plate_id,
+                "problems": problems,
+                "required": [
+                    {"slot_id": r["slot_id"], "type": r.get("type", ""), "color": r.get("color", "")}
+                    for r in requirements
+                ],
+                "recovery_hint": "omit ams_mapping to let the scheduler compute it at dispatch, "
+                "or map every used slot_id to a loaded tray",
+            },
+        )
+
+
 def _enrich_response(item: PrintQueueItem) -> PrintQueueItemResponse:
     """Add nested archive/printer/library_file info to response."""
     # Parse ams_mapping from JSON string BEFORE model_validate
@@ -611,6 +654,17 @@ async def add_to_queue(
         if not project_result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Project not found")
 
+    # Reject an ams_mapping that contradicts the source 3MF (422 with a
+    # machine-readable reason) before anything is stored.
+    if data.ams_mapping:
+        source_path: Path | None = None
+        if archive:
+            source_path = settings.base_dir / archive.file_path
+        elif library_file:
+            lib_path = Path(library_file.file_path)
+            source_path = lib_path if lib_path.is_absolute() else settings.base_dir / library_file.file_path
+        _reject_inconsistent_ams_mapping(data.ams_mapping, source_path, data.plate_id)
+
     ams_mapping_json = json.dumps(data.ams_mapping) if data.ams_mapping else None
     items = []
     for i in range(quantity):
@@ -1092,6 +1146,25 @@ async def update_queue_item(
         )
         if not result.scalars().first():
             raise HTTPException(400, f"No active printers for model: {update_data['target_model']}")
+
+    # Reject an ams_mapping inconsistent with the item's source 3MF (uses the
+    # post-update plate_id when the same PATCH changes it).
+    if update_data.get("ams_mapping"):
+        source_path: Path | None = None
+        if item.archive_id:
+            arch_result = await db.execute(select(PrintArchive).where(PrintArchive.id == item.archive_id))
+            arch = arch_result.scalar_one_or_none()
+            if arch:
+                source_path = settings.base_dir / arch.file_path
+        elif item.library_file_id:
+            lib_result = await db.execute(LibraryFile.active().where(LibraryFile.id == item.library_file_id))
+            lib = lib_result.scalar_one_or_none()
+            if lib:
+                lib_path = Path(lib.file_path)
+                source_path = lib_path if lib_path.is_absolute() else settings.base_dir / lib.file_path
+        _reject_inconsistent_ams_mapping(
+            update_data["ams_mapping"], source_path, update_data.get("plate_id", item.plate_id)
+        )
 
     # Serialize ams_mapping to JSON for TEXT column storage
     if "ams_mapping" in update_data:

@@ -129,3 +129,48 @@ def _collect_filaments(parent: ET.Element, into: list[dict]) -> None:
                 "used_grams": round(used_grams, 1),
             }
         )
+
+
+def validate_mapping_against_requirements(mapping: list[int], requirements: list[dict]) -> list[dict]:
+    """Structurally validate a stored/user-supplied AMS mapping against the
+    3MF's per-slot filament requirements. Printer-independent — only checks
+    that the mapping shape is consistent with which slots the sliced file
+    actually uses (a stale mapping copied from a different job typically
+    fails here, e.g. ``[-1, 0]`` against a file that only uses slot 1).
+
+    Each problem dict is machine-readable so callers can surface it verbatim
+    in API error payloads / ``waiting_reason`` for automated recovery:
+
+    - ``{"issue": "mapping_too_short", "expected_len": N, "actual_len": M}``
+    - ``{"issue": "used_slot_unmapped", "slot_id": N, "type": ..., "color": ...}``
+    - ``{"issue": "unused_slot_mapped", "slot_id": N, "tray": T}``
+
+    Returns an empty list when the mapping is consistent OR when there is
+    nothing to validate (empty mapping / no requirements) — absence of
+    requirements is treated as "cannot validate", never as a failure.
+    """
+    if not mapping or not requirements:
+        return []
+
+    problems: list[dict] = []
+    used_slots = {r["slot_id"] for r in requirements}
+    max_slot = max(used_slots)
+
+    if len(mapping) < max_slot:
+        problems.append({"issue": "mapping_too_short", "expected_len": max_slot, "actual_len": len(mapping)})
+        return problems
+
+    for req in requirements:
+        if mapping[req["slot_id"] - 1] == -1:
+            problems.append(
+                {
+                    "issue": "used_slot_unmapped",
+                    "slot_id": req["slot_id"],
+                    "type": req.get("type", ""),
+                    "color": req.get("color", ""),
+                }
+            )
+    for idx, tray in enumerate(mapping):
+        if tray != -1 and (idx + 1) not in used_slots:
+            problems.append({"issue": "unused_slot_mapped", "slot_id": idx + 1, "tray": tray})
+    return problems
