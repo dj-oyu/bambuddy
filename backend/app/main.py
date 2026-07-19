@@ -6487,6 +6487,39 @@ async def stop_bmcu_link_watchdog():
         logging.getLogger(__name__).info("BMCU Link watchdog stopped")
 
 
+# BMCU Link Pico /api/status poller (private fork): pull-mode bridge for
+# alpha.3 firmware that has no push transport yet.
+# Toggle: BAMBUDDY_BMCU_LINK_POLL_URL (unset = disabled).
+_bmcu_link_poller = None
+_bmcu_link_poller_task: asyncio.Task | None = None
+
+
+def start_bmcu_link_poller():
+    global _bmcu_link_poller, _bmcu_link_poller_task
+    from backend.app.services.bmcu_link_poller import BMCULinkPoller, bmcu_link_poll_url
+
+    url = bmcu_link_poll_url()
+    if url is None or _bmcu_link_poller_task is not None:
+        return
+    _bmcu_link_poller = BMCULinkPoller(url)
+    _bmcu_link_poller_task = asyncio.create_task(_bmcu_link_poller.run())
+    logging.getLogger(__name__).info("BMCU Link poller started (%s)", url)
+
+
+async def stop_bmcu_link_poller():
+    global _bmcu_link_poller, _bmcu_link_poller_task
+    if _bmcu_link_poller_task:
+        _bmcu_link_poller_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await _bmcu_link_poller_task
+        _bmcu_link_poller_task = None
+    if _bmcu_link_poller:
+        with contextlib.suppress(Exception):
+            await _bmcu_link_poller.close()
+        _bmcu_link_poller = None
+        logging.getLogger(__name__).info("BMCU Link poller stopped")
+
+
 # Camera stream orphan cleanup
 _camera_cleanup_task: asyncio.Task | None = None
 CAMERA_CLEANUP_INTERVAL = 60
@@ -6984,6 +7017,7 @@ async def lifespan(app: FastAPI):
 
     if bmcu_link_enabled():
         start_bmcu_link_watchdog()
+        start_bmcu_link_poller()
 
     # Start camera stream orphan cleanup
     start_camera_cleanup()
@@ -7039,6 +7073,7 @@ async def lifespan(app: FastAPI):
     stop_printer_sensor_history_recording()
     stop_runtime_tracking()
     stop_spoolbuddy_watchdog()
+    await stop_bmcu_link_poller()
     await stop_bmcu_link_watchdog()
     # Final flush so pending BMCU Link rows aren't lost on shutdown
     try:
