@@ -8,7 +8,13 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.auth import RequirePermissionIfAuthEnabled, is_auth_enabled, verify_websocket_token
+from backend.app.core.auth import (
+    RequireAdminIfAuthEnabled,
+    RequirePermissionIfAuthEnabled,
+    is_auth_enabled,
+    require_permission_if_auth_enabled,
+    verify_websocket_token,
+)
 from backend.app.core.database import async_session, get_db
 from backend.app.core.permissions import Permission
 from backend.app.models.bmcu_link_device import BMCULinkDevice
@@ -22,6 +28,7 @@ from backend.app.schemas.bmcu_link import (
     BMCULinkRejected,
 )
 from backend.app.services.bmcu_link import bmcu_link_enabled, bmcu_link_service, get_enum_registry
+from backend.app.services.long_lived_tokens import BMCU_LINK_TELEMETRY_SCOPE, verify_token as verify_long_lived_token
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +112,15 @@ async def bmcu_link_websocket(websocket: WebSocket, token: str | None = Query(de
         if not token:
             await websocket.close(code=_WS_CLOSE_UNAUTHORIZED)
             return
+        # Two accepted credentials (issue #2): the UI's ephemeral WS token,
+        # or a device-scoped long-lived telemetry token (`bblt_...`, scope
+        # bmcu_link:telemetry) provisioned to the Pico bridge. The telemetry
+        # token is valid ONLY here and on POST /ingest — never elsewhere.
         principal = await verify_websocket_token(token)
+        if principal is None and token.startswith("bblt_"):
+            async with async_session() as db:
+                record = await verify_long_lived_token(db, token, scope=BMCU_LINK_TELEMETRY_SCOPE)
+            principal = "" if record is not None else None
         if principal is None:
             await websocket.close(code=_WS_CLOSE_UNAUTHORIZED)
             return
@@ -144,10 +159,41 @@ async def bmcu_link_websocket(websocket: WebSocket, token: str | None = Query(de
         logger.exception("BMCU Link WS connection error")
 
 
+# Fallback checker for POST /ingest when the caller is not presenting a
+# device telemetry token (browser JWT / API key paths keep working).
+_ingest_permission_checker = require_permission_if_auth_enabled(Permission.INVENTORY_UPDATE)
+
+
+async def _require_telemetry_or_permission(request: Request) -> None:
+    """POST /ingest auth (issue #2): accept a device-scoped telemetry token
+    (``Authorization: Bearer bblt_...``, scope bmcu_link:telemetry) as an
+    alternative to the INVENTORY_UPDATE permission path. The telemetry token
+    grants nothing outside the two ingest endpoints."""
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    auth_header = request.headers.get("authorization", "")
+    bearer = auth_header[7:].strip() if auth_header.lower().startswith("bearer ") else None
+    if bearer and bearer.startswith("bblt_"):
+        async with async_session() as db:
+            if not await is_auth_enabled(db):
+                return None
+            record = await verify_long_lived_token(db, bearer, scope=BMCU_LINK_TELEMETRY_SCOPE)
+        if record is not None:
+            return None
+        raise HTTPException(status_code=401, detail="Invalid telemetry token")
+    credentials = (
+        HTTPAuthorizationCredentials(scheme="Bearer", credentials=bearer) if bearer else None
+    )
+    await _ingest_permission_checker(
+        credentials=credentials, x_api_key=request.headers.get("x-api-key")
+    )
+    return None
+
+
 @router.post("/ingest", response_model=BMCULinkIngestResponse)
 async def ingest_envelopes(
     request: Request,
-    _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_UPDATE),
+    _: None = Depends(_require_telemetry_or_permission),
 ):
     """Ingest one envelope, a JSON array, or NDJSON (one envelope per line,
     Content-Type: application/x-ndjson) — the WebSocket-unavailable fallback
@@ -262,3 +308,62 @@ async def get_enums(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_READ),
 ):
     return get_enum_registry()
+
+
+# --- CONTROL key provisioning (firmware issue #2) --------------------------
+#
+# Admin-only. The plaintext key is returned exactly once for entry into the
+# Pico commissioning UI, stored Fernet-encrypted, and never logged. CONTROL
+# command sending is NOT wired up yet (firmware Phase 5 is telemetry-only);
+# provisioning exists so the shared secret and sequence state are ready.
+
+
+@router.post("/devices/{device_id}/control-key", status_code=201)
+async def provision_control_key(
+    device_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User | None = RequireAdminIfAuthEnabled(),
+):
+    """Generate (or rotate) the device's CONTROL key. Response contains the
+    plaintext key once; it is never retrievable again."""
+    if not bmcu_link_enabled():
+        raise HTTPException(status_code=404, detail="BMCU Link is disabled")
+    result = await db.execute(select(BMCULinkDevice).where(BMCULinkDevice.device_id == device_id))
+    device = result.scalar_one_or_none()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    from backend.app.services.bmcu_link_control import ControlContractError, set_control_key
+
+    rotated = device.control_key_encrypted is not None
+    try:
+        key = await set_control_key(db, device)
+    except ControlContractError as e:
+        # e.g. at-rest encryption unavailable — refuse rather than store plaintext
+        raise HTTPException(status_code=503, detail=str(e))
+    logger.info("BMCU Link control key %s for device %s", "rotated" if rotated else "provisioned", device_id)
+    return {
+        "device_id": device_id,
+        "control_key": key,  # shown once, never persisted in plaintext
+        "rotated": rotated,
+        "set_at": device.control_key_set_at.isoformat() if device.control_key_set_at else None,
+    }
+
+
+@router.delete("/devices/{device_id}/control-key", status_code=204)
+async def revoke_control_key_route(
+    device_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User | None = RequireAdminIfAuthEnabled(),
+):
+    """Revoke the device's CONTROL key. CONTROL becomes impossible until a
+    new key is provisioned (fail-safe)."""
+    if not bmcu_link_enabled():
+        raise HTTPException(status_code=404, detail="BMCU Link is disabled")
+    result = await db.execute(select(BMCULinkDevice).where(BMCULinkDevice.device_id == device_id))
+    device = result.scalar_one_or_none()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    from backend.app.services.bmcu_link_control import revoke_control_key
+
+    await revoke_control_key(db, device)
+    logger.info("BMCU Link control key revoked for device %s", device_id)

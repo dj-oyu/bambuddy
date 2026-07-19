@@ -35,9 +35,14 @@ from backend.app.models.long_lived_token import LongLivedToken
 # (90 days) and the create route enforces this ceiling.
 MAX_TOKEN_LIFETIME_DAYS = 365
 
-# Only V1 scope. Adding "snapshot" or "control" later means adding a value
-# to this tuple and an `if scope == ...` branch in the route, no schema work.
-ALLOWED_SCOPES: frozenset[str] = frozenset({"camera_stream"})
+# BMCU Link device telemetry token (firmware issue #2): maps to the agreed
+# `telemetry:write` contract scope. Accepted ONLY by the bmcu-link ingest
+# WS/POST endpoints — it can never authorize CONTROL or any other surface.
+BMCU_LINK_TELEMETRY_SCOPE = "bmcu_link:telemetry"
+
+# Adding a scope means adding a value to this set and an `if scope == ...`
+# branch in the route, no schema work.
+ALLOWED_SCOPES: frozenset[str] = frozenset({"camera_stream", BMCU_LINK_TELEMETRY_SCOPE})
 
 # Don't write to last_used_at more than once per minute per token. MJPEG
 # streams call verify() at most once per fetch (the browser holds the

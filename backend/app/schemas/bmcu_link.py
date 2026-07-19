@@ -131,6 +131,8 @@ class BMCULinkDeviceResponse(BaseModel):
     envelope_count: int
     dropped_count: int
     created_at: datetime | None = None
+    # CONTROL provisioning status only — the key itself is never serialized.
+    control_key_set_at: datetime | None = None
 
 
 class BMCULinkEventResponse(BaseModel):

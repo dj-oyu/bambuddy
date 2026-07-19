@@ -1646,6 +1646,13 @@ async def create_long_lived_camera_token(
     scope = payload.get("scope", "camera_stream")
     if scope not in ALLOWED_SCOPES:
         raise HTTPException(status_code=400, detail=f"unsupported scope: {scope!r}")
+    # Device-scoped credentials (BMCU Link telemetry, firmware issue #2) are
+    # infrastructure provisioning, not a personal viewer token — admin only.
+    if scope != "camera_stream" and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"scope {scope!r} requires admin privileges",
+        )
 
     try:
         created = await create_token(

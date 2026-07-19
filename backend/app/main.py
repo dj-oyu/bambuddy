@@ -7413,6 +7413,14 @@ async def auth_middleware(request, call_next):
         # API keys are validated per-route since they have different permission levels
         return await call_next(request)
 
+    # BMCU Link device telemetry tokens (issue #2 contract): same pattern as
+    # API keys — pass through ONLY on the ingest path, where the route
+    # dependency validates the token against scope bmcu_link:telemetry.
+    # Any other path with a bblt_ bearer falls through to JWT validation
+    # below and is rejected, keeping the token ingest-only.
+    if path == "/api/v1/bmcu-link/ingest" and auth_header and auth_header.startswith("Bearer bblt_"):
+        return await call_next(request)
+
     # Check for JWT auth
     if not auth_header or not auth_header.startswith("Bearer "):
         return JSONResponse(

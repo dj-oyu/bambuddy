@@ -3346,6 +3346,13 @@ async def run_migrations(conn):
     # Migration (private fork): issue #2 contract — u64 Pico transport
     # sequence becomes the dedup/ordering key (BMCU u16 wraps).
     await _safe_execute(conn, "ALTER TABLE bmcu_link_events ADD COLUMN transport_sequence BIGINT")
+    # Migration (private fork): issue #2 CONTROL security contract —
+    # per-device control key (encrypted at rest) + persisted monotonic
+    # control_sequence allocator state.
+    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_key_encrypted TEXT")
+    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_key_set_at TIMESTAMP")
+    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_session_nonce VARCHAR(100)")
+    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_sequence BIGINT NOT NULL DEFAULT 0")
 
 
 _USER_PRINT_TEMPLATE_RENAMES: tuple[tuple[str, str, str], ...] = (
