@@ -4364,6 +4364,7 @@ def _hms_status_inputs(status) -> tuple[dict[str, int], list[str]]:
 
 
 async def _notify_hms_escalation(printer_id: int, action) -> None:
+    from backend.app.models.printer import Printer
     from backend.app.services.hms_errors import get_error_description
     from backend.app.services.hms_retry import hms_retry
     from backend.app.services.notification_service import notification_service
@@ -4426,6 +4427,7 @@ async def _notify_hms_escalation(printer_id: int, action) -> None:
 
 
 async def _notify_hms_recovery(printer_id: int, action) -> None:
+    from backend.app.models.printer import Printer
     from backend.app.services.notification_service import notification_service
 
     minutes = (time.time() - action.since) / 60.0 if action.since else 0.0
