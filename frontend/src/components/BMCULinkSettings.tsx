@@ -114,6 +114,181 @@ function ConnectionInfoPanel() {
   );
 }
 
+/** last_status arrives as a JSON string from the REST API but as an object
+ * over the WS push; normalize both (a bare string previously fell into
+ * Object.entries and rendered one character per cell). */
+function parseStatus(status: unknown): Record<string, unknown> | null {
+  if (typeof status === 'string') {
+    try {
+      const parsed = JSON.parse(status);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (status && typeof status === 'object') return status as Record<string, unknown>;
+  return null;
+}
+
+function bit(mask: unknown, i: number): boolean | null {
+  return typeof mask === 'number' ? (mask & (1 << i)) !== 0 : null;
+}
+
+const ERROR_COUNTER_KEYS = new Set(['crc_error', 'frame_error', 'rx_drop', 'tx_drop', 'control_error']);
+// Fields folded into the per-channel grid; everything else renders as a tile.
+const CHANNEL_KEYS = new Set(['inserted_mask', 'online_mask', 'pull_pct', 'motion', 'current_slot']);
+
+function PresenceDot({ on }: { on: boolean | null }) {
+  if (on === null) return <span className="text-bambu-gray">—</span>;
+  return (
+    <span
+      className={`inline-block w-2.5 h-2.5 rounded-full ${on ? 'bg-green-400' : 'bg-gray-600'}`}
+      aria-label={on ? 'yes' : 'no'}
+    />
+  );
+}
+
+function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums | undefined }) {
+  const { t } = useTranslation();
+  const parsed = parseStatus(status);
+  if (!parsed) {
+    return (
+      <pre className="text-xs text-bambu-gray font-mono whitespace-pre-wrap break-all">
+        {typeof status === 'string' ? status : JSON.stringify(status)}
+      </pre>
+    );
+  }
+  // Envelope shape is {hw_tick64, data:{...}}; flat objects are used as-is.
+  const inner = parseStatus(parsed.data);
+  const data: Record<string, unknown> = inner ?? parsed;
+  const topLevelExtras = inner
+    ? Object.entries(parsed).filter(([k]) => k !== 'data')
+    : [];
+
+  const pullPct = Array.isArray(data.pull_pct) ? (data.pull_pct as unknown[]) : null;
+  const motion = Array.isArray(data.motion) ? (data.motion as unknown[]) : null;
+  const channelCount = Math.max(pullPct?.length ?? 0, motion?.length ?? 0, 4);
+  const currentSlot = typeof data.current_slot === 'number' ? data.current_slot : null;
+  const channels = Array.from({ length: channelCount }, (_, i) => i);
+  const hasChannelData =
+    pullPct !== null || motion !== null || typeof data.inserted_mask === 'number' || typeof data.online_mask === 'number';
+
+  const tiles = [
+    ...Object.entries(data).filter(([k]) => !CHANNEL_KEYS.has(k)),
+    ...topLevelExtras,
+  ];
+
+  return (
+    <div className="space-y-3">
+      {hasChannelData && (
+        <div className="overflow-x-auto">
+          <table className="text-xs border-collapse">
+            <thead>
+              <tr>
+                <th className="py-1 px-2 text-left font-medium text-bambu-gray border border-bambu-dark-tertiary">
+                  {t('settings.bmcuLink.statusChannel')}
+                </th>
+                {channels.map((i) => (
+                  <th
+                    key={i}
+                    className={`py-1 px-3 text-center font-medium border border-bambu-dark-tertiary ${
+                      i === currentSlot ? 'bg-bambu-green/20 text-bambu-green' : 'text-white'
+                    }`}
+                  >
+                    {i + 1}
+                    {i === currentSlot && (
+                      <span className="block text-[10px] font-normal">{t('settings.bmcuLink.statusCurrent')}</span>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
+                  {t('settings.bmcuLink.statusInserted')}
+                </td>
+                {channels.map((i) => (
+                  <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary">
+                    <PresenceDot on={bit(data.inserted_mask, i)} />
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
+                  {t('settings.bmcuLink.statusOnline')}
+                </td>
+                {channels.map((i) => (
+                  <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary">
+                    <PresenceDot on={bit(data.online_mask, i)} />
+                  </td>
+                ))}
+              </tr>
+              {pullPct && (
+                <tr>
+                  <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
+                    {t('settings.bmcuLink.statusPull')}
+                  </td>
+                  {channels.map((i) => {
+                    const v = typeof pullPct[i] === 'number' ? (pullPct[i] as number) : null;
+                    return (
+                      <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary">
+                        {v === null ? (
+                          <span className="text-bambu-gray">—</span>
+                        ) : (
+                          <div className="min-w-[3rem]">
+                            <div className="text-white">{v}%</div>
+                            <div className="h-1 bg-bambu-dark-tertiary rounded mt-0.5">
+                              <div
+                                className="h-1 bg-bambu-green rounded"
+                                style={{ width: `${Math.max(0, Math.min(100, v))}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              )}
+              {motion && (
+                <tr>
+                  <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
+                    {t('settings.bmcuLink.statusMotion')}
+                  </td>
+                  {channels.map((i) => (
+                    <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary text-white">
+                      {typeof motion[i] === 'number'
+                        ? renderStatusValue(enums, 'motion', motion[i])
+                        : '—'}
+                    </td>
+                  ))}
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tiles.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          {tiles.map(([key, value]) => {
+            const isErrorCounter = ERROR_COUNTER_KEYS.has(key) && typeof value === 'number' && value > 0;
+            return (
+              <div key={key} className="bg-bambu-dark-tertiary/50 rounded px-2 py-1">
+                <div className="text-bambu-gray">{key}</div>
+                <div className={`break-all ${isErrorCounter ? 'text-red-400' : 'text-white'}`}>
+                  {renderStatusValue(enums, key, value)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface DeviceEventsProps {
   device: BMCULinkDevice;
   enums: BMCULinkEnums | undefined;
@@ -318,14 +493,7 @@ function DeviceCard({ device, enums }: DeviceCardProps) {
         {status && (
           <div className="pt-2 border-t border-bambu-dark-tertiary">
             <h4 className="text-xs font-medium text-white mb-2">{t('settings.bmcuLink.lastStatus')}</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              {Object.entries(status).map(([key, value]) => (
-                <div key={key}>
-                  <div className="text-bambu-gray">{key}</div>
-                  <div className="text-white break-all">{renderStatusValue(enums, key, value)}</div>
-                </div>
-              ))}
-            </div>
+            <StatusGrid status={status} enums={enums} />
           </div>
         )}
 
