@@ -267,15 +267,17 @@ class BMCULinkService:
         rejected: list[BMCULinkRejected] = []
         for idx, env in enumerate(envelopes):
             tseq = env.link.transport_sequence
+            # Identity the bridge needs to quarantine a non-retryable reject.
+            ident = {"link_id": env.link.id, "pico_boot_session": env.link.pico_boot_session}
             try:
                 if not self._device_admitted(env.device_id):
                     rejected.append(
-                        BMCULinkRejected(index=idx, transport_sequence=tseq, code="device_cap", retryable=False)
+                        BMCULinkRejected(index=idx, transport_sequence=tseq, code="device_cap", retryable=False, **ident)
                     )
                     continue
                 if not self._link_admitted(env):
                     rejected.append(
-                        BMCULinkRejected(index=idx, transport_sequence=tseq, code="link_cap", retryable=False)
+                        BMCULinkRejected(index=idx, transport_sequence=tseq, code="link_cap", retryable=False, **ident)
                     )
                     continue
                 if self._check_duplicate(env):
@@ -288,7 +290,7 @@ class BMCULinkService:
             except Exception:
                 logger.exception("BMCU Link ingest failed for device %s", getattr(env, "device_id", "?"))
                 rejected.append(
-                    BMCULinkRejected(index=idx, transport_sequence=tseq, code="internal", retryable=True)
+                    BMCULinkRejected(index=idx, transport_sequence=tseq, code="internal", retryable=True, **ident)
                 )
         try:
             if len(self._pending) >= self.FLUSH_BATCH_SIZE:

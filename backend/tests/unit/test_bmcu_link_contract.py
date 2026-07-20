@@ -352,3 +352,51 @@ async def test_transport_hello_does_not_clobber_bmcu_session(service):
             await db.execute(select(BMCULinkDevice).where(BMCULinkDevice.device_id == "pico-1"))
         ).scalar_one()
         assert device.bmcu_boot_session == 1
+
+
+# ------------------------------ rejected[] identity (Pico apply_ack contract)
+
+
+def test_rejected_carries_link_identity_on_validation_error():
+    """The alpha Pico's apply_ack() only quarantines a non-retryable reject
+    when the entry carries link_id AND pico_boot_session; without them the
+    record stays queued and is resent forever. Emit both whenever the
+    offending item still exposes them."""
+    from backend.app.api.routes.bmcu_link import _parse_envelopes_partial
+
+    bad = make_envelope(seq=5)
+    bad["frame"] = "not-an-object"  # schema violation, link block intact
+    parsed, rejected = _parse_envelopes_partial([bad])
+    assert parsed == [] and len(rejected) == 1
+    r = rejected[0]
+    assert r.code == "validation_error" and r.retryable is False
+    assert r.link_id == "default"
+    assert r.pico_boot_session == "boot-a"
+    assert r.transport_sequence == 5
+
+
+def test_rejected_identity_absent_when_unrecoverable():
+    """Garbage that never had a link block: identity stays None rather than
+    being invented (the bridge then falls back to its own index mapping)."""
+    from backend.app.api.routes.bmcu_link import _parse_envelopes_partial
+
+    _, rejected = _parse_envelopes_partial([{"schema": "x"}, "not-a-dict"])
+    assert len(rejected) == 2
+    for r in rejected:
+        assert r.link_id is None and r.pico_boot_session is None
+
+
+@pytest.mark.asyncio
+async def test_link_cap_reject_carries_identity(service):
+    """Service-side rejects (device_cap / link_cap / internal) always have a
+    validated envelope, so identity is never missing there."""
+    service.MAX_LINKS_PER_DEVICE = 1
+    envs = [
+        BMCULinkEnvelope.model_validate(make_envelope(seq=1, link_id="a")),
+        BMCULinkEnvelope.model_validate(make_envelope(seq=2, link_id="b")),
+    ]
+    result = await service.ingest(envs)
+    caps = [r for r in result.rejected if r.code == "link_cap"]
+    assert caps, "expected a link_cap rejection"
+    assert caps[0].link_id == "b"
+    assert caps[0].pico_boot_session == "boot-a"

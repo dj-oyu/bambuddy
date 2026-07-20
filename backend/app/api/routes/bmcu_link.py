@@ -52,6 +52,34 @@ def _extract_transport_sequence(item) -> int | None:
         return None
 
 
+def _extract_reject_identity(item) -> dict:
+    """Best-effort (link_id, pico_boot_session) from an item that failed
+    schema validation. The bridge needs both to quarantine the record; a
+    reject missing either is ignored by the Pico and resent forever."""
+    if not isinstance(item, dict):
+        return {}
+    try:
+        link = item.get("link")
+        # No link block at all -> nothing to key on; don't invent a default.
+        if not isinstance(link, dict) or not link:
+            return {}
+        out = {}
+        link_id = link.get("id")
+        session = link.get("pico_boot_session")
+        # Mirror the schema default: a link block without an explicit id is
+        # treated as "default" everywhere else (dedup key, watermark), so the
+        # reject must name the same link the sender's record would map to.
+        if link_id is None:
+            link_id = "default"
+        if isinstance(link_id, str):
+            out["link_id"] = link_id
+        if isinstance(session, str):
+            out["pico_boot_session"] = session
+        return out
+    except Exception:
+        return {}
+
+
 def _parse_envelopes_partial(payload) -> tuple[list[tuple[int, BMCULinkEnvelope]], list[BMCULinkRejected]]:
     """Partial-accept parse (issue #2): invalid items become `rejected`
     entries (0-based batch index, non-retryable) instead of failing the
@@ -69,6 +97,7 @@ def _parse_envelopes_partial(payload) -> tuple[list[tuple[int, BMCULinkEnvelope]
                     transport_sequence=_extract_transport_sequence(item) if isinstance(item, dict) else None,
                     code="validation_error",
                     retryable=False,
+                    **_extract_reject_identity(item),
                 )
             )
     return parsed, rejected

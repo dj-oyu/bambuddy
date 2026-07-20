@@ -102,6 +102,13 @@ class BMCULinkRejected(BaseModel):
 
     index: int
     transport_sequence: int | None = None
+    # The bridge keys its quarantine set on (link_id, pico_boot_session,
+    # transport_sequence) — the alpha Pico's apply_ack() SKIPS any rejected
+    # entry missing either field, which would leave the record queued and
+    # resent forever (exactly what partial-accept exists to prevent). Emit
+    # them whenever they can be recovered from the offending item.
+    link_id: str | None = None
+    pico_boot_session: str | None = None
     code: str  # validation_error | batch_too_large | device_cap | link_cap | internal
     retryable: bool
 
