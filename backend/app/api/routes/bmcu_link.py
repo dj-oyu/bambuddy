@@ -2,6 +2,7 @@
 
 import json
 import logging
+import socket
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -222,6 +223,67 @@ async def ingest_envelopes(
     if isinstance(payload, list) and len(payload) > bmcu_link_service.MAX_BATCH:
         raise HTTPException(status_code=413, detail=f"batch exceeds {bmcu_link_service.MAX_BATCH} envelopes")
     return await _ingest_partial(payload)
+
+
+def _lan_ipv4_addresses() -> list[str]:
+    """Best-effort list of LAN IPv4 addresses a Pico/Pi bridge on the local
+    network can reach. Tailscale/CGNAT (100.64/10), loopback, link-local and
+    virtual bridge interfaces are excluded — the bridge is assumed to sit on
+    the plain LAN without a tailnet."""
+    import ipaddress
+
+    import psutil
+
+    skip_prefixes = ("lo", "tailscale", "docker", "veth", "br-", "virbr", "zt")
+    addresses: list[str] = []
+    try:
+        for ifname, addrs in psutil.net_if_addrs().items():
+            if ifname.startswith(skip_prefixes):
+                continue
+            for addr in addrs:
+                if addr.family != socket.AF_INET:
+                    continue
+                try:
+                    ip = ipaddress.IPv4Address(addr.address)
+                except ValueError:
+                    continue
+                if ip.is_loopback or ip.is_link_local or ip in ipaddress.IPv4Network("100.64.0.0/10"):
+                    continue
+                addresses.append(str(ip))
+    except Exception:
+        logger.warning("BMCU Link: interface enumeration failed", exc_info=True)
+    return addresses
+
+
+@router.get("/connection-info")
+async def get_connection_info(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_READ),
+):
+    """Endpoint URLs the Pico/Pi bridge must be configured with. Built from
+    the server's LAN addresses (not the URL the browser used — the UI is
+    often reached over Tailscale, which the bridge cannot route to)."""
+    if not bmcu_link_enabled():
+        raise HTTPException(status_code=404, detail="BMCU Link is disabled")
+    server = request.scope.get("server") or (None, None)
+    port = server[1] or 8000
+    root_path = (request.scope.get("root_path") or "").rstrip("/")
+    api_path = f"{root_path}/api/v1/bmcu-link"
+    endpoints = [
+        {
+            "ip": ip,
+            "ws_url": f"ws://{ip}:{port}{api_path}/ws",
+            "ingest_url": f"http://{ip}:{port}{api_path}/ingest",
+        }
+        for ip in _lan_ipv4_addresses()
+    ]
+    return {
+        "auth_enabled": await is_auth_enabled(db),
+        "telemetry_scope": BMCU_LINK_TELEMETRY_SCOPE,
+        "port": port,
+        "endpoints": endpoints,
+    }
 
 
 @router.get("/devices")

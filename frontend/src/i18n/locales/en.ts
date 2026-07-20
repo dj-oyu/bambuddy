@@ -1673,6 +1673,11 @@ export default {
       infoTitle: 'BMCU Link devices',
       infoBody: 'BMCU Link adapters register themselves automatically when they connect. This panel shows link health, the latest status snapshot and recent telemetry events for each adapter.',
       disabled: 'BMCU Link is disabled on this server.',
+      connectionTitle: 'Bridge connection endpoints',
+      connectionBody: 'Configure the Pi/Pico bridge with one of these URLs. They use this server’s LAN address — the address in your browser may be a Tailscale/VPN address the bridge cannot reach.',
+      connectionNoLan: 'No LAN IPv4 address detected on this server.',
+      connectionAuthOn: 'Authentication is enabled: the bridge must send "Authorization: Bearer bblt_..." using a telemetry token (scope bmcu_link:telemetry) minted by an admin.',
+      connectionAuthOff: 'Authentication is currently disabled: no token is required.',
       empty: 'No BMCU Link devices have connected yet',
       linkState: {
         online: 'Online',

@@ -7609,8 +7609,24 @@ export interface BMCULinkEnums {
   [table: string]: Record<string, string> | number | undefined;
 }
 
+export interface BMCULinkConnectionEndpoint {
+  ip: string;
+  ws_url: string;
+  ingest_url: string;
+}
+
+export interface BMCULinkConnectionInfo {
+  auth_enabled: boolean;
+  telemetry_scope: string;
+  port: number;
+  endpoints: BMCULinkConnectionEndpoint[];
+}
+
 // BMCU Link API
 export const bmcuLinkApi = {
+  getConnectionInfo: () =>
+    request<BMCULinkConnectionInfo>('/bmcu-link/connection-info'),
+
   getDevices: () =>
     request<BMCULinkDevicesResponse>('/bmcu-link/devices'),
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Info, Clock, AlertTriangle } from 'lucide-react';
+import { Loader2, Info, Clock, AlertTriangle, Copy, Check, Cable } from 'lucide-react';
 import {
   bmcuLinkApi,
   type BMCULinkDevice,
@@ -44,6 +44,74 @@ function renderStatusValue(enums: BMCULinkEnums | undefined, key: string, value:
   }
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+function CopyableUrl({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-bambu-gray w-16 flex-shrink-0">{label}</span>
+      <code className="text-white font-mono text-xs bg-bambu-dark-tertiary rounded px-2 py-1 truncate flex-1">
+        {url}
+      </code>
+      <button
+        type="button"
+        className="text-bambu-gray hover:text-white flex-shrink-0"
+        aria-label={`copy ${label}`}
+        onClick={() => {
+          navigator.clipboard.writeText(url).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+      >
+        {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+}
+
+/** Endpoint URLs the Pi/Pico bridge must be pointed at, built server-side
+ * from LAN addresses (the browser's own URL may be a Tailscale address the
+ * bridge cannot reach). */
+function ConnectionInfoPanel() {
+  const { t } = useTranslation();
+  const { data } = useQuery({
+    queryKey: ['bmcu-link-connection-info'],
+    queryFn: () => bmcuLinkApi.getConnectionInfo(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!data) return null;
+
+  return (
+    <Card>
+      <CardContent className="py-3 px-4 space-y-2">
+        <div className="flex items-center gap-2 text-xs">
+          <Cable className="w-4 h-4 text-bambu-green flex-shrink-0" />
+          <p className="text-white font-medium">{t('settings.bmcuLink.connectionTitle')}</p>
+        </div>
+        <p className="text-xs text-bambu-gray">{t('settings.bmcuLink.connectionBody')}</p>
+        {data.endpoints.length === 0 ? (
+          <p className="text-xs text-yellow-400">{t('settings.bmcuLink.connectionNoLan')}</p>
+        ) : (
+          <div className="space-y-2 text-xs">
+            {data.endpoints.map((ep) => (
+              <div key={ep.ip} className="space-y-1">
+                <CopyableUrl label="WebSocket" url={ep.ws_url} />
+                <CopyableUrl label="HTTP" url={ep.ingest_url} />
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-bambu-gray">
+          {data.auth_enabled
+            ? t('settings.bmcuLink.connectionAuthOn')
+            : t('settings.bmcuLink.connectionAuthOff')}
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
 interface DeviceEventsProps {
@@ -318,6 +386,8 @@ export function BMCULinkSettings() {
           </div>
         </CardContent>
       </Card>
+
+      <ConnectionInfoPanel />
 
       {devices.length === 0 ? (
         <Card>
