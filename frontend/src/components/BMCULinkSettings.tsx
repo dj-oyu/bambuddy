@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Info, Clock, AlertTriangle, Copy, Check, Cable } from 'lucide-react';
@@ -289,6 +289,233 @@ function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums |
   );
 }
 
+// PICO_BAMBUDDY_OUTPUT.md §2.2 — not in the enum registry yet; registry wins
+// once a `motion` table appears there (resolveEnum is tried first).
+const AMS_MOTION_NAMES: Record<number, string> = {
+  0: 'idle',
+  1: 'send-out',
+  2: 'on-use',
+  3: 'before-pull-back',
+  4: 'pull-back',
+  5: 'before-on-use',
+  6: 'stop-on-use',
+};
+// state_change field ids (PICO_BAMBUDDY_OUTPUT.md §2.5); registry `state_field` wins.
+const STATE_FIELD_NAMES: Record<number, string> = {
+  1: 'slot',
+  2: 'inserted_mask',
+  3: 'online_mask',
+  4: 'motion',
+  5: 'pressure',
+  6: 'led_mode',
+  7: 'control_error',
+  8: 'motion_fault',
+};
+const SEVERITY_STYLES: Record<string, string> = {
+  debug: 'bg-gray-500/15 text-gray-400',
+  info: 'bg-blue-500/15 text-blue-400',
+  notice: 'bg-blue-500/15 text-blue-300',
+  warning: 'bg-yellow-500/15 text-yellow-400',
+  error: 'bg-red-500/15 text-red-400',
+  critical: 'bg-red-500/25 text-red-300',
+};
+
+function enumName(
+  enums: BMCULinkEnums | undefined,
+  table: string,
+  fallback: Record<number, string>,
+  id: unknown,
+): string {
+  if (typeof id !== 'number') return String(id);
+  const map = enums?.[table];
+  if (map && typeof map === 'object') {
+    const name = (map as Record<string, string>)[String(id)];
+    if (name !== undefined) return name;
+  }
+  return fallback[id] ?? `unknown(${id})`;
+}
+
+function Chip({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap ${
+        className ?? 'bg-bambu-dark-tertiary/70 text-bambu-gray'
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MaskDots({ mask }: { mask: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 align-middle">
+      {[0, 1, 2, 3].map((i) => (
+        <PresenceDot key={i} on={(mask & (1 << i)) !== 0} />
+      ))}
+    </span>
+  );
+}
+
+function JsonFallback({ value }: { value: unknown }) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  if (text === undefined || text === 'null') return <span className="text-bambu-gray">—</span>;
+  return (
+    <details>
+      <summary className="cursor-pointer text-bambu-gray hover:text-white truncate max-w-[24rem]">
+        {text.length > 60 ? `${text.slice(0, 60)}…` : text}
+      </summary>
+      <pre className="mt-1 text-[11px] text-bambu-gray whitespace-pre-wrap break-all max-w-[32rem]">
+        {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+      </pre>
+    </details>
+  );
+}
+
+/** Human-readable rendering of the event `data` column, per envelope kind
+ * (PICO_BAMBUDDY_OUTPUT.md / PICO_BAMBUDDY_ENVELOPE.md). Unknown shapes fall
+ * back to collapsed raw JSON. */
+function EventDataCell({
+  kind,
+  data,
+  enums,
+}: {
+  kind: string;
+  data: unknown;
+  enums: BMCULinkEnums | undefined;
+}) {
+  const parsed = parseStatus(data);
+  if (!parsed) return <JsonFallback value={data} />;
+
+  if (kind === 'hello') {
+    const links = Array.isArray(parsed.links) ? (parsed.links as Record<string, unknown>[]) : [];
+    const caps = Array.isArray(parsed.capabilities) ? (parsed.capabilities as unknown[]) : [];
+    return (
+      <div className="flex items-center gap-1 flex-wrap">
+        {typeof parsed.firmware === 'string' && <Chip>fw {parsed.firmware}</Chip>}
+        {typeof parsed.drop_count === 'number' && (
+          <Chip className={parsed.drop_count > 0 ? 'bg-red-500/15 text-red-400' : undefined}>
+            drops {parsed.drop_count}
+          </Chip>
+        )}
+        {links.map((l, i) => (
+          <Chip
+            key={i}
+            className={
+              l.state === 'online' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'
+            }
+          >
+            {String(l.link_id ?? '?')}: {String(l.state ?? '?')}
+          </Chip>
+        ))}
+        {caps.length > 0 && <Chip>{caps.join(', ')}</Chip>}
+      </div>
+    );
+  }
+
+  if (kind === 'status') {
+    const d = parseStatus(parsed.data) ?? parsed;
+    const pull = Array.isArray(d.pull_pct) ? (d.pull_pct as unknown[]) : null;
+    const errors = [...ERROR_COUNTER_KEYS].filter((k) => typeof d[k] === 'number' && (d[k] as number) > 0);
+    const hasKnown =
+      typeof d.current_slot === 'number' ||
+      typeof d.inserted_mask === 'number' ||
+      typeof d.online_mask === 'number' ||
+      pull !== null;
+    if (hasKnown) {
+      return (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {typeof d.current_slot === 'number' && (
+            <Chip className="bg-bambu-green/15 text-bambu-green">
+              slot {d.current_slot === 255 ? '—' : d.current_slot + 1}
+            </Chip>
+          )}
+          {typeof d.inserted_mask === 'number' && (
+            <Chip>
+              ins&nbsp;
+              <MaskDots mask={d.inserted_mask} />
+            </Chip>
+          )}
+          {typeof d.online_mask === 'number' && (
+            <Chip>
+              on&nbsp;
+              <MaskDots mask={d.online_mask} />
+            </Chip>
+          )}
+          {pull && <Chip>pull {pull.map((v) => `${v}%`).join(' / ')}</Chip>}
+          {errors.map((k) => (
+            <Chip key={k} className="bg-red-500/15 text-red-400">
+              {k} {String(d[k])}
+            </Chip>
+          ))}
+        </div>
+      );
+    }
+    return <JsonFallback value={parsed} />;
+  }
+
+  if (kind === 'event') {
+    const d = parseStatus(parsed.data) ?? parsed;
+    const sevName =
+      typeof d.severity === 'number' ? resolveEnum(enums, 'severity', d.severity) : String(d.severity ?? '');
+    const chips: ReactNode[] = [];
+    if (d.severity !== undefined) {
+      chips.push(
+        <Chip key="sev" className={SEVERITY_STYLES[sevName] ?? undefined}>
+          {sevName}
+        </Chip>,
+      );
+    }
+    if (d.source !== undefined) {
+      chips.push(
+        <Chip key="src">{typeof d.source === 'number' ? resolveEnum(enums, 'source', d.source) : String(d.source)}</Chip>,
+      );
+    }
+    const name = typeof d.event_name === 'string' ? d.event_name : null;
+    if (name === 'state_change' && d.field !== undefined) {
+      const fieldName = enumName(enums, 'state_field', STATE_FIELD_NAMES, d.field);
+      const fmt = (v: unknown) =>
+        fieldName === 'motion' ? enumName(enums, 'motion', AMS_MOTION_NAMES, v) : String(v);
+      chips.push(
+        <span key="chg" className="text-white whitespace-nowrap">
+          {fieldName}
+          {typeof d.slot === 'number' && d.slot !== 255 ? `[${d.slot + 1}]` : ''}: {fmt(d.previous_value)}
+          <span className="text-bambu-gray"> → </span>
+          {fmt(d.value)}
+        </span>,
+      );
+    } else if (name === 'sensor') {
+      chips.push(
+        <span key="sen" className="text-white whitespace-nowrap">
+          sensor {String(d.sensor)}
+          {typeof d.slot === 'number' && d.slot !== 255 ? `[${d.slot + 1}]` : ''} ={' '}
+          {String(d.value)}{' '}
+          {typeof d.validity === 'number' && (
+            <span className="text-bambu-gray">({resolveEnum(enums, 'sensor_validity', d.validity)})</span>
+          )}
+        </span>,
+      );
+    } else if (name) {
+      chips.push(
+        <span key="name" className="text-white">
+          {name}
+        </span>,
+      );
+      if (typeof d.payload === 'string' && d.payload) {
+        chips.push(
+          <Chip key="pl" className="bg-bambu-dark-tertiary/70 text-bambu-gray font-mono">
+            {d.payload}
+          </Chip>,
+        );
+      }
+    }
+    if (chips.length > 0) return <div className="flex items-center gap-1.5 flex-wrap">{chips}</div>;
+    return <JsonFallback value={parsed} />;
+  }
+
+  return <JsonFallback value={parsed} />;
+}
+
 interface DeviceEventsProps {
   device: BMCULinkDevice;
   enums: BMCULinkEnums | undefined;
@@ -367,8 +594,12 @@ function DeviceEvents({ device, enums }: DeviceEventsProps) {
                   <td className="py-1 pr-3 text-bambu-gray font-mono">
                     {event.transaction_id ?? '—'}
                   </td>
-                  <td className="py-1 text-bambu-gray font-mono break-all">
-                    {JSON.stringify(event.data)}
+                  <td className="py-1 text-bambu-gray">
+                    <EventDataCell
+                      kind={event.kind || resolveEnum(enums, 'kind', event.kind_id)}
+                      data={event.data}
+                      enums={enums}
+                    />
                   </td>
                 </tr>
               ))}
