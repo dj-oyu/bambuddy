@@ -413,6 +413,14 @@ _HMS_AUTO_CLEAR_CODES = {
 # before (fail-safe fallback for upstream-merge accidents).
 _HMS_RETRY_ENABLED = os.environ.get("BAMBUDDY_HMS_RETRY", "1") != "0"
 _HMS_RETRY_TICK_S = float(os.environ.get("BAMBUDDY_HMS_RETRY_TICK_S", "15"))
+# After an HMS auto-clear with nothing to resume, the requeue helper polls the
+# demonstrably-idle gate stack for this long before giving up. If the ONLY
+# blocking gate for the whole window is "AMS busy", the ams_status_main value
+# is treated as latched (the BMCU holds a nonzero status forever after a
+# 409D-rejected start — 2026-07-21 wedge) and the requeue proceeds anyway.
+# 0 disables the override entirely (old strict-gate behavior).
+_HMS_REQUEUE_AMS_GRACE_S = float(os.environ.get("BAMBUDDY_HMS_REQUEUE_AMS_GRACE_S", "180"))
+_HMS_REQUEUE_POLL_S = 10.0
 # Legacy rate limit (only used when BAMBUDDY_HMS_RETRY=0)
 _HMS_AUTO_CLEAR_MAX_ATTEMPTS = 3
 _HMS_AUTO_CLEAR_WINDOW_SECONDS = 600.0
@@ -514,18 +522,53 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
     # "not idle" — see evaluate_demonstrably_idle for the incident history and
     # per-gate rationale). The wedge watchdog owns the dead-or-alive call
     # inside the post-dispatch hold window.
-    client = printer_manager.get_client(printer_id)
-    printer_state = getattr(client, "state", None)
-    verdict = printer_lifecycle.evaluate_demonstrably_idle(
-        printer_state,
-        in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
-    )
-    if not verdict:
-        if verdict.reason:
+    #
+    # The "AMS busy" gate alone gets a poll-then-override treatment: a real
+    # filament load clears ams_status_main within a couple of minutes, but a
+    # 409D-rejected start leaves the BMCU latched at a nonzero value forever
+    # (2026-07-21: gate blocked every requeue, so the intended clear→requeue→
+    # re-dispatch retry loop never ran and the queue wedged). Poll until the
+    # gate opens; if AMS-busy is still the only blocker after the grace
+    # window, requeue anyway. Any OTHER blocking reason aborts immediately,
+    # exactly as before.
+    deadline = time.monotonic() + _HMS_REQUEUE_AMS_GRACE_S
+    while True:
+        client = printer_manager.get_client(printer_id)
+        printer_state = getattr(client, "state", None)
+        verdict = printer_lifecycle.evaluate_demonstrably_idle(
+            printer_state,
+            in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
+        )
+        if verdict:
+            break
+        if not verdict.reason.startswith("AMS busy"):
+            if verdict.reason:
+                log.info("[HMS] Skipping requeue on printer %s: %s", printer_id, verdict.reason)
+            # Empty reason = the print visibly started (or is paused) — leave
+            # it alone, silently, as before.
+            return
+        if _HMS_REQUEUE_AMS_GRACE_S <= 0:
             log.info("[HMS] Skipping requeue on printer %s: %s", printer_id, verdict.reason)
-        # Empty reason = the print visibly started (or is paused) — leave it
-        # alone, silently, as before.
-        return
+            return
+        if time.monotonic() >= deadline:
+            # Re-check with the AMS gate bypassed: gates 1-4 (state, hold,
+            # connectivity) must still pass on the same snapshot.
+            verdict = printer_lifecycle.evaluate_demonstrably_idle(
+                printer_state,
+                in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
+                ignore_ams_busy=True,
+            )
+            if not verdict:
+                if verdict.reason:
+                    log.info("[HMS] Skipping requeue on printer %s: %s", printer_id, verdict.reason)
+                return
+            log.warning(
+                "[HMS] Requeue on printer %s proceeding despite %s — status latched for %.0fs "
+                "with the printer otherwise demonstrably idle (BAMBUDDY_HMS_REQUEUE_AMS_GRACE_S)",
+                printer_id, verdict.reason or "AMS busy", _HMS_REQUEUE_AMS_GRACE_S,
+            )
+            break
+        await asyncio.sleep(_HMS_REQUEUE_POLL_S)
     state = printer_state.state
 
     from sqlalchemy import select as _select
@@ -4097,6 +4140,12 @@ _reconcile_sweep_task: asyncio.Task | None = None
 # logs beats an item silently stuck in 'printing' forever (2026-07-13).
 _QUEUE_STUCK_REQUEUE_ENABLED = os.environ.get("BAMBUDDY_QUEUE_STUCK_REQUEUE", "1") != "0"
 _QUEUE_STUCK_REQUEUE_AFTER_S = float(os.environ.get("BAMBUDDY_QUEUE_STUCK_REQUEUE_AFTER_S", "600"))
+# The watchdog ignores the "AMS busy" idle gate by default: its own 10-min age
+# threshold already dwarfs any real filament-load window, and the BMCU latches
+# a nonzero ams_status_main forever after a 409D-rejected start (2026-07-21
+# wedge — the gate silently disabled this safety net). Set to 0 to restore the
+# strict gate stack.
+_QUEUE_STUCK_IGNORE_AMS_BUSY = os.environ.get("BAMBUDDY_QUEUE_STUCK_IGNORE_AMS_BUSY", "1") != "0"
 
 
 async def reconcile_stuck_queue_items(printer_id: int) -> int:
@@ -4114,6 +4163,7 @@ async def reconcile_stuck_queue_items(printer_id: int) -> int:
     verdict = printer_lifecycle.evaluate_demonstrably_idle(
         getattr(client, "state", None),
         in_dispatch_hold=lambda: scheduler.printer_in_dispatch_hold(printer_id),
+        ignore_ams_busy=_QUEUE_STUCK_IGNORE_AMS_BUSY,
     )
     if not verdict:
         return 0

@@ -131,9 +131,11 @@ class TestGates:
         assert item.status == "printing"
         assert FakeSession.committed is False
 
-    def test_ams_motion_blocks_requeue(self, db_session):
+    def test_ams_motion_blocks_requeue_with_grace_disabled(self, db_session, monkeypatch):
         """BMCU mid-filament-change (ams_status_main=1) with idle gcode_state
-        must not be treated as a dead job."""
+        must not be treated as a dead job when the latched-status override is
+        turned off (BAMBUDDY_HMS_REQUEUE_AMS_GRACE_S=0 → pre-override behavior)."""
+        monkeypatch.setattr("backend.app.main._HMS_REQUEUE_AMS_GRACE_S", 0.0)
         FakeSession, item = db_session
         with (
             patch(
@@ -145,6 +147,75 @@ class TestGates:
         ):
             asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))
         assert item.status == "printing"
+
+    def test_ams_clears_midpoll_then_requeues(self, db_session, monkeypatch):
+        """Real filament load: AMS busy on the first checks, then at rest —
+        the poll loop must pick that up and requeue without the override."""
+        monkeypatch.setattr("backend.app.main._HMS_REQUEUE_AMS_GRACE_S", 9999.0)
+        FakeSession, item = db_session
+        clients = [
+            _client("IDLE", ams_status_main=1),
+            _client("IDLE", ams_status_main=1),
+            _client("IDLE", ams_status_main=0),
+        ]
+        with (
+            patch(
+                "backend.app.services.printer_manager.printer_manager.get_client",
+                side_effect=clients,
+            ),
+            patch("backend.app.services.print_scheduler.scheduler.printer_in_dispatch_hold", return_value=False),
+            patch("backend.app.main.async_session", FakeSession),
+        ):
+            asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))
+        assert item.status == "pending"
+        assert FakeSession.committed is True
+
+    def test_ams_latched_overridden_after_grace(self, db_session, monkeypatch):
+        """The 2026-07-21 wedge: ams_status_main latched nonzero forever after
+        a 409D-rejected start. Once the grace window elapses with AMS-busy as
+        the only blocker, the requeue must proceed."""
+        import backend.app.main as main_mod
+
+        monkeypatch.setattr(main_mod, "_HMS_REQUEUE_AMS_GRACE_S", 100.0)
+        ticks = iter([0.0, 0.0, 50.0, 200.0])  # deadline calc, then poll checks
+        monkeypatch.setattr(main_mod, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
+        FakeSession, item = db_session
+        with (
+            patch(
+                "backend.app.services.printer_manager.printer_manager.get_client",
+                return_value=_client("IDLE", ams_status_main=3),
+            ),
+            patch("backend.app.services.print_scheduler.scheduler.printer_in_dispatch_hold", return_value=False),
+            patch("backend.app.main.async_session", FakeSession),
+        ):
+            asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))
+        assert item.status == "pending"
+        assert FakeSession.committed is True
+
+    def test_ams_latched_override_still_respects_dispatch_hold(self, db_session, monkeypatch):
+        """Grace elapsed but a new dispatch hold became active in the meantime:
+        the override re-check must veto the requeue (only the AMS gate is
+        overridable; the hold callable is re-consulted live)."""
+        import backend.app.main as main_mod
+
+        monkeypatch.setattr(main_mod, "_HMS_REQUEUE_AMS_GRACE_S", 100.0)
+        ticks = iter([0.0, 200.0])
+        monkeypatch.setattr(main_mod, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
+        FakeSession, item = db_session
+        with (
+            patch(
+                "backend.app.services.printer_manager.printer_manager.get_client",
+                return_value=_client("IDLE", ams_status_main=3),
+            ),
+            patch(
+                "backend.app.services.print_scheduler.scheduler.printer_in_dispatch_hold",
+                side_effect=[False, True],
+            ),
+            patch("backend.app.main.async_session", FakeSession),
+        ):
+            asyncio.run(_requeue_print_rejected_by_hms(1, "0500_409D"))
+        assert item.status == "printing"
+        assert FakeSession.committed is False
 
     def test_genuine_rejection_still_requeues(self, db_session):
         """Printer demonstrably idle, no hold, AMS at rest — the original

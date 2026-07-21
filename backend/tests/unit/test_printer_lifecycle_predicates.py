@@ -87,6 +87,28 @@ class TestEvaluateDemonstrablyIdle:
         v = self._verdict(_state("IDLE", ams_status_main=3))
         assert not v and v.reason == "AMS busy (ams_status_main=3)"
 
+    def test_gate5_overridable_via_ignore_ams_busy(self):
+        # 2026-07-21 wedge: BMCU latches ams_status_main after a 409D-rejected
+        # start; callers that waited out the load window may bypass gate 5.
+        v = evaluate_demonstrably_idle(
+            _state("IDLE", ams_status_main=3),
+            in_dispatch_hold=lambda: False,
+            ignore_ams_busy=True,
+        )
+        assert v
+
+    @pytest.mark.parametrize(
+        "state_kw",
+        [dict(state="RUNNING"), dict(connected=False)],
+    )
+    def test_ignore_ams_busy_never_bypasses_other_gates(self, state_kw):
+        v = evaluate_demonstrably_idle(
+            _state(**{"ams_status_main": 3, **state_kw}),
+            in_dispatch_hold=lambda: False,
+            ignore_ams_busy=True,
+        )
+        assert not v
+
     def test_hold_lookup_short_circuits(self):
         """printer_in_dispatch_hold pops expired holds as a side effect — it
         must only be consulted once gates 1-2 pass, as the original HMS

@@ -81,6 +81,7 @@ def evaluate_demonstrably_idle(
     printer_state: Any | None,
     *,
     in_dispatch_hold: Callable[[], bool],
+    ignore_ams_busy: bool = False,
 ) -> IdleVerdict:
     """FAIL-SAFE idleness for destructive rescues (HMS requeue and friends).
 
@@ -99,7 +100,16 @@ def evaluate_demonstrably_idle(
                                           stale from the dead session)
       5. ams_status_main != 0         -> not idle ("AMS busy (...)"; BMCU is
                                           mid-motion even though gcode_state
-                                          reads idle)
+                                          reads idle). Skipped when
+                                          ``ignore_ams_busy`` is set — the BMCU
+                                          latches a nonzero ams_status_main
+                                          forever after a 409D-rejected start
+                                          (2026-07-21 wedge: gate blocked every
+                                          requeue, retry loop never ran), so
+                                          callers that have already waited out
+                                          a real filament-load window may
+                                          override this one gate. Gates 1-4
+                                          are never overridable.
 
     ``in_dispatch_hold`` is a zero-arg callable so the hold lookup (which pops
     expired holds as a side effect) only runs when gates 1-2 pass, exactly as
@@ -115,7 +125,7 @@ def evaluate_demonstrably_idle(
     if not getattr(printer_state, "connected", False):
         return IdleVerdict(False, "printer not connected")
     ams_status_main = getattr(printer_state, "ams_status_main", 0)
-    if ams_status_main != 0:
+    if ams_status_main != 0 and not ignore_ams_busy:
         return IdleVerdict(False, f"AMS busy (ams_status_main={ams_status_main})")
     return IdleVerdict(True, "")
 

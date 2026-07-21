@@ -115,7 +115,16 @@ class TestReconcileStuckQueueItems:
         result.scalars.return_value.all.return_value = [_item(age_s=700)]
         assert _run(FakeSession, _client("IDLE", connected=False)) == 0
 
-    def test_ams_motion_skips(self, db_session):
+    def test_ams_motion_ignored_by_default(self, db_session):
+        """The BMCU latches a nonzero ams_status_main after a 409D-rejected
+        start (2026-07-21 wedge); the 10-min age gate is the real safety
+        margin here, so the watchdog requeues through AMS-busy by default."""
+        FakeSession, result = db_session
+        result.scalars.return_value.all.return_value = [_item(age_s=700)]
+        assert _run(FakeSession, _client("IDLE", ams_status_main=768)) == 1
+
+    def test_ams_motion_skips_with_strict_gate(self, db_session, monkeypatch):
+        monkeypatch.setattr("backend.app.main._QUEUE_STUCK_IGNORE_AMS_BUSY", False)
         FakeSession, result = db_session
         result.scalars.return_value.all.return_value = [_item(age_s=700)]
         assert _run(FakeSession, _client("IDLE", ams_status_main=768)) == 0
