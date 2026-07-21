@@ -4383,6 +4383,189 @@ def stop_stall_watch() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Feed-stall watch (private fork) — BMCU starvation detector with auto-pause.
+#
+# See services/feed_stall.py for the 2026-07-21 incident and the detection
+# design. Two stages: early Discord warning when the pull buffer leaves the
+# neutral band (~15s confirm, notify-only), then auto-pause once starvation is
+# confirmed (~30s at pull_pct<=5 while on-use). Pausing fast is the whole
+# game: Bambu MQTT cannot rewind G-code, so every second of starvation is a
+# permanent void in the part. Auto-pause can be disabled independently
+# (BAMBUDDY_FEED_STALL_AUTO_PAUSE=0 → notify-only).
+_FEED_STALL_ENABLED = os.environ.get("BAMBUDDY_FEED_STALL", "1") != "0"
+_FEED_STALL_AUTO_PAUSE = os.environ.get("BAMBUDDY_FEED_STALL_AUTO_PAUSE", "1") != "0"
+_FEED_STALL_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_AFTER_S", "30"))
+_FEED_STALL_WARN_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_WARN_AFTER_S", "15"))
+_FEED_STALL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_PCT", "5"))
+_FEED_STALL_NEUTRAL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_NEUTRAL_PCT", "20"))
+_FEED_STALL_MAX_AGE_S = float(os.environ.get("BAMBUDDY_FEED_STALL_MAX_AGE_S", "20"))
+# BMCU Link devices are not modeled against printers yet (single-printer
+# household); the freshest device status is attributed to this printer.
+_FEED_STALL_PRINTER_ID = int(os.environ.get("BAMBUDDY_FEED_STALL_PRINTER_ID", "1"))
+_FEED_STALL_CHECK_INTERVAL_S = 5.0
+_feed_stall_watch_task: asyncio.Task | None = None
+_feed_stall_detector = None  # created lazily so env parsing stays import-safe
+
+
+def _get_feed_stall_detector():
+    global _feed_stall_detector
+    if _feed_stall_detector is None:
+        from backend.app.services.feed_stall import FeedStallDetector
+
+        _feed_stall_detector = FeedStallDetector(
+            starve_pct=_FEED_STALL_PCT,
+            neutral_pct=_FEED_STALL_NEUTRAL_PCT,
+            after_s=_FEED_STALL_AFTER_S,
+            warn_after_s=_FEED_STALL_WARN_AFTER_S,
+            max_age_s=_FEED_STALL_MAX_AGE_S,
+        )
+    return _feed_stall_detector
+
+
+async def _notify_feed_stall(printer_id: int, event, paused: bool) -> None:
+    from backend.app.models.printer import Printer
+    from backend.app.services.feed_stall import FeedStallTrigger
+    from backend.app.services.notification_service import notification_service
+
+    log = logging.getLogger(__name__)
+    status = printer_manager.get_status(printer_id)
+    is_pause_stage = isinstance(event, FeedStallTrigger)
+    async with async_session() as db:
+        result = await db.execute(select(Printer).where(Printer.id == printer_id))
+        printer = result.scalar_one_or_none()
+        printer_name = printer.name if printer else f"Printer {printer_id}"
+
+        slot_label = f"slot {event.slot + 1}"
+        if is_pause_stage:
+            title = f"Filament feed stall — {slot_label}" + (" (print paused)" if paused else "")
+            lines = [
+                f"BMCU stopped feeding {slot_label}: pull buffer at {event.pull_pct}% "
+                f"for {event.starved_for_s:.0f}s while in use.",
+            ]
+            if paused:
+                lines.append("The print has been PAUSED automatically.")
+            else:
+                lines.append("Auto-pause is disabled — the print is still consuming G-code without extruding.")
+            first_bad = event.degraded_layer or event.current_layer
+            lines.append(
+                f"Estimated damage: layers {first_bad}–{event.current_layer} may be missing material. "
+                "If that range is small, fix the feed (trim ground filament, reload the slot) and resume; "
+                "a large range usually means restarting the print."
+            )
+        else:
+            title = f"Filament feed degrading — {slot_label}"
+            lines = [
+                f"Pull buffer on {slot_label} dropped to {event.pull_pct}% "
+                f"(below neutral) for {event.degraded_for_s:.0f}s while in use — early sign of a feed stall.",
+                "No action taken yet; auto-pause will trigger if it collapses fully.",
+            ]
+        if status is not None:
+            if status.gcode_file:
+                lines.append(f"Job: {status.gcode_file}")
+            lines.append(
+                f"Progress: {status.progress:.0f}% (layer {status.layer_num}/{status.total_layers})"
+            )
+        detail = "\n".join(lines)
+
+        image_data = None
+        if printer is not None and is_pause_stage:
+            image_data = await _capture_snapshot_for_notification(printer_id, printer, log)
+
+        log.warning("[FEED-STALL] printer %s: %s | %s", printer_id, title, detail.replace("\n", " | "))
+        await notification_service.on_printer_error(
+            printer_id, printer_name, title, db, detail, image_data=image_data,
+        )
+
+
+async def _feed_stall_tick(now: float) -> None:
+    from backend.app.services.bmcu_link import bmcu_link_service
+    from backend.app.services.feed_stall import FeedStallTrigger
+
+    log = logging.getLogger(__name__)
+    detector = _get_feed_stall_detector()
+    printer_id = _FEED_STALL_PRINTER_ID
+
+    status = printer_manager.get_status(printer_id)
+    printing = (
+        status is not None
+        and getattr(status, "connected", False)
+        and (getattr(status, "state", "") or "").upper() == "RUNNING"
+    )
+    layer_num = int(getattr(status, "layer_num", 0) or 0) if status is not None else 0
+
+    statuses = bmcu_link_service.latest_statuses()
+    inner, age_s = None, float("inf")
+    if statuses:
+        _, payload, age_s = statuses[0]  # freshest device
+        data = payload.get("data")
+        inner = data if isinstance(data, dict) else None
+
+    event = detector.observe(
+        printer_id,
+        printing=printing,
+        layer_num=layer_num,
+        status=inner,
+        age_s=age_s,
+        now=now,
+    )
+    if event is None:
+        return
+
+    if isinstance(event, FeedStallTrigger):
+        paused = False
+        if _FEED_STALL_AUTO_PAUSE:
+            client = printer_manager.get_client(printer_id)
+            paused = bool(client and client.pause_print())
+            if not paused:
+                log.error("[FEED-STALL] pause command failed for printer %s — will retry next tick", printer_id)
+        try:
+            await _notify_feed_stall(printer_id, event, paused)
+        except Exception:
+            log.exception("[FEED-STALL] notification failed for printer %s", printer_id)
+        # Latch only when the episode's action stuck: an unlatched episode
+        # retries pause+notify on the next tick (mirrors stall-notify).
+        if paused or not _FEED_STALL_AUTO_PAUSE:
+            detector.mark_notified(printer_id)
+            detector.mark_warned(printer_id)
+    else:
+        try:
+            await _notify_feed_stall(printer_id, event, paused=False)
+            detector.mark_warned(printer_id)
+        except Exception:
+            log.exception("[FEED-STALL] warning notification failed for printer %s", printer_id)
+
+
+async def _feed_stall_watch_loop() -> None:
+    while True:
+        await asyncio.sleep(_FEED_STALL_CHECK_INTERVAL_S)
+        try:
+            await _feed_stall_tick(time.time())
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.getLogger(__name__).warning("[FEED-STALL] watch loop error: %s", e)
+
+
+def start_feed_stall_watch() -> None:
+    global _feed_stall_watch_task
+    if _FEED_STALL_ENABLED and _feed_stall_watch_task is None:
+        _feed_stall_watch_task = asyncio.create_task(_feed_stall_watch_loop())
+        logging.getLogger(__name__).info(
+            "Feed-stall watch started (warn %.0fs at <%d%%, pause %.0fs at <=%d%%, auto_pause=%s)",
+            _FEED_STALL_WARN_AFTER_S, _FEED_STALL_NEUTRAL_PCT,
+            _FEED_STALL_AFTER_S, _FEED_STALL_PCT, _FEED_STALL_AUTO_PAUSE,
+        )
+
+
+def stop_feed_stall_watch() -> None:
+    global _feed_stall_watch_task
+    if _feed_stall_watch_task:
+        _feed_stall_watch_task.cancel()
+        _feed_stall_watch_task = None
+        logging.getLogger(__name__).info("Feed-stall watch stopped")
+
+
+# ---------------------------------------------------------------------------
 # HMS auto-clear retry loop (private fork) — level-triggered, never gives up.
 #
 # Drives services/hms_retry.py (see its docstring for the incident history and
@@ -7093,6 +7276,11 @@ async def lifespan(app: FastAPI):
     # episodes send a printer_error notification with a camera snapshot
     start_stall_watch()
 
+    # BMCU feed-stall watch (private fork): early Discord warning + auto-pause
+    # when the active slot's pull buffer collapses mid-print (2026-07-21 air
+    # print incident — no HMS, no motion_fault, only telemetry shows it)
+    start_feed_stall_watch()
+
     # Level-triggered HMS auto-clear retry (private fork): replaces the
     # edge-triggered rate-limited path when BAMBUDDY_HMS_RETRY=1
     start_hms_retry_watch()
@@ -7154,6 +7342,7 @@ async def lifespan(app: FastAPI):
     stop_auth_cleanup()
     stop_reconcile_sweep()
     stop_stall_watch()
+    stop_feed_stall_watch()
     stop_hms_retry_watch()
     printer_manager.disconnect_all()
     await close_spoolman_client()

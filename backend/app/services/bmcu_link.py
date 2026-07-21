@@ -108,6 +108,7 @@ class BMCULinkService:
         self._last_seen: dict[str, float] = {}  # device_id -> monotonic
         self._link_state: dict[str, str] = {}  # device_id -> online|stale|offline
         self._last_status: dict[str, str] = {}  # device_id -> JSON, persisted on flush
+        self._last_status_mono: dict[str, float] = {}  # device_id -> receipt monotonic
         self._last_status_broadcast: dict[str, float] = {}
         self._envelope_counts: dict[str, int] = {}  # unflushed increments
         # dropped_count semantics: firmware reports a CUMULATIVE-since-boot
@@ -195,6 +196,25 @@ class BMCULinkService:
             return True
         self._record_key(env)
         return False
+
+    def latest_statuses(self) -> list[tuple[str, dict, float]]:
+        """(device_id, status payload, age_s) for every device that has sent a
+        status this process lifetime, freshest first. Age is monotonic seconds
+        since receipt — consumers (feed-stall watcher) must treat stale entries
+        as no-data, never as evidence."""
+        now = self._clock()
+        out: list[tuple[str, dict, float]] = []
+        for device_id, raw in self._last_status.items():
+            mono = self._last_status_mono.get(device_id)
+            if mono is None:
+                continue
+            try:
+                data = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            out.append((device_id, data, now - mono))
+        out.sort(key=lambda t: t[2])
+        return out
 
     def mark_seen(self, device_id: str) -> None:
         self._last_seen[device_id] = self._clock()
@@ -363,6 +383,7 @@ class BMCULinkService:
             await self._handle_hello(env, now_dt)
         elif kind == "status":
             self._last_status[env.device_id] = json.dumps(data)
+            self._last_status_mono[env.device_id] = self._clock()
             mono = self._clock()
             if mono - self._last_status_broadcast.get(env.device_id, 0.0) >= self.SUMMARY_THROTTLE_S:
                 self._last_status_broadcast[env.device_id] = mono
