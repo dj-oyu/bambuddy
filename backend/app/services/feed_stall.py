@@ -97,14 +97,21 @@ class FeedStallDetector:
         starve_pct: int = 5,
         neutral_pct: int = 20,
         after_s: float = 30.0,
-        warn_after_s: float = 15.0,
+        warn_after_s: float = 5.0,
+        warn_cooldown_s: float = 300.0,
         max_age_s: float = 20.0,
     ) -> None:
         self.starve_pct = starve_pct
         self.neutral_pct = neutral_pct
         self.after_s = after_s
         self.warn_after_s = warn_after_s
+        # Oscillation guard: with a short confirm window, pull_pct hovering
+        # around the neutral boundary would otherwise re-warn on every
+        # crossing (each recovery re-arms the episode). One warning per
+        # cooldown is plenty — the pause stage is the real alarm.
+        self.warn_cooldown_s = warn_cooldown_s
         self.max_age_s = max_age_s
+        self._last_warn_at: dict[int, float] = {}
         self._episodes: dict[int, FeedStallEpisode] = {}
         self._warn_episodes: dict[int, FeedWarnEpisode] = {}
         # printer_id -> layer at which pull_pct last dipped below neutral_pct
@@ -179,7 +186,9 @@ class FeedStallDetector:
                     slot=slot,
                 )
                 self._warn_episodes[printer_id] = wep
-            if not wep.notified and (now - wep.degraded_since) >= self.warn_after_s:
+            last_warn = self._last_warn_at.get(printer_id)
+            in_cooldown = last_warn is not None and (now - last_warn) < self.warn_cooldown_s
+            if not wep.notified and not in_cooldown and (now - wep.degraded_since) >= self.warn_after_s:
                 warning = FeedStallWarning(
                     slot=slot,
                     degraded_for_s=now - wep.degraded_since,
@@ -227,10 +236,12 @@ class FeedStallDetector:
         if ep is not None:
             ep.notified = True
 
-    def mark_warned(self, printer_id: int) -> None:
+    def mark_warned(self, printer_id: int, now: float | None = None) -> None:
         wep = self._warn_episodes.get(printer_id)
         if wep is not None:
             wep.notified = True
+        if now is not None:
+            self._last_warn_at[printer_id] = now
 
     def _reset(self, printer_id: int) -> None:
         self._episodes.pop(printer_id, None)

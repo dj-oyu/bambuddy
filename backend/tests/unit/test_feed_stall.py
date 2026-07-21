@@ -20,7 +20,10 @@ def _status(pull=(41, 49, 48, 0), motion=(0, 0, 0, 2), slot=3):
 
 
 def _detector(**kw):
-    defaults = dict(starve_pct=5, neutral_pct=20, after_s=30.0, warn_after_s=15.0, max_age_s=20.0)
+    defaults = dict(
+        starve_pct=5, neutral_pct=20, after_s=30.0, warn_after_s=15.0,
+        warn_cooldown_s=300.0, max_age_s=20.0,
+    )
     defaults.update(kw)
     return FeedStallDetector(**defaults)
 
@@ -53,15 +56,30 @@ class TestWarningStage:
         d.mark_warned(1)
         assert _obs(d, 25.0, status=degraded) is None
 
-    def test_recovery_rearms_warning(self):
+    def test_recovery_rearms_warning_after_cooldown(self):
         d = _detector()
         degraded = _status(pull=(41, 49, 48, 10))
         _obs(d, 0.0, status=degraded)
         assert isinstance(_obs(d, 16.0, status=degraded), FeedStallWarning)
-        d.mark_warned(1)
+        d.mark_warned(1, 16.0)
         _obs(d, 20.0, status=_status(pull=(41, 49, 48, 50)))  # recovered
         _obs(d, 30.0, status=degraded)
-        assert isinstance(_obs(d, 46.0, status=degraded), FeedStallWarning)
+        # Within cooldown: the oscillation is suppressed...
+        assert _obs(d, 46.0, status=degraded) is None
+        # ...but a collapse after the cooldown warns again.
+        _obs(d, 400.0, status=_status(pull=(41, 49, 48, 50)))
+        _obs(d, 410.0, status=degraded)
+        assert isinstance(_obs(d, 426.0, status=degraded), FeedStallWarning)
+
+    def test_short_confirm_window_two_samples(self):
+        """The deployed config: warn_after_s=5 with a 2s tick — a warning must
+        fire on the first observation at/after the 5s mark."""
+        d = _detector(warn_after_s=5.0)
+        degraded = _status(pull=(41, 49, 48, 10))
+        assert _obs(d, 0.0, status=degraded) is None
+        assert _obs(d, 2.0, status=degraded) is None
+        assert _obs(d, 4.0, status=degraded) is None
+        assert isinstance(_obs(d, 6.0, status=degraded), FeedStallWarning)
 
     def test_no_warning_when_not_on_use(self):
         d = _detector()

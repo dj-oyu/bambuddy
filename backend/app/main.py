@@ -4395,14 +4395,14 @@ def stop_stall_watch() -> None:
 _FEED_STALL_ENABLED = os.environ.get("BAMBUDDY_FEED_STALL", "1") != "0"
 _FEED_STALL_AUTO_PAUSE = os.environ.get("BAMBUDDY_FEED_STALL_AUTO_PAUSE", "1") != "0"
 _FEED_STALL_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_AFTER_S", "30"))
-_FEED_STALL_WARN_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_WARN_AFTER_S", "15"))
+_FEED_STALL_WARN_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_WARN_AFTER_S", "5"))
 _FEED_STALL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_PCT", "5"))
 _FEED_STALL_NEUTRAL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_NEUTRAL_PCT", "20"))
 _FEED_STALL_MAX_AGE_S = float(os.environ.get("BAMBUDDY_FEED_STALL_MAX_AGE_S", "20"))
 # BMCU Link devices are not modeled against printers yet (single-printer
 # household); the freshest device status is attributed to this printer.
 _FEED_STALL_PRINTER_ID = int(os.environ.get("BAMBUDDY_FEED_STALL_PRINTER_ID", "1"))
-_FEED_STALL_CHECK_INTERVAL_S = 5.0
+_FEED_STALL_CHECK_INTERVAL_S = 2.0
 _feed_stall_watch_task: asyncio.Task | None = None
 _feed_stall_detector = None  # created lazily so env parsing stays import-safe
 
@@ -4526,11 +4526,11 @@ async def _feed_stall_tick(now: float) -> None:
         # retries pause+notify on the next tick (mirrors stall-notify).
         if paused or not _FEED_STALL_AUTO_PAUSE:
             detector.mark_notified(printer_id)
-            detector.mark_warned(printer_id)
+            detector.mark_warned(printer_id, now)
     else:
         try:
             await _notify_feed_stall(printer_id, event, paused=False)
-            detector.mark_warned(printer_id)
+            detector.mark_warned(printer_id, now)
         except Exception:
             log.exception("[FEED-STALL] warning notification failed for printer %s", printer_id)
 
