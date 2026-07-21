@@ -10,8 +10,9 @@ Bambu Lab A1 mini + BMCU(サードパーティAMS)+ Chitu C1M プレートチェ
   ここを編集してもサービスには反映されない。反映は `./deploy.sh`(rsync + restart + ヘルスチェック)か、
   変更ファイルだけ `sudo cp` + `sudo systemctl restart bambuddy`。
 - リモート: `origin` = dj-oyu/bambuddy(push先)、`upstream` = maziggy/bambuddy(fetch専用、push無効)。
-- ブランチ: 私家版パッチはすべて `local` に積む。上流取り込みは
-  `git fetch upstream main:main && git merge main`(local上で)→ テスト → push → deploy。
+- ブランチ: `main` 1本に集約(2026-07-21に`local`運用を廃止)。私家版パッチ・上流取り込みとも`main`上で行う。
+  上流取り込みは `git fetch upstream main:upstream-main`(一時ブランチ)→ `git merge upstream-main`(main上で)
+  → テスト → push → deploy → 一時ブランチ削除。
 - 実データ: DB は `/mnt/petcam-data/bambuddy/data/bambuddy.db`(systemd drop-in の DATA_DIR)。
   `/opt/bambuddy/data` の DB は使われていない残骸。設定系 drop-in は
   `/etc/systemd/system/bambuddy.service.d/`(HMS自動クリアコード等の環境変数もここ)。

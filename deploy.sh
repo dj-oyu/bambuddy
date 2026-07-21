@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Deploy this checkout to the live install at /opt/bambuddy and restart the service.
-# Local-only script (committed on the `local` branch, not upstreamed).
+# Local-only script (not upstreamed).
 #
 # Update flow:
-#   git fetch origin && git rebase origin/main   # on branch `local`
+#   git fetch upstream main:upstream-main && git merge upstream-main   # on branch `main`
 #   ./deploy.sh
 set -euo pipefail
 
