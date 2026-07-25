@@ -7661,7 +7661,7 @@ async def auth_middleware(request, call_next):
     # dependency validates the token against scope bmcu_link:telemetry.
     # Any other path with a bblt_ bearer falls through to JWT validation
     # below and is rejected, keeping the token ingest-only.
-    if path == "/api/v1/bmcu-link/ingest" and auth_header and auth_header.startswith("Bearer bblt_"):
+    if path in ("/api/v1/bmcu-link/ingest", "/api/v1/bmcu-link/ndjson") and auth_header and auth_header.startswith("Bearer bblt_"):
         return await call_next(request)
 
     # Check for JWT auth

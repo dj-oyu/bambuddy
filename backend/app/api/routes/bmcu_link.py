@@ -220,7 +220,12 @@ async def _require_telemetry_or_permission(request: Request) -> None:
     return None
 
 
+# The Pico HTTPS fallback (BMCU-C-PJARCZAK-kaizou 8847d380) POSTs to the
+# `/ndjson` path specifically; `/ingest` is the original alias. Both share
+# one handler — the body parser already sniffs NDJSON by content-type, so a
+# JSON array on `/ndjson` or NDJSON on `/ingest` both work.
 @router.post("/ingest", response_model=BMCULinkIngestResponse)
+@router.post("/ndjson", response_model=BMCULinkIngestResponse)
 async def ingest_envelopes(
     request: Request,
     _: None = Depends(_require_telemetry_or_permission),

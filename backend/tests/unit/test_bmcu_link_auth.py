@@ -146,3 +146,33 @@ async def test_device_response_never_exposes_key_material(async_client, db_sessi
     body = resp.json()
     assert "control_key" not in body and "control_key_encrypted" not in body
     assert "fernet" not in resp.text
+
+
+@pytest.mark.asyncio
+async def test_ndjson_alias_accepts_telemetry_token(async_client, db_session, patched_route_session):
+    """The Pico HTTPS fallback POSTs to /ndjson (firmware 8847d380); it must
+    behave exactly like /ingest — same NDJSON body, same telemetry-token auth."""
+    await enable_auth(db_session)
+    token = await mint_token(db_session, BMCU_LINK_TELEMETRY_SCOPE)
+    import json as _json
+
+    body = _json.dumps(make_envelope())
+    resp = await async_client.post(
+        "/api/v1/bmcu-link/ndjson",
+        content=body,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/x-ndjson"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["accepted"] + resp.json()["deduplicated"] == 1
+
+
+@pytest.mark.asyncio
+async def test_ndjson_alias_rejects_camera_scope(async_client, db_session, patched_route_session):
+    await enable_auth(db_session)
+    token = await mint_token(db_session, "camera_stream")
+    resp = await async_client.post(
+        "/api/v1/bmcu-link/ndjson",
+        json=make_envelope(),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 401

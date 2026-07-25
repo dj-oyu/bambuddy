@@ -68,6 +68,45 @@ class TestMacInput:
         )
         assert build_mac_input(make_msg()) == expected
 
+    def test_firmware_cross_repo_kat(self):
+        """Locked known-answer vector shared with the BMCU firmware
+        (BMCU-C-PJARCZAK-kaizou bea2ffdd, issue #6). Verified bit-for-bit
+        against the Pico verifier — if either side changes the byte layout
+        or HMAC, this breaks loudly. Do not edit the expected digests
+        without re-agreeing the contract with the firmware repo."""
+        import base64
+        import json
+
+        key = bytes(range(32)).hex()  # 00 01 02 .. 1f
+        payload_b64 = base64.b64encode(json.dumps({"reason": 0, "ttl_ms": 5000}).encode()).decode()
+        msg = ControlMessage(
+            device_id="bmcu-monitor-a",
+            link_id="bmcu-a",
+            pico_boot_session="a" * 32,
+            session_nonce="b" * 32,
+            control_sequence=7,
+            operation_id="op-0001",
+            command="soft_reset",
+            ttl_ms=5000,
+            payload_b64=payload_b64,
+        )
+        assert sign_control_message(key, msg) == (
+            "671bd8d8ff5405f3601ff93b437ad16ed816a4bf590a5b00e8546dad9d41539f"
+        )
+        result_input = build_result_mac_input(
+            device_id="bmcu-monitor-a",
+            link_id="bmcu-a",
+            pico_boot_session="a" * 32,
+            session_nonce="b" * 32,
+            control_sequence=7,
+            operation_id="op-0001",
+            status="scheduled",
+            result_payload_b64="",
+        )
+        assert hmac.new(bytes.fromhex(key), result_input, hashlib.sha256).hexdigest() == (
+            "314529fd5f351d1d04795855f38d2b9ec919ced5c0660578a3685c6473afac5c"
+        )
+
     def test_mac_matches_independent_hmac(self):
         mac = sign_control_message(KEY, make_msg())
         ref = hmac.new(bytes.fromhex(KEY), build_mac_input(make_msg()), hashlib.sha256).hexdigest()
