@@ -77,6 +77,25 @@ async def test_time_based_flush_via_watchdog_tick(service):
     assert len(service._pending) == 0
 
 
+@pytest.mark.asyncio
+async def test_latest_status_survives_flush_and_links_remain_independent(service):
+    a = make_env(1)
+    a.link.id = "bmcu-a"
+    a.data = {"data": {"current_slot": 0, "pull_pct": [50, 50, 50, 50]}}
+    b = make_env(2)
+    b.link.id = "bmcu-b"
+    b.data = {"data": {"current_slot": 3, "pull_pct": [50, 50, 50, 0]}}
+
+    await service.ingest([a, b])
+    await service.flush()
+
+    statuses = service.latest_statuses()
+    assert len(statuses) == 2
+    by_link = {link_id: payload for _, link_id, payload, _ in statuses}
+    assert by_link["bmcu-a"]["data"]["current_slot"] == 0
+    assert by_link["bmcu-b"]["data"]["current_slot"] == 3
+
+
 def make_dropped_env(seq, dropped, pico="picoA", bmcu=1):
     return BMCULinkEnvelope.model_validate(
         {

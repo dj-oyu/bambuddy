@@ -79,8 +79,14 @@ class BMCULinkService:
     FLUSH_INTERVAL_S = 2.0
     FLUSH_BATCH_SIZE = 200
     DEDUP_WINDOW = 4096
-    STALE_AFTER_S = 10
-    OFFLINE_AFTER_S = 30
+    # Pico sends idle STATUS heartbeats every 15s. Keep the server thresholds
+    # above that cadence so one delayed WebSocket batch cannot manufacture an
+    # offline/online flap.
+    STALE_AFTER_S = float(os.environ.get("BAMBUDDY_BMCU_STALE_AFTER_S", "25"))
+    OFFLINE_AFTER_S = float(os.environ.get("BAMBUDDY_BMCU_OFFLINE_AFTER_S", "60"))
+    OFFLINE_NOTIFY_REARM_S = float(
+        os.environ.get("BAMBUDDY_BMCU_OFFLINE_NOTIFY_REARM_S", "120")
+    )
     RETENTION_DAYS = 14
     RETENTION_MAX_ROWS_PER_DEVICE = 200_000
     SUMMARY_THROTTLE_S = 2.0
@@ -107,9 +113,12 @@ class BMCULinkService:
         self._watermark_gap: dict[tuple[str, str], str] = {}
         self._last_seen: dict[str, float] = {}  # device_id -> monotonic
         self._link_state: dict[str, str] = {}  # device_id -> online|stale|offline
-        self._last_status: dict[str, str] = {}  # device_id -> JSON, persisted on flush
-        self._last_status_mono: dict[str, float] = {}  # device_id -> receipt monotonic
-        self._last_status_broadcast: dict[str, float] = {}
+        # Current STATUS is operational state, not a write-behind buffer. It
+        # must survive DB flushes because safety consumers poll this cache.
+        self._last_status: dict[tuple[str, str], str] = {}  # (device, link) -> JSON
+        self._last_status_mono: dict[tuple[str, str], float] = {}
+        self._status_dirty: set[tuple[str, str]] = set()
+        self._last_status_broadcast: dict[tuple[str, str], float] = {}
         self._envelope_counts: dict[str, int] = {}  # unflushed increments
         # dropped_count semantics: firmware reports a CUMULATIVE-since-boot
         # value, so per-envelope summing would double-count. We track the
@@ -121,6 +130,10 @@ class BMCULinkService:
         self._dropped_baseline: dict[str, int] = {}  # device -> DB value captured on first flush
         self._dropped_dirty: set[str] = set()
         self._last_anomaly_notify: dict[str, float] = {}  # device -> monotonic latch
+        # A short reconnect must not re-arm Discord notifications. Re-arm only
+        # after a sustained online period.
+        self._offline_notified: set[str] = set()
+        self._online_since: dict[str, float] = {}
         self._known_devices: set[str] = set()  # device_ids seen (hello upserted)
         self._server_dropped = 0  # envelopes dropped by PENDING_CAP
         self._rejected_device_envelopes = 0  # rejected by MAX_TRACKED_DEVICES
@@ -197,23 +210,24 @@ class BMCULinkService:
         self._record_key(env)
         return False
 
-    def latest_statuses(self) -> list[tuple[str, dict, float]]:
-        """(device_id, status payload, age_s) for every device that has sent a
-        status this process lifetime, freshest first. Age is monotonic seconds
-        since receipt — consumers (feed-stall watcher) must treat stale entries
-        as no-data, never as evidence."""
+    def latest_statuses(self) -> list[tuple[str, str, dict, float]]:
+        """(device_id, link_id, status payload, age_s) for every BMCU link.
+
+        The cache survives DB flushes and links on one Pico remain independent.
+        Consumers must still treat an old age as no-data, never as evidence.
+        """
         now = self._clock()
-        out: list[tuple[str, dict, float]] = []
-        for device_id, raw in self._last_status.items():
-            mono = self._last_status_mono.get(device_id)
+        out: list[tuple[str, str, dict, float]] = []
+        for pair, raw in self._last_status.items():
+            mono = self._last_status_mono.get(pair)
             if mono is None:
                 continue
             try:
                 data = json.loads(raw)
             except (TypeError, ValueError):
                 continue
-            out.append((device_id, data, now - mono))
-        out.sort(key=lambda t: t[2])
+            out.append((pair[0], pair[1], data, now - mono))
+        out.sort(key=lambda t: t[3])
         return out
 
     def mark_seen(self, device_id: str) -> None:
@@ -377,19 +391,32 @@ class BMCULinkService:
         prev_state = self._link_state.get(env.device_id)
         self._link_state[env.device_id] = "online"
         if prev_state in ("stale", "offline"):
+            self._online_since[env.device_id] = self._clock()
             await self._broadcast_state(env.device_id, "online")
+        elif prev_state is None:
+            self._online_since.setdefault(env.device_id, self._clock())
+        online_since = self._online_since.get(env.device_id)
+        if (
+            env.device_id in self._offline_notified
+            and online_since is not None
+            and self._clock() - online_since >= self.OFFLINE_NOTIFY_REARM_S
+        ):
+            self._offline_notified.discard(env.device_id)
 
         if kind == "hello":
             await self._handle_hello(env, now_dt)
         elif kind == "status":
-            self._last_status[env.device_id] = json.dumps(data)
-            self._last_status_mono[env.device_id] = self._clock()
+            pair = (env.device_id, env.link.id)
+            self._last_status[pair] = json.dumps(data)
+            self._last_status_mono[pair] = self._clock()
+            self._status_dirty.add(pair)
             mono = self._clock()
-            if mono - self._last_status_broadcast.get(env.device_id, 0.0) >= self.SUMMARY_THROTTLE_S:
-                self._last_status_broadcast[env.device_id] = mono
+            if mono - self._last_status_broadcast.get(pair, 0.0) >= self.SUMMARY_THROTTLE_S:
+                self._last_status_broadcast[pair] = mono
                 with contextlib.suppress(Exception):
                     await ws_manager.broadcast(
-                        {"type": "bmcu_link_status", "device_id": env.device_id, "data": data}
+                        {"type": "bmcu_link_status", "device_id": env.device_id,
+                         "link_id": env.link.id, "data": data}
                     )
 
         dropped = data.get("dropped_count")
@@ -457,8 +484,22 @@ class BMCULinkService:
         async with self._flush_lock:
             rows = self._pending
             self._pending = []
-            statuses = self._last_status
-            self._last_status = {}
+            dirty_statuses = self._status_dirty
+            self._status_dirty = set()
+            # The legacy device table has one last_status column. Persist the
+            # freshest dirty link there for compatibility while retaining all
+            # links independently in the live cache.
+            statuses: dict[str, str] = {}
+            status_mono: dict[str, float] = {}
+            for pair in dirty_statuses:
+                raw = self._last_status.get(pair)
+                mono = self._last_status_mono.get(pair)
+                if raw is None or mono is None:
+                    continue
+                device_id = pair[0]
+                if mono >= status_mono.get(device_id, float("-inf")):
+                    statuses[device_id] = raw
+                    status_mono[device_id] = mono
             env_counts = self._envelope_counts
             self._envelope_counts = {}
             dropped_dirty = self._dropped_dirty
@@ -512,6 +553,7 @@ class BMCULinkService:
                     seq = r["transport_sequence"] if r["transport_sequence"] is not None else r["uart_sequence"]
                     self._persisted_key[pair] = (boot, seq)
             except Exception:
+                self._status_dirty |= dirty_statuses
                 if not self._flush_retry_pending and rows:
                     # One implicit retry: put the rows back for the next flush,
                     # respecting PENDING_CAP (drop-oldest).
@@ -548,7 +590,9 @@ class BMCULinkService:
                     await self._broadcast_state(device_id, target)
                     await self._persist_state(device_id, target)
                     if target == "offline":
-                        await self._notify_offline(device_id)
+                        if device_id not in self._offline_notified:
+                            self._offline_notified.add(device_id)
+                            await self._notify_offline(device_id)
                 elif target == "offline" and elapsed >= self.EVICT_AFTER_S:
                     self._evict_device(device_id)
 
@@ -569,18 +613,22 @@ class BMCULinkService:
         for keyed in (self._dedup, self._persisted_key, self._watermark_gap):
             for key in [k for k in keyed if k[0] == device_id]:
                 keyed.pop(key, None)
+        for keyed in (self._last_status, self._last_status_mono, self._last_status_broadcast):
+            for key in [k for k in keyed if k[0] == device_id]:
+                keyed.pop(key, None)
+        self._status_dirty = {pair for pair in self._status_dirty if pair[0] != device_id}
         for store in (
             self._last_seen,
             self._link_state,
-            self._last_status,
-            self._last_status_broadcast,
             self._envelope_counts,
             self._dropped_session,
             self._dropped_folded,
             self._dropped_baseline,
             self._last_anomaly_notify,
+            self._online_since,
         ):
             store.pop(device_id, None)
+        self._offline_notified.discard(device_id)
         self._dropped_dirty.discard(device_id)
         self._known_devices.discard(device_id)
         logger.info("BMCU Link evicted in-memory state for long-offline device %s", device_id)

@@ -57,8 +57,8 @@ async def test_online_to_stale_to_offline(service, ws_mock, db_session):
     await service.watchdog_tick()
     assert _state_broadcasts(ws_mock) == []
 
-    # > 10s: stale
-    service._fake_now[0] += 6
+    # > 25s: stale
+    service._fake_now[0] += 21
     await service.watchdog_tick()
     msgs = _state_broadcasts(ws_mock)
     assert msgs == [{"type": "bmcu_link_device_state", "device_id": "dev1", "state": "stale"}]
@@ -68,8 +68,8 @@ async def test_online_to_stale_to_offline(service, ws_mock, db_session):
     await service.watchdog_tick()
     assert len(_state_broadcasts(ws_mock)) == 1
 
-    # > 30s: offline, persisted to DB
-    service._fake_now[0] += 25
+    # > 60s: offline, persisted to DB
+    service._fake_now[0] += 35
     await service.watchdog_tick()
     msgs = _state_broadcasts(ws_mock)
     assert msgs[-1]["state"] == "offline"
@@ -85,7 +85,7 @@ async def test_offline_notification_only_when_printing(service, notif_mock):
     service._link_state["dev1"] = "online"
 
     # Nothing printing -> no notification
-    service._fake_now[0] += 31
+    service._fake_now[0] += 61
     await service.watchdog_tick()
     notif_mock.on_bmcu_link_device_offline.assert_not_awaited()
 
@@ -93,7 +93,7 @@ async def test_offline_notification_only_when_printing(service, notif_mock):
     service._printing_printers = lambda: [(7, "A1 mini")]
     service.mark_seen("dev2")
     service._link_state["dev2"] = "online"
-    service._fake_now[0] += 31
+    service._fake_now[0] += 61
     await service.watchdog_tick()
     notif_mock.on_bmcu_link_device_offline.assert_awaited_once()
     call = notif_mock.on_bmcu_link_device_offline.await_args
@@ -123,6 +123,47 @@ async def test_reingest_brings_device_back_online(service, ws_mock):
     assert service._link_state["dev1"] == "online"
     msgs = _state_broadcasts(ws_mock)
     assert msgs[-1]["state"] == "online"
+
+
+@pytest.mark.asyncio
+async def test_short_reconnect_does_not_rearm_offline_notification(service, notif_mock):
+    from backend.app.schemas.bmcu_link import BMCULinkEnvelope
+
+    service._printing_printers = lambda: [(7, "A1 mini")]
+    service.mark_seen("dev1")
+    service._link_state["dev1"] = "online"
+    service._fake_now[0] += 61
+    await service.watchdog_tick()
+    assert notif_mock.on_bmcu_link_device_offline.await_count == 1
+
+    env = BMCULinkEnvelope.model_validate(
+        {
+            "schema": "bmcu.management.v2",
+            "device_id": "dev1",
+            "received_at_us": 1,
+            "link": {
+                "id": "transport",
+                "state": "online",
+                "transport_sequence": 1,
+                "pico_boot_session": "p",
+            },
+            "frame": {"kind": "hello"},
+            "data": {"firmware": "test", "capabilities": []},
+        }
+    )
+    await service.ingest([env])
+    service._fake_now[0] += 61
+    await service.watchdog_tick()
+    assert notif_mock.on_bmcu_link_device_offline.await_count == 1
+
+    # A genuinely healthy connection stays online long enough to re-arm.
+    for sequence in range(2, 9):
+        service._fake_now[0] += 20
+        env.link.transport_sequence = sequence
+        await service.ingest([env])
+    service._fake_now[0] += 61
+    await service.watchdog_tick()
+    assert notif_mock.on_bmcu_link_device_offline.await_count == 2
 
 
 def _anomaly_env(seq, device_id="dev1"):
@@ -183,7 +224,7 @@ async def test_device_cap_rejects_new_devices(service):
 async def test_long_offline_device_evicted(service):
     service.mark_seen("dev1")
     service._link_state["dev1"] = "online"
-    service._fake_now[0] += 31
+    service._fake_now[0] += 61
     await service.watchdog_tick()
     assert service._link_state["dev1"] == "offline"
 

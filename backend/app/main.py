@@ -4399,6 +4399,7 @@ _FEED_STALL_WARN_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_WARN_AFTER_
 _FEED_STALL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_PCT", "5"))
 _FEED_STALL_NEUTRAL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_NEUTRAL_PCT", "20"))
 _FEED_STALL_MAX_AGE_S = float(os.environ.get("BAMBUDDY_FEED_STALL_MAX_AGE_S", "20"))
+_FEED_STALL_LINK_ID = os.environ.get("BAMBUDDY_FEED_STALL_LINK_ID", "bmcu-a").strip()
 # BMCU Link devices are not modeled against printers yet (single-printer
 # household); the freshest device status is attributed to this printer.
 _FEED_STALL_PRINTER_ID = int(os.environ.get("BAMBUDDY_FEED_STALL_PRINTER_ID", "1"))
@@ -4495,8 +4496,11 @@ async def _feed_stall_tick(now: float) -> None:
 
     statuses = bmcu_link_service.latest_statuses()
     inner, age_s = None, float("inf")
-    if statuses:
-        _, payload, age_s = statuses[0]  # freshest device
+    selected = [item for item in statuses if item[1] == _FEED_STALL_LINK_ID]
+    if not selected and len(statuses) == 1:
+        selected = statuses
+    if selected:
+        _, _, payload, age_s = selected[0]
         data = payload.get("data")
         inner = data if isinstance(data, dict) else None
 
