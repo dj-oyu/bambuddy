@@ -107,8 +107,9 @@ class BMCULinkService:
         self._watermark_gap: dict[tuple[str, str], str] = {}
         self._last_seen: dict[str, float] = {}  # device_id -> monotonic
         self._link_state: dict[str, str] = {}  # device_id -> online|stale|offline
-        self._last_status: dict[str, str] = {}  # device_id -> JSON, persisted on flush
-        self._last_status_mono: dict[str, float] = {}  # device_id -> receipt monotonic
+        self._last_status: dict[tuple[str, str], str] = {}  # (device_id, link_id) -> JSON
+        self._last_status_mono: dict[tuple[str, str], float] = {}
+        self._status_dirty: set[tuple[str, str]] = set()
         self._last_status_broadcast: dict[str, float] = {}
         self._envelope_counts: dict[str, int] = {}  # unflushed increments
         # dropped_count semantics: firmware reports a CUMULATIVE-since-boot
@@ -197,23 +198,23 @@ class BMCULinkService:
         self._record_key(env)
         return False
 
-    def latest_statuses(self) -> list[tuple[str, dict, float]]:
-        """(device_id, status payload, age_s) for every device that has sent a
+    def latest_statuses(self) -> list[tuple[str, str, dict, float]]:
+        """(device_id, link_id, status payload, age_s) for every link that has sent a
         status this process lifetime, freshest first. Age is monotonic seconds
         since receipt — consumers (feed-stall watcher) must treat stale entries
         as no-data, never as evidence."""
         now = self._clock()
-        out: list[tuple[str, dict, float]] = []
-        for device_id, raw in self._last_status.items():
-            mono = self._last_status_mono.get(device_id)
+        out: list[tuple[str, str, dict, float]] = []
+        for (device_id, link_id), raw in self._last_status.items():
+            mono = self._last_status_mono.get((device_id, link_id))
             if mono is None:
                 continue
             try:
                 data = json.loads(raw)
             except (TypeError, ValueError):
                 continue
-            out.append((device_id, data, now - mono))
-        out.sort(key=lambda t: t[2])
+            out.append((device_id, link_id, data, now - mono))
+        out.sort(key=lambda t: t[3])
         return out
 
     def mark_seen(self, device_id: str) -> None:
@@ -382,8 +383,10 @@ class BMCULinkService:
         if kind == "hello":
             await self._handle_hello(env, now_dt)
         elif kind == "status":
-            self._last_status[env.device_id] = json.dumps(data)
-            self._last_status_mono[env.device_id] = self._clock()
+            status_key = (env.device_id, env.link.id)
+            self._last_status[status_key] = json.dumps(data)
+            self._last_status_mono[status_key] = self._clock()
+            self._status_dirty.add(status_key)
             mono = self._clock()
             if mono - self._last_status_broadcast.get(env.device_id, 0.0) >= self.SUMMARY_THROTTLE_S:
                 self._last_status_broadcast[env.device_id] = mono
@@ -457,8 +460,14 @@ class BMCULinkService:
         async with self._flush_lock:
             rows = self._pending
             self._pending = []
-            statuses = self._last_status
-            self._last_status = {}
+            # Retain the cache after persistence: monitoring is independent of
+            # DB flush cadence and must not see a synthetic telemetry gap.
+            dirty_statuses = self._status_dirty
+            self._status_dirty = set()
+            statuses = {key: self._last_status[key] for key in dirty_statuses if key in self._last_status}
+            statuses_by_device: dict[str, str] = {}
+            for key in sorted(statuses, key=lambda item: self._last_status_mono.get(item, 0.0)):
+                statuses_by_device[key[0]] = statuses[key]
             env_counts = self._envelope_counts
             self._envelope_counts = {}
             dropped_dirty = self._dropped_dirty
@@ -470,7 +479,7 @@ class BMCULinkService:
                 async with self._sessionmaker()() as db:
                     if rows:
                         await db.execute(insert(BMCULinkEvent).values(rows))
-                    device_ids = set(statuses) | set(env_counts) | dropped_dirty
+                    device_ids = set(statuses_by_device) | set(env_counts) | dropped_dirty
                     if device_ids:
                         result = await db.execute(
                             select(BMCULinkDevice).where(BMCULinkDevice.device_id.in_(device_ids))
@@ -478,8 +487,8 @@ class BMCULinkService:
                         now_dt = self._utcnow()
                         for device in result.scalars().all():
                             did = device.device_id
-                            if did in statuses:
-                                device.last_status = statuses[did]
+                            if did in statuses_by_device:
+                                device.last_status = statuses_by_device[did]
                             device.envelope_count = (device.envelope_count or 0) + env_counts.get(did, 0)
                             if did in dropped_dirty:
                                 # baseline (pre-restart DB total) captured once;
@@ -512,6 +521,7 @@ class BMCULinkService:
                     seq = r["transport_sequence"] if r["transport_sequence"] is not None else r["uart_sequence"]
                     self._persisted_key[pair] = (boot, seq)
             except Exception:
+                self._status_dirty.update(dirty_statuses)
                 if not self._flush_retry_pending and rows:
                     # One implicit retry: put the rows back for the next flush,
                     # respecting PENDING_CAP (drop-oldest).
@@ -569,10 +579,13 @@ class BMCULinkService:
         for keyed in (self._dedup, self._persisted_key, self._watermark_gap):
             for key in [k for k in keyed if k[0] == device_id]:
                 keyed.pop(key, None)
+        for store in (self._last_status, self._last_status_mono):
+            for key in [k for k in store if k[0] == device_id]:
+                store.pop(key, None)
+        self._status_dirty = {key for key in self._status_dirty if key[0] != device_id}
         for store in (
             self._last_seen,
             self._link_state,
-            self._last_status,
             self._last_status_broadcast,
             self._envelope_counts,
             self._dropped_session,
