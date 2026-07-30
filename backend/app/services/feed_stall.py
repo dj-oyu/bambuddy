@@ -29,13 +29,14 @@ episode also records the layer where degradation began (pull_pct first left
 the neutral band) so the notification can report the estimated damage range
 and the user can decide resume-vs-restart.
 
-Pure logic lives in FeedStallDetector (unit-testable, no I/O); the asyncio
-loop, pause command and notification wiring live in main.py next to the
-stall-notify watcher it mirrors.
+Detection state lives in FeedStallDetector. ConfirmedPauseResult and
+request_confirmed_pause keep the pause retry/confirmation policy unit-testable;
+actual printer I/O and notification wiring remain in main.py.
 """
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 
 # ams_motion value meaning "on-use" (PICO_BAMBUDDY_OUTPUT.md §2.2 — the slot
@@ -247,3 +248,48 @@ class FeedStallDetector:
         self._episodes.pop(printer_id, None)
         self._warn_episodes.pop(printer_id, None)
         self._degraded_layer.pop(printer_id, None)
+
+@dataclass(frozen=True)
+class ConfirmedPauseResult:
+    sent: bool
+    confirmed: bool
+    attempts: int
+    final_state: str
+
+
+async def request_confirmed_pause(
+    send_pause,
+    get_state,
+    *,
+    attempts: int = 3,
+    polls_per_attempt: int = 6,
+    poll_interval_s: float = 0.5,
+    sleep=asyncio.sleep,
+) -> ConfirmedPauseResult:
+    """Send pause and require an observed MQTT-derived PAUSE state.
+
+    ``send_pause`` returning True means only that the command was published.
+    The action succeeds only after ``get_state`` reports ``PAUSE``. A terminal
+    state stops retries because sending pause after a job ended is meaningless.
+    """
+    attempts = max(1, int(attempts))
+    polls_per_attempt = max(1, int(polls_per_attempt))
+    sent = False
+    final_state = str(get_state() or "").upper()
+    if final_state == "PAUSE":
+        return ConfirmedPauseResult(False, True, 0, final_state)
+
+    for attempt in range(1, attempts + 1):
+        try:
+            sent = bool(send_pause()) or sent
+        except Exception:
+            pass
+        for _ in range(polls_per_attempt):
+            await sleep(poll_interval_s)
+            final_state = str(get_state() or "").upper()
+            if final_state == "PAUSE":
+                return ConfirmedPauseResult(sent, True, attempt, final_state)
+            if final_state and final_state not in ("RUNNING", "PREPARE", "SLICING"):
+                return ConfirmedPauseResult(sent, False, attempt, final_state)
+
+    return ConfirmedPauseResult(sent, False, attempts, final_state)

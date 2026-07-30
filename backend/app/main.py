@@ -4445,6 +4445,8 @@ async def _notify_feed_stall(printer_id: int, event, paused: bool) -> None:
             ]
             if paused:
                 lines.append("The print has been PAUSED automatically.")
+            elif _FEED_STALL_AUTO_PAUSE:
+                lines.append("Auto-pause was requested but the printer did not confirm PAUSE.")
             else:
                 lines.append("Auto-pause is disabled — the print is still consuming G-code without extruding.")
             first_bad = event.degraded_layer or event.current_layer
@@ -4480,7 +4482,7 @@ async def _notify_feed_stall(printer_id: int, event, paused: bool) -> None:
 
 async def _feed_stall_tick(now: float) -> None:
     from backend.app.services.bmcu_link import bmcu_link_service
-    from backend.app.services.feed_stall import FeedStallTrigger
+    from backend.app.services.feed_stall import FeedStallTrigger, request_confirmed_pause
 
     log = logging.getLogger(__name__)
     detector = _get_feed_stall_detector()
@@ -4519,9 +4521,18 @@ async def _feed_stall_tick(now: float) -> None:
         paused = False
         if _FEED_STALL_AUTO_PAUSE:
             client = printer_manager.get_client(printer_id)
-            paused = bool(client and client.pause_print())
+            pause_result = await request_confirmed_pause(
+                lambda: bool(client and client.pause_print()),
+                lambda: getattr(printer_manager.get_status(printer_id), "state", ""),
+            )
+            paused = pause_result.confirmed
             if not paused:
-                log.error("[FEED-STALL] pause command failed for printer %s — will retry next tick", printer_id)
+                log.error(
+                    "[FEED-STALL] pause not confirmed for printer %s "
+                    "(sent=%s attempts=%s final_state=%s) — will retry next tick",
+                    printer_id, pause_result.sent, pause_result.attempts,
+                    pause_result.final_state,
+                )
         try:
             await _notify_feed_stall(printer_id, event, paused)
         except Exception:

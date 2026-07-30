@@ -8,10 +8,13 @@ anomaly — and every degenerate input must dissolve the episode (fail-safe:
 a spurious pause scars a healthy print).
 """
 
+import asyncio
+
 from backend.app.services.feed_stall import (
     FeedStallDetector,
     FeedStallTrigger,
     FeedStallWarning,
+    request_confirmed_pause,
 )
 
 
@@ -162,3 +165,73 @@ class TestFailSafeGates:
         ):
             assert _obs(d, 0.0, status=bad) is None
             assert _obs(d, 100.0, status=bad) is None
+
+class TestConfirmedPause:
+    @staticmethod
+    async def _no_sleep(_seconds):
+        return None
+
+    def test_confirms_after_mqtt_state_changes_to_pause(self):
+        states = iter(("RUNNING", "RUNNING", "PAUSE"))
+        sends = []
+
+        result = asyncio.run(request_confirmed_pause(
+            lambda: sends.append(True) or True,
+            lambda: next(states),
+            attempts=3,
+            polls_per_attempt=2,
+            sleep=self._no_sleep,
+        ))
+
+        assert result.confirmed is True
+        assert result.sent is True
+        assert result.attempts == 1
+        assert result.final_state == "PAUSE"
+        assert len(sends) == 1
+
+    def test_retries_when_printer_stays_running(self):
+        sends = []
+
+        result = asyncio.run(request_confirmed_pause(
+            lambda: sends.append(True) or True,
+            lambda: "RUNNING",
+            attempts=3,
+            polls_per_attempt=1,
+            sleep=self._no_sleep,
+        ))
+
+        assert result.confirmed is False
+        assert result.attempts == 3
+        assert result.final_state == "RUNNING"
+        assert len(sends) == 3
+
+    def test_terminal_state_stops_retries(self):
+        states = iter(("RUNNING", "FINISH"))
+        sends = []
+
+        result = asyncio.run(request_confirmed_pause(
+            lambda: sends.append(True) or True,
+            lambda: next(states),
+            attempts=3,
+            polls_per_attempt=2,
+            sleep=self._no_sleep,
+        ))
+
+        assert result.confirmed is False
+        assert result.attempts == 1
+        assert result.final_state == "FINISH"
+        assert len(sends) == 1
+
+    def test_already_paused_does_not_send(self):
+        sends = []
+
+        result = asyncio.run(request_confirmed_pause(
+            lambda: sends.append(True) or True,
+            lambda: "PAUSE",
+            sleep=self._no_sleep,
+        ))
+
+        assert result.confirmed is True
+        assert result.sent is False
+        assert result.attempts == 0
+        assert len(sends) == 0

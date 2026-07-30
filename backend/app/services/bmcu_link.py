@@ -140,6 +140,7 @@ class BMCULinkService:
         self._device_cap_warned = False
         self._flush_lock = asyncio.Lock()
         self._flush_retry_pending = False  # one implicit retry after a failed flush
+        self._flush_task: asyncio.Task | None = None
         self._prune_task: asyncio.Task | None = None
         self._last_flush = time.monotonic()
         self._last_retention = time.monotonic()
@@ -326,11 +327,13 @@ class BMCULinkService:
                 rejected.append(
                     BMCULinkRejected(index=idx, transport_sequence=tseq, code="internal", retryable=True, **ident)
                 )
-        try:
-            if len(self._pending) >= self.FLUSH_BATCH_SIZE:
-                await self.flush()
-        except Exception:
-            logger.exception("BMCU Link flush after ingest failed")
+        # ACK the WebSocket batch after bounded validation/staging. A large or
+        # contended SQLite flush must never hold the Pico socket past its ACK
+        # deadline. Durable replay watermarks are returned only after this
+        # background task commits, so the Pico safely retries until then.
+        if len(self._pending) >= self.FLUSH_BATCH_SIZE:
+            if self._flush_task is None or self._flush_task.done():
+                self._flush_task = asyncio.create_task(self.flush())
         return BMCULinkIngestResponse(
             accepted=accepted,
             deduplicated=deduplicated,

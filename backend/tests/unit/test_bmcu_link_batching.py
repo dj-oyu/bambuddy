@@ -1,5 +1,6 @@
 """BMCU Link flush batching tests (size- and time-based)."""
 
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -56,8 +57,31 @@ async def test_no_flush_below_batch_size(service):
 @pytest.mark.asyncio
 async def test_flush_at_batch_size(service):
     await service.ingest([make_env(i) for i in range(200)])
+    assert service._flush_task is not None
+    await service._flush_task
     assert len(service._pending) == 0
     assert await _event_count(service) == 200
+
+
+@pytest.mark.asyncio
+async def test_slow_flush_does_not_block_ingest_ack_path(service):
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_flush():
+        started.set()
+        await release.wait()
+
+    service.flush = slow_flush
+    result = await service.ingest([make_env(i) for i in range(200)])
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    assert result.accepted == 200
+    assert len(service._pending) == 200
+    assert service._flush_task is not None
+
+    release.set()
+    await service._flush_task
 
 
 @pytest.mark.asyncio
