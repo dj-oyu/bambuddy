@@ -7,6 +7,7 @@ serializers now delegate to filament_spoof.spoof_status_fields /
 pending_spoof_map; these tests pin that shared contract, plus the wiring.
 """
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from backend.app.services.filament_spoof import pending_spoof_map, spoof_status_fields
@@ -47,10 +48,10 @@ def test_pending_spoof_map_from_client_snapshot():
 
 def test_both_serializers_use_the_shared_helper():
     # Wiring pin: both status surfaces must delegate to the shared contract.
+    repository_root = Path(__file__).parents[3]
     for path in (
         "backend/app/api/routes/printers.py",
         "backend/app/services/printer_manager.py",
     ):
-        with open(path) as source:
-            src = source.read()
+        src = (repository_root / path).read_text()
         assert "spoof_status_fields(" in src, f"{path} must use the shared helper"

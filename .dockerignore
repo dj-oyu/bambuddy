@@ -51,6 +51,9 @@ static/
 
 # Documentation
 docs/
+!docs/
+docs/*
+!docs/bmcu_binary_registry.json
 *.md
 !requirements.txt
 
