@@ -7235,6 +7235,12 @@ async def lifespan(app: FastAPI):
 
     await init_db()
 
+    # Dedicated authenticated Pico transport; disabled by default and isolated
+    # from the legacy JSON BMCU Link adapter during the migration period.
+    from backend.app.services.bmcu_binary.server import binary_transport_server
+
+    await binary_transport_server.start()
+
     # Register an app-scoped httpx client for Bambu Cloud services so
     # per-request BambuCloudService instances reuse the same connection pool
     # (important for routes like /cloud/filament-info that chain many
@@ -7638,6 +7644,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    await binary_transport_server.stop()
     print_scheduler.stop()
     smart_plug_manager.stop_scheduler()
     notification_service.stop_digest_scheduler()

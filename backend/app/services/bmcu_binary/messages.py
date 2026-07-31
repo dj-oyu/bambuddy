@@ -117,12 +117,18 @@ class HelloLink:
 
 
 @dataclass(frozen=True, slots=True)
+class HelloReplayRange:
+    pico_boot_id: int
+    oldest_available_sequence: int
+    newest_available_sequence: int
+
+
+@dataclass(frozen=True, slots=True)
 class Hello:
     device_id: str
     firmware: str
     links: tuple[HelloLink, ...]
-    oldest_available_sequence: int
-    newest_available_sequence: int
+    replay_ranges: tuple[HelloReplayRange, ...]
     mac: bytes
 
     def transcript(self) -> bytes:
@@ -137,8 +143,21 @@ class Hello:
             seen.add(link.link_index)
             out.append(link.link_index)
             out.extend(_text(link.link_id, 31))
-        out.extend(self.oldest_available_sequence.to_bytes(8, "big"))
-        out.extend(self.newest_available_sequence.to_bytes(8, "big"))
+        if not 1 <= len(self.replay_ranges) <= 8:
+            raise InvalidMessage("HELLO requires one to eight replay boot ranges")
+        out.append(len(self.replay_ranges))
+        seen_boots: set[int] = set()
+        for item in self.replay_ranges:
+            if item.pico_boot_id in seen_boots:
+                raise InvalidMessage("duplicate replay boot range")
+            if (item.oldest_available_sequence == 0) != (item.newest_available_sequence == 0):
+                raise InvalidMessage("empty replay range must use two zeros")
+            if item.oldest_available_sequence > item.newest_available_sequence:
+                raise InvalidMessage("replay range is reversed")
+            seen_boots.add(item.pico_boot_id)
+            out.extend(item.pico_boot_id.to_bytes(8, "big"))
+            out.extend(item.oldest_available_sequence.to_bytes(8, "big"))
+            out.extend(item.newest_available_sequence.to_bytes(8, "big"))
         return bytes(out)
 
     def encode(self) -> bytes:
@@ -155,9 +174,13 @@ class Hello:
         if count > 2:
             raise InvalidMessage("v1 supports at most two links")
         links = tuple(HelloLink(r.integer(1), _bounded_utf8(r, 1, 31)) for _ in range(count))
-        oldest, newest, mac = r.integer(8), r.integer(8), r.take(32)
+        range_count = r.integer(1)
+        if not 1 <= range_count <= 8:
+            raise InvalidMessage("HELLO requires one to eight replay boot ranges")
+        ranges = tuple(HelloReplayRange(r.integer(8), r.integer(8), r.integer(8)) for _ in range(range_count))
+        mac = r.take(32)
         r.finish()
-        result = cls(device, firmware, links, oldest, newest, mac)
+        result = cls(device, firmware, links, ranges, mac)
         result.transcript()  # duplicate-index and bound validation
         return result
 

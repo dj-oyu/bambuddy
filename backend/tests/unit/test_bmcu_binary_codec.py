@@ -6,7 +6,10 @@ from pathlib import Path
 import pytest
 
 from backend.app.services.bmcu_binary.auth import derive_session_key, verify_hello_mac
-from backend.app.services.bmcu_binary.bmcu_decoder import validate_alpha3_wire_frame
+from backend.app.services.bmcu_binary.bmcu_decoder import (
+    BMCUEvent, BMCUFullStatusRecord, BMCUStatus, decode_semantic,
+    decode_wire_frame, validate_alpha3_wire_frame,
+)
 from backend.app.services.bmcu_binary.constants import (
     MAX_PAYLOAD_SIZE, ControlCommand, ControlResultCode, DropReason, Flag,
     LinkReason, LinkState, LogSeverity, MessageType, ProtocolErrorCode,
@@ -20,6 +23,8 @@ from backend.app.services.bmcu_binary.messages import (
     Ack, ControlResult, Hello, HelloAccepted, PicoLog, Ping, ProtocolErrorMessage,
     ServerChallenge, decode_bmcu_frame, decode_tlvs,
 )
+from backend.app.services.bmcu_binary.storage_keys import advance_contiguous, u64_decimal, u64_hex
+from backend.app.services.bmcu_binary.timeline import anomaly_inputs, timeline_points
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "bmcu_binary"
 
@@ -135,6 +140,19 @@ def test_embedded_bmcu_frames_are_crc_valid_and_preserved() -> None:
         assert not validate_alpha3_wire_frame(damaged)
 
 
+def test_bmcu_semantic_decoder_and_timeline_inputs() -> None:
+    expected_types = (BMCUStatus, BMCUEvent, BMCUFullStatusRecord)
+    for name, expected in zip(
+        ("bmcu_status.bin", "bmcu_event.bin", "bmcu_full_status.bin"), expected_types,
+    ):
+        outer = IncrementalFrameParser().feed((FIXTURES / name).read_bytes())[0]
+        embedded = decode_bmcu_frame(outer.payload, validate_alpha3_wire_frame)
+        semantic = decode_semantic(decode_wire_frame(embedded.wire_bytes))
+        assert isinstance(semantic, expected)
+        assert timeline_points(semantic, embedded.received_at_us, outer.header.link_index)
+        assert isinstance(anomaly_inputs(semantic, embedded.received_at_us, outer.header.link_index), tuple)
+
+
 def test_unknown_diagnostic_tags_are_preserved_for_skip() -> None:
     frame = IncrementalFrameParser().feed((FIXTURES / "diagnostic_unknown_tags.bin").read_bytes())[0]
     assert [item.tag for item in decode_tlvs(frame.payload)] == [240, 241]
@@ -152,6 +170,16 @@ def test_payload_and_message_bounds() -> None:
         encode_frame(FrameHeader(MessageType.PING), b"x" * 4097)
     with pytest.raises(InvalidMessage):
         PicoLog(1, 1, 1, "x" * 41, "ok").encode()
+
+
+def test_full_u64_database_key_encoding_is_order_preserving() -> None:
+    values = (0, 1, 2**63, 2**64 - 1)
+    assert sorted(map(u64_decimal, reversed(values))) == list(map(u64_decimal, values))
+    assert u64_hex(2**64 - 1) == "ffffffffffffffff"
+    with pytest.raises(ValueError):
+        u64_decimal(2**64)
+    assert advance_contiguous(7, map(u64_decimal, (8, 9, 11, 12))) == 9
+    assert advance_contiguous(2**64 - 2, (u64_decimal(2**64 - 1),)) == 2**64 - 1
 
 
 @pytest.mark.parametrize("value", [

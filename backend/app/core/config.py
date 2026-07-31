@@ -104,6 +104,17 @@ class Settings(BaseSettings):
     # API
     api_prefix: str = "/api/v1"
 
+    # Dedicated Pico BMCU Binary Transport listener. Disabled until provisioned.
+    bmcu_binary_enabled: bool = False
+    bmcu_binary_host: str = "0.0.0.0"  # nosec B104 - explicit server bind setting
+    bmcu_binary_port: int = Field(default=8799, ge=1, le=65535)
+    bmcu_binary_max_connections: int = Field(default=8, ge=1, le=64)
+    bmcu_binary_auth_timeout_s: float = Field(default=10.0, gt=0, le=60)
+    bmcu_binary_idle_timeout_s: float = Field(default=45.0, gt=1, le=600)
+    bmcu_binary_write_timeout_s: float = Field(default=5.0, gt=0, le=60)
+    # JSON object mapping device id to a 64-hex-character provisioned key.
+    bmcu_binary_keys: str = "{}"
+
     # Slicer API sidecars. Defaults match the docker-compose.yml ports in the
     # orca-slicer-api fork (https://github.com/maziggy/orca-slicer-api):
     #   OrcaSlicer  → port 3003 (default profile)

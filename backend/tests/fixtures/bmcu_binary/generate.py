@@ -11,7 +11,7 @@ from backend.app.services.bmcu_binary.bmcu_decoder import crc16_ccitt_false
 from backend.app.services.bmcu_binary.constants import MessageType
 from backend.app.services.bmcu_binary.framing import FrameHeader, encode_frame
 from backend.app.services.bmcu_binary.messages import (
-    Ack, Control, ControlResult, Hello, HelloLink, LinkStateMessage, PicoLog,
+    Ack, Control, ControlResult, Hello, HelloLink, HelloReplayRange, LinkStateMessage, PicoLog,
     Reject, TLV, TransportDrop, encode_bmcu_frame, encode_tlvs,
 )
 from backend.app.services.bmcu_binary.bmcu_decoder import ValidatedBMCUFrame
@@ -29,11 +29,11 @@ def main() -> None:
     key, challenge = bytes(range(32)), bytes(range(32, 64))
     unsigned = Hello(
         "pico-fixture", "1.0.0", (HelloLink(0, "bmcu-a"), HelloLink(1, "bmcu-b")),
-        7, 42, b"\0" * 32,
+        (HelloReplayRange(boot, 7, 42), HelloReplayRange(0x8877665544332211, 2, 9)),
+        b"\0" * 32,
     )
     hello = Hello(
-        unsigned.device_id, unsigned.firmware, unsigned.links,
-        unsigned.oldest_available_sequence, unsigned.newest_available_sequence,
+        unsigned.device_id, unsigned.firmware, unsigned.links, unsigned.replay_ranges,
         hello_mac(key, challenge, boot, unsigned.transcript()),
     )
     status_payload = bytes(range(27))

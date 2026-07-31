@@ -251,6 +251,7 @@ async def init_db():
         # ALTERs in run_migrations() are only needed for FUTURE column changes.
         bmcu_link_device,
         bmcu_link_event,
+        bmcu_binary,
         bug_report,
         color_catalog,
         external_link,
