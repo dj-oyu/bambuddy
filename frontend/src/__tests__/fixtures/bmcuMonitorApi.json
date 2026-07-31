@@ -94,6 +94,21 @@
       "loopGapP99Us": 900,
       "transportSendMaxUs": 2000,
       "uartOverflowTotal": 3
+    },
+    {
+      "at": "2026-07-31T09:58:00Z",
+      "heapFreeBytes": 110000,
+      "temperatureC": null,
+      "loopDelayUs": 120,
+      "uartBacklog": 8,
+      "uartErrors": 2,
+      "wifiRssiDbm": null,
+      "replayPending": 1,
+      "journalBytes": 3072,
+      "ackAgeMs": 30,
+      "loopGapP99Us": 800,
+      "transportSendMaxUs": 1800,
+      "uartOverflowTotal": 2
     }
   ]
 }

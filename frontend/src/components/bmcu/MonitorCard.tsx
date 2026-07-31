@@ -1,6 +1,7 @@
 import { Activity, AlertTriangle, Cable, Clock3, Database, Radio } from 'lucide-react';
 import type { BMCUMonitorSummary, MonitorHealth } from '../../api/bmcuMonitors';
 import { Card, CardContent } from '../Card';
+import { formatBMCUDateTime } from './bmcuTime';
 
 const healthStyle: Record<MonitorHealth, string> = {
   online: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
@@ -24,7 +25,7 @@ export function MonitorCard({ monitor, active, onSelect }: { monitor: BMCUMonito
           <span className="flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />{monitor.replayPending} replay</span>
           <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />{monitor.anomalyCount} anomalies</span>
         </div>
-        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-bambu-gray"><Clock3 className="h-3 w-3" />{monitor.lastSeenAt ? new Date(monitor.lastSeenAt).toLocaleString() : 'Never seen'}</div>
+        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-bambu-gray"><Clock3 className="h-3 w-3" />{monitor.lastSeenAt ? formatBMCUDateTime(monitor.lastSeenAt) : 'Never seen'}</div>
       </CardContent>
     </Card>
   </button>;

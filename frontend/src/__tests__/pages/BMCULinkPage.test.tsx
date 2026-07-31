@@ -53,5 +53,6 @@ describe('BMCULinkPage', () => {
     expect(screen.getByText('control error')).toBeTruthy();
     expect(screen.getByText('Pico hardware')).toBeTruthy();
     expect(screen.getByText('42.1 °C')).toBeTruthy();
+    expect(screen.getByText('-55 dBm')).toBeTruthy();
   });
 });
