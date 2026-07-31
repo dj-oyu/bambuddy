@@ -164,9 +164,10 @@ def active_job_stale(archive_subtask_id: str | None, state: Any) -> tuple[bool, 
         return True, "printer subtask_name empty"
     return False, ""
 
+
 # Columns callers may update atomically together with status. Kept narrow on
 # purpose — this facade owns lifecycle state, not generic row editing.
-EXTRA_COLUMN_WHITELIST = frozenset({"error_message", "completed_at", "started_at"})
+EXTRA_COLUMN_WHITELIST = frozenset({"error_message", "completed_at", "started_at", "dispatch_attempts"})
 
 
 class TransitionOutcome(str, Enum):

@@ -12,7 +12,6 @@ import pytest
 
 from backend.app.main import _tray_report_is_transient_empty
 
-
 BMCU_BOOT_TRAY = {
     "id": 0,
     "tray_type": "",

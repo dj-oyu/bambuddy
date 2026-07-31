@@ -152,7 +152,7 @@ def test_pending_overlay_noop_until_firmware_echo(monkeypatch):
     # hasn't echoed the write yet) must NOT be overlaid, and carry no marker.
     monkeypatch.setenv("BAMBUDDY_FILAMENT_SPOOF", "1")
     units = _units()
-    units[0]["tray"][1]["tray_info_idx"] = "GFB11"   # still the backup's real id
+    units[0]["tray"][1]["tray_info_idx"] = "GFB11"  # still the backup's real id
     units[0]["tray"][1]["tray_color"] = "002E96FF"
     n = apply_spoof_overlay(units, [_spoof(state="PENDING")])
     assert n == 0
@@ -174,16 +174,27 @@ def test_overlay_marker_survives_partial_push_merge():
     # must count as a match and keep the marker.
     from backend.app.services.filament_spoof import apply_spoof_overlay
 
-    spoofs = [{
-        "state": "ENGAGED",
-        "backup_ams_id": 0, "backup_tray_id": 2,
-        "primary_ams_id": 0, "primary_tray_id": 0,
-        "spoof_tray_info_idx": "GFG00", "spoof_tray_color": "002E96FF",
-        "real_tray_color": "000000FF", "real_tray_sub_brands": "",
-    }]
-    units = [{"id": 0, "tray": [
-        {"id": 2, "tray_info_idx": "GFG00", "tray_color": "002E96FF"},
-    ]}]
+    spoofs = [
+        {
+            "state": "ENGAGED",
+            "backup_ams_id": 0,
+            "backup_tray_id": 2,
+            "primary_ams_id": 0,
+            "primary_tray_id": 0,
+            "spoof_tray_info_idx": "GFG00",
+            "spoof_tray_color": "002E96FF",
+            "real_tray_color": "000000FF",
+            "real_tray_sub_brands": "",
+        }
+    ]
+    units = [
+        {
+            "id": 0,
+            "tray": [
+                {"id": 2, "tray_info_idx": "GFG00", "tray_color": "002E96FF"},
+            ],
+        }
+    ]
     assert apply_spoof_overlay(units, spoofs) == 1
     tray = units[0]["tray"][0]
     assert tray["tray_color"] == "000000FF"

@@ -3801,12 +3801,14 @@ async def run_migrations(conn):
         "NOT NULL DEFAULT '00000000000000000000'",
     )
     await _safe_execute(
-        conn, "ALTER TABLE bmcu_binary_boots ADD COLUMN oldest_available_sequence "
-        "VARCHAR(20) NOT NULL DEFAULT '00000000000000000000'"
+        conn,
+        "ALTER TABLE bmcu_binary_boots ADD COLUMN oldest_available_sequence "
+        "VARCHAR(20) NOT NULL DEFAULT '00000000000000000000'",
     )
     await _safe_execute(
-        conn, "ALTER TABLE bmcu_binary_boots ADD COLUMN newest_available_sequence "
-        "VARCHAR(20) NOT NULL DEFAULT '00000000000000000000'"
+        conn,
+        "ALTER TABLE bmcu_binary_boots ADD COLUMN newest_available_sequence "
+        "VARCHAR(20) NOT NULL DEFAULT '00000000000000000000'",
     )
 
 

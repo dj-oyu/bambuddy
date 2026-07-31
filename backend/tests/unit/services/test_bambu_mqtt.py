@@ -688,9 +688,7 @@ class TestDiagnosticBranchDoesNotLatch:
         # First push after connect: stale FINISH — diagnostics branch only.
         mqtt_client._process_message(self._msg("FINISH"))
         assert calls == []
-        assert mqtt_client._completion_triggered is False, (
-            "diagnostics branch must not latch _completion_triggered"
-        )
+        assert mqtt_client._completion_triggered is False, "diagnostics branch must not latch _completion_triggered"
 
         # A real print runs and finishes.
         mqtt_client._process_message(self._msg("RUNNING"))
@@ -1423,14 +1421,14 @@ class TestApplyTrayExistBitsHelper:
         assert units[0]["tray"][0]["state"] == 9
         assert isinstance(units[0]["tray"][0]["state"], int)
 
-    def test_ams_ht_unit_skipped(self):
-        """AMS-HT (id >= 128) uses a different addressing scheme."""
+    def test_ams_ht_unit_uses_packed_presence_bit(self):
+        """AMS-HT A uses packed presence bit 16 rather than id * 4."""
         from backend.app.services.bambu_mqtt import apply_tray_exist_bits
 
         units = [{"id": 128, "tray": [{"id": 0, "tray_type": "PLA"}]}]
         cleared = apply_tray_exist_bits(units, "0", power_on_flag=True)
-        assert cleared == 0
-        assert units[0]["tray"][0]["tray_type"] == "PLA"
+        assert cleared == 1
+        assert units[0]["tray"][0]["tray_type"] == ""
 
     def test_string_ids_handled(self):
         """Bridge cache stores ids as strings (JSON wire format)."""
@@ -4046,12 +4044,12 @@ class TestStartPrintAmsMapping:
         cmd = self._get_published_command(mqtt_client)
         assert cmd["use_ams"] is False
 
-    def test_all_unmapped_sets_use_ams_false(self, mqtt_client):
-        """All unmapped slots on non-H2D printer sets use_ams=False."""
+    def test_all_unmapped_preserves_use_ams(self, mqtt_client):
+        """Unresolved slots must not silently select an external spool."""
         mqtt_client.start_print("test.3mf", ams_mapping=[-1, -1], use_ams=True)
 
         cmd = self._get_published_command(mqtt_client)
-        assert cmd["use_ams"] is False
+        assert cmd["use_ams"] is True
 
     def test_mixed_ams_and_external_keeps_use_ams_true(self, mqtt_client):
         """AMS tray + external spool keeps use_ams=True."""
@@ -6355,13 +6353,11 @@ class TestSpoofRunoutPrevTracking:
 
     def test_prev_skips_254_255_sentinels(self, mqtt_client):
         calls = []
-        mqtt_client._on_tray_now_change = (
-            lambda ams, tray, prev, state: calls.append((ams, tray, prev, state))
-        )
-        self._set_tray(mqtt_client, 0)      # primary active
-        self._set_tray(mqtt_client, 254)    # firmware reclassifies tail as external
-        self._set_tray(mqtt_client, 255)    # unloaded
-        self._set_tray(mqtt_client, 2)      # backup goes active
+        mqtt_client._on_tray_now_change = lambda ams, tray, prev, state: calls.append((ams, tray, prev, state))
+        self._set_tray(mqtt_client, 0)  # primary active
+        self._set_tray(mqtt_client, 254)  # firmware reclassifies tail as external
+        self._set_tray(mqtt_client, 255)  # unloaded
+        self._set_tray(mqtt_client, 2)  # backup goes active
         # First call is the initial load of the primary itself; the one that
         # matters is the backup activation, which must see prev=0 (primary),
         # not the 255 sentinel it directly transitioned from.
@@ -6369,9 +6365,7 @@ class TestSpoofRunoutPrevTracking:
 
     def test_direct_switch_passes_real_prev(self, mqtt_client):
         calls = []
-        mqtt_client._on_tray_now_change = (
-            lambda ams, tray, prev, state: calls.append(prev)
-        )
+        mqtt_client._on_tray_now_change = lambda ams, tray, prev, state: calls.append(prev)
         self._set_tray(mqtt_client, 1)
         self._set_tray(mqtt_client, 3)
         assert calls[-1] == 1
@@ -6380,9 +6374,7 @@ class TestSpoofRunoutPrevTracking:
         """Fresh client that only ever saw 255: pass the sentinel through
         (fail-safe — engine keeps the spoof ENGAGED on prev≠primary)."""
         calls = []
-        mqtt_client._on_tray_now_change = (
-            lambda ams, tray, prev, state: calls.append(prev)
-        )
+        mqtt_client._on_tray_now_change = lambda ams, tray, prev, state: calls.append(prev)
         self._set_tray(mqtt_client, 255)
         self._set_tray(mqtt_client, 2)
         assert calls == [255]

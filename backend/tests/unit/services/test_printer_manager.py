@@ -916,9 +916,7 @@ class TestPrinterStateToDict:
         assert tray["spoof_primary"] == {"ams_id": 0, "tray_id": 0}
 
     def test_no_spoof_status_is_null(self, mock_state):
-        mock_state.raw_data = {
-            "ams": [{"id": 0, "tray": [{"id": 0, "tray_color": "FF0000", "tray_type": "PLA"}]}]
-        }
+        mock_state.raw_data = {"ams": [{"id": 0, "tray": [{"id": 0, "tray_color": "FF0000", "tray_type": "PLA"}]}]}
         tray = printer_state_to_dict(mock_state)["ams"][0]["tray"][0]
         assert tray["is_spoofed_backup"] is False
         assert tray["spoof_state"] is None

@@ -99,7 +99,7 @@ class TestEvaluateDemonstrablyIdle:
 
     @pytest.mark.parametrize(
         "state_kw",
-        [dict(state="RUNNING"), dict(connected=False)],
+        [{"state": "RUNNING"}, {"connected": False}],
     )
     def test_ignore_ams_busy_never_bypasses_other_gates(self, state_kw):
         v = evaluate_demonstrably_idle(

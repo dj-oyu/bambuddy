@@ -407,6 +407,7 @@ export interface AMSTray {
   drying_temp: number | null;      // RFID-recommended drying temp
   drying_time: number | null;      // RFID-recommended drying time (hours)
   state: number | null;            // AMS tray state: 9=empty, 10=spool present not loaded, 11=loaded
+  exists?: boolean;                // tray_exist_bits: physical spool presence when firmware reports it
   // Filament spoof runout backup: this tray is registered on the printer as
   // the primary slot's colour (so the firmware auto-switches to it on runout)
   // while bambuddy displays its REAL colour. Additive — absent on older backends.

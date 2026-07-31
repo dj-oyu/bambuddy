@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import json
 import logging
 import mimetypes as _mimetypes
@@ -422,9 +421,7 @@ _HMS_CLEAR_GRACE_SECONDS = 30.0
 # that blocks printing but resolves once dismissed.
 _HMS_AUTO_CLEAR_CODES = {
     c.strip().upper()
-    for c in os.environ.get(
-        "BAMBUDDY_HMS_AUTO_CLEAR_CODES", "0500_409D,0501_409D,0502_409D,0503_409D"
-    ).split(",")
+    for c in os.environ.get("BAMBUDDY_HMS_AUTO_CLEAR_CODES", "0500_409D,0501_409D,0502_409D,0503_409D").split(",")
     if c.strip()
 }
 # Level-triggered retry machinery (see services/hms_retry.py for the design
@@ -469,7 +466,9 @@ def _attempt_hms_auto_clear(printer_id: int, short_code: str) -> bool:
         description = None
     log.warning(
         "[HMS] Auto-clearing %s on printer %s — meaning: %s",
-        short_code, printer_id, description or "(no description in HMS database)",
+        short_code,
+        printer_id,
+        description or "(no description in HMS database)",
     )
 
     cleared = client.clear_hms_errors()
@@ -482,7 +481,10 @@ def _attempt_hms_auto_clear(printer_id: int, short_code: str) -> bool:
         resumed = client.resume_print()
     log.info(
         "[HMS] Auto-cleared %s on printer %s (cleared=%s, resumed=%s)",
-        short_code, printer_id, cleared, resumed,
+        short_code,
+        printer_id,
+        cleared,
+        resumed,
     )
     if cleared and not resumed:
         # The BMCU 409D fires during print start and the printer rejects the
@@ -509,7 +511,10 @@ def _maybe_auto_clear_hms(printer_id: int, new_errors) -> None:
         if len(attempts) >= _HMS_AUTO_CLEAR_MAX_ATTEMPTS:
             log.warning(
                 "[HMS] Auto-clear for %s on printer %s rate-limited (%d attempts in %.0fs) — leaving error for manual handling",
-                short_code, printer_id, len(attempts), _HMS_AUTO_CLEAR_WINDOW_SECONDS,
+                short_code,
+                printer_id,
+                len(attempts),
+                _HMS_AUTO_CLEAR_WINDOW_SECONDS,
             )
             continue
         if not _attempt_hms_auto_clear(printer_id, short_code):
@@ -585,7 +590,9 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
             log.warning(
                 "[HMS] Requeue on printer %s proceeding despite %s — status latched for %.0fs "
                 "with the printer otherwise demonstrably idle (BAMBUDDY_HMS_REQUEUE_AMS_GRACE_S)",
-                printer_id, verdict.reason or "AMS busy", _HMS_REQUEUE_AMS_GRACE_S,
+                printer_id,
+                verdict.reason or "AMS busy",
+                _HMS_REQUEUE_AMS_GRACE_S,
             )
             break
         await asyncio.sleep(_HMS_REQUEUE_POLL_S)
@@ -624,8 +631,12 @@ async def _requeue_print_rejected_by_hms(printer_id: int, short_code: str) -> No
             await db.commit()
             log.info(
                 "[HMS] Requeued %d stuck queue item(s) on printer %s after auto-clearing %s (printer state=%s)",
-                requeued, printer_id, short_code, state,
+                requeued,
+                printer_id,
+                short_code,
+                state,
             )
+
 
 # Track timelapse file baselines at print start: {printer_id: set of video filenames}
 # Used for snapshot-diff detection at print completion
@@ -1575,6 +1586,7 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
                 printer_name = printer.name if printer else f"Printer {printer_id}"
 
                 from backend.app.services.hms_errors import get_error_description_full
+
                 # Format error details for notification
                 # Module 0x07 = AMS/Filament, 0x05 = Nozzle, 0x0C = Motion Controller, etc.
                 module_names = {
@@ -1584,8 +1596,6 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
                     0x0C: "Motion Controller",
                     0x12: "Chamber",
                 }
-
-                from backend.app.services.hms_errors import get_error_description
 
                 # Capture camera snapshot once for all error notifications (no DB held).
                 error_image_data = await _capture_snapshot_for_notification(
@@ -4388,7 +4398,8 @@ async def reconcile_stuck_queue_items(printer_id: int) -> int:
             await db.commit()
             log.warning(
                 "[RECONCILE] Requeued %d queue item(s) stuck in 'printing' on idle printer %s",
-                requeued, printer_id,
+                requeued,
+                printer_id,
             )
     return requeued
 
@@ -4497,9 +4508,7 @@ async def _notify_stall(printer_id: int) -> None:
         if status is not None:
             if status.gcode_file:
                 lines.append(f"Job: {status.gcode_file}")
-            lines.append(
-                f"Progress: {status.progress:.0f}% (layer {status.layer_num}/{status.total_layers})"
-            )
+            lines.append(f"Progress: {status.progress:.0f}% (layer {status.layer_num}/{status.total_layers})")
             for err in status.hms_errors:
                 code_int = int(str(err.code).replace("0x", ""), 16) if err.code else 0
                 short = f"{(err.attr >> 16) & 0xFFFF:04X}_{code_int & 0xFFFF:04X}"
@@ -4515,8 +4524,12 @@ async def _notify_stall(printer_id: int) -> None:
 
         log.warning("[STALL] printer %s stalled: %s", printer_id, detail.replace("\n", " | "))
         await notification_service.on_printer_error(
-            printer_id, printer_name, "Print stalled (paused without recovering)",
-            db, detail, image_data=image_data,
+            printer_id,
+            printer_name,
+            "Print stalled (paused without recovering)",
+            db,
+            detail,
+            image_data=image_data,
         )
 
 
@@ -4539,9 +4552,7 @@ async def _stall_watch_loop() -> None:
                         _stall_mark_notified(printer_id)
                     except Exception:
                         # Leave the episode un-latched: retry next tick.
-                        logging.getLogger(__name__).exception(
-                            "[STALL] notification failed for printer %s", printer_id
-                        )
+                        logging.getLogger(__name__).exception("[STALL] notification failed for printer %s", printer_id)
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -4552,9 +4563,7 @@ def start_stall_watch() -> None:
     global _stall_watch_task
     if _STALL_NOTIFY_ENABLED and _stall_watch_task is None:
         _stall_watch_task = asyncio.create_task(_stall_watch_loop())
-        logging.getLogger(__name__).info(
-            "Stall watch started (threshold %.0fs)", _STALL_NOTIFY_AFTER_S
-        )
+        logging.getLogger(__name__).info("Stall watch started (threshold %.0fs)", _STALL_NOTIFY_AFTER_S)
 
 
 def stop_stall_watch() -> None:
@@ -4648,9 +4657,7 @@ async def _notify_feed_stall(printer_id: int, event, paused: bool) -> None:
         if status is not None:
             if status.gcode_file:
                 lines.append(f"Job: {status.gcode_file}")
-            lines.append(
-                f"Progress: {status.progress:.0f}% (layer {status.layer_num}/{status.total_layers})"
-            )
+            lines.append(f"Progress: {status.progress:.0f}% (layer {status.layer_num}/{status.total_layers})")
         detail = "\n".join(lines)
 
         image_data = None
@@ -4659,7 +4666,12 @@ async def _notify_feed_stall(printer_id: int, event, paused: bool) -> None:
 
         log.warning("[FEED-STALL] printer %s: %s | %s", printer_id, title, detail.replace("\n", " | "))
         await notification_service.on_printer_error(
-            printer_id, printer_name, title, db, detail, image_data=image_data,
+            printer_id,
+            printer_name,
+            title,
+            db,
+            detail,
+            image_data=image_data,
         )
 
 
@@ -4719,17 +4731,20 @@ async def _feed_stall_tick(now: float) -> None:
 
     inner, age_s = None, float("inf")
     candidates = [
-        (key, value) for key, value in binary_transport_server.persistence.current_state.items()
-        if isinstance(value, BMCUStatus)
-        and (not _FEED_STALL_LINK_ID or str(key[1]) == _FEED_STALL_LINK_ID)
+        (key, value)
+        for key, value in binary_transport_server.persistence.current_state.items()
+        if isinstance(value, BMCUStatus) and (not _FEED_STALL_LINK_ID or str(key[1]) == _FEED_STALL_LINK_ID)
     ]
     if candidates:
         key, value = candidates[0]
         age_s = now - binary_transport_server.persistence.current_state_seen.get(key, now)
         inner = {
-            "current_slot": value.current_slot, "inserted_mask": value.inserted_mask,
-            "online_mask": value.online_mask, "motion": list(value.motion),
-            "pull_pct": list(value.pull_pct), "pressure": value.pressure,
+            "current_slot": value.current_slot,
+            "inserted_mask": value.inserted_mask,
+            "online_mask": value.online_mask,
+            "motion": list(value.motion),
+            "pull_pct": list(value.pull_pct),
+            "pressure": value.pressure,
             "control_error": value.control_error,
         }
 
@@ -4784,8 +4799,11 @@ def start_feed_stall_watch() -> None:
         _feed_stall_watch_task = asyncio.create_task(_feed_stall_watch_loop())
         logging.getLogger(__name__).info(
             "Feed-stall watch started (warn %.0fs at <%d%%, pause %.0fs at <=%d%%, auto_pause=%s)",
-            _FEED_STALL_WARN_AFTER_S, _FEED_STALL_NEUTRAL_PCT,
-            _FEED_STALL_AFTER_S, _FEED_STALL_PCT, _FEED_STALL_AUTO_PAUSE,
+            _FEED_STALL_WARN_AFTER_S,
+            _FEED_STALL_NEUTRAL_PCT,
+            _FEED_STALL_AFTER_S,
+            _FEED_STALL_PCT,
+            _FEED_STALL_AUTO_PAUSE,
         )
 
 
@@ -4864,21 +4882,18 @@ async def _notify_hms_escalation(printer_id: int, action) -> None:
             lines.append("Retries continue automatically with backoff.")
         lines.append("Suggested action: power-cycle the BMCU/AMS, then check the queue.")
 
-        from backend.app.models.print_queue import PrintQueueItem
-
         from sqlalchemy import func as sa_func
+
+        from backend.app.models.print_queue import PrintQueueItem
 
         q = await db.execute(
             select(PrintQueueItem.status, sa_func.count())
-            .where(PrintQueueItem.printer_id == printer_id,
-                   PrintQueueItem.status.in_(("pending", "printing")))
+            .where(PrintQueueItem.printer_id == printer_id, PrintQueueItem.status.in_(("pending", "printing")))
             .group_by(PrintQueueItem.status)
         )
         counts = dict(q.all())
         if counts:
-            lines.append(
-                "Queue: " + ", ".join(f"{n} {s}" for s, n in sorted(counts.items()))
-            )
+            lines.append("Queue: " + ", ".join(f"{n} {s}" for s, n in sorted(counts.items())))
 
         detail = "\n".join(lines)
         image_data = None
@@ -4886,12 +4901,18 @@ async def _notify_hms_escalation(printer_id: int, action) -> None:
             image_data = await _capture_snapshot_for_notification(printer_id, printer, log)
 
         title = (
-            f"HMS auto-recovery still failing ({action.code})" if repeat
+            f"HMS auto-recovery still failing ({action.code})"
+            if repeat
             else f"HMS auto-recovery needs attention ({action.code})"
         )
         log.warning("[HMS-RETRY] escalation printer %s: %s", printer_id, detail.replace("\n", " | "))
         await notification_service.on_printer_error(
-            printer_id, printer_name, title, db, detail, image_data=image_data,
+            printer_id,
+            printer_name,
+            title,
+            db,
+            detail,
+            image_data=image_data,
         )
 
 
@@ -4918,7 +4939,11 @@ async def _notify_hms_recovery(printer_id: int, action) -> None:
             )
         logging.getLogger(__name__).info("[HMS-RETRY] recovered printer %s: %s", printer_id, detail)
         await notification_service.on_printer_error(
-            printer_id, printer_name, f"HMS auto-recovery succeeded ({action.code})", db, detail,
+            printer_id,
+            printer_name,
+            f"HMS auto-recovery succeeded ({action.code})",
+            db,
+            detail,
         )
 
 
@@ -4953,18 +4978,14 @@ async def _hms_retry_loop() -> None:
                             hms_retry.mark_notified(printer_id, action.code)
                         except Exception:
                             # Un-latched: retried next tick (stall-watch pattern).
-                            log.exception(
-                                "[HMS-RETRY] escalation notification failed for printer %s", printer_id
-                            )
+                            log.exception("[HMS-RETRY] escalation notification failed for printer %s", printer_id)
                     elif action.kind == RECOVERED:
                         try:
                             await _notify_hms_recovery(printer_id, action)
                         except Exception:
                             # Episode already closed — a lost recovery message
                             # is acceptable; the escalation said retries continue.
-                            log.exception(
-                                "[HMS-RETRY] recovery notification failed for printer %s", printer_id
-                            )
+                            log.exception("[HMS-RETRY] recovery notification failed for printer %s", printer_id)
             except asyncio.CancelledError:
                 return
             except Exception as e:
@@ -4977,7 +4998,8 @@ def start_hms_retry_watch() -> None:
         _hms_retry_task = asyncio.create_task(_hms_retry_loop())
         logging.getLogger(__name__).info(
             "HMS retry watch started (tick %.0fs, codes: %s)",
-            _HMS_RETRY_TICK_S, ",".join(sorted(_HMS_AUTO_CLEAR_CODES)) or "none",
+            _HMS_RETRY_TICK_S,
+            ",".join(sorted(_HMS_AUTO_CLEAR_CODES)) or "none",
         )
 
 

@@ -34,9 +34,9 @@ class TestAutoClearDescriptionLogging:
                 "backend.app.services.printer_manager.printer_manager.get_client",
                 return_value=_client(),
             ),
+            caplog.at_level("WARNING"),
         ):
-            with caplog.at_level("WARNING"):
-                app_main._maybe_auto_clear_hms(1, [_error(code)])
+            app_main._maybe_auto_clear_hms(1, [_error(code)])
         warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
         assert any(code in m and "cutter" in m.lower() for m in warnings), warnings
 
@@ -49,9 +49,9 @@ class TestAutoClearDescriptionLogging:
                 "backend.app.services.printer_manager.printer_manager.get_client",
                 return_value=_client(),
             ),
+            caplog.at_level("WARNING"),
         ):
-            with caplog.at_level("WARNING"):
-                app_main._maybe_auto_clear_hms(1, [_error(code)])
+            app_main._maybe_auto_clear_hms(1, [_error(code)])
         warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
         assert any(code in m for m in warnings), warnings
 

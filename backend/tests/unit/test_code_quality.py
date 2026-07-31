@@ -478,9 +478,7 @@ class TestPrintQueueStatusFence:
                 )
 
         if errors:
-            pytest.fail(
-                "print_queue.status write fence violations:\n  " + "\n  ".join(errors)
-            )
+            pytest.fail("print_queue.status write fence violations:\n  " + "\n  ".join(errors))
 
 
 # ---------------------------------------------------------------------------

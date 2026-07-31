@@ -7,25 +7,52 @@ import pytest
 
 from backend.app.services.bmcu_binary.auth import derive_session_key, verify_hello_mac
 from backend.app.services.bmcu_binary.bmcu_decoder import (
-    BMCUEvent, BMCUFullStatusRecord, BMCUStatus, decode_semantic,
-    decode_wire_frame, validate_alpha3_wire_frame,
+    BMCUEvent,
+    BMCUFullStatusRecord,
+    BMCUStatus,
+    decode_semantic,
+    decode_wire_frame,
+    validate_alpha3_wire_frame,
 )
 from backend.app.services.bmcu_binary.constants import (
-    MAX_PAYLOAD_SIZE, ControlCommand, ControlResultCode, DropReason, Flag,
-    LinkReason, LinkState, LogSeverity, MessageType, ProtocolErrorCode,
-    RejectReason, ValueType,
+    MAX_PAYLOAD_SIZE,
+    ControlCommand,
+    ControlResultCode,
+    DropReason,
+    Flag,
+    LinkReason,
+    LinkState,
+    LogSeverity,
+    MessageType,
+    ProtocolErrorCode,
+    RejectReason,
+    ValueType,
 )
 from backend.app.services.bmcu_binary.errors import InvalidMessage, PayloadTooLarge
 from backend.app.services.bmcu_binary.framing import (
-    FrameHeader, IncrementalFrameParser, decode_header, encode_frame,
+    FrameHeader,
+    IncrementalFrameParser,
+    decode_header,
+    encode_frame,
 )
 from backend.app.services.bmcu_binary.messages import (
-    Ack, ControlResult, Hello, HelloAccepted, PicoLog, Ping, ProtocolErrorMessage,
-    ServerChallenge, decode_bmcu_frame, decode_tlvs,
+    Ack,
+    ControlResult,
+    Hello,
+    HelloAccepted,
+    PicoLog,
+    Ping,
+    ProtocolErrorMessage,
+    ServerChallenge,
+    decode_bmcu_frame,
+    decode_tlvs,
     typed_tlv_value,
 )
 from backend.app.services.bmcu_binary.storage_keys import (
-    advance_contiguous, advance_contiguous_with_losses, u64_decimal, u64_hex,
+    advance_contiguous,
+    advance_contiguous_with_losses,
+    u64_decimal,
+    u64_hex,
 )
 from backend.app.services.bmcu_binary.timeline import anomaly_inputs, timeline_points
 
@@ -81,7 +108,7 @@ def test_parser_progress_with_random_chunking() -> None:
         rng, parser, frames, at = random.Random(seed), IncrementalFrameParser(), [], 0
         while at < len(raw):
             size = rng.randint(1, 73)
-            frames.extend(parser.feed(raw[at:at + size]))
+            frames.extend(parser.feed(raw[at : at + size]))
             at += size
             assert parser.buffered_bytes <= 32 + MAX_PAYLOAD_SIZE
         assert len(frames) == 50
@@ -118,11 +145,16 @@ def test_hello_known_answer() -> None:
         hello.transcript(),
         hello.mac,
     )
-    assert len(derive_session_key(
-        bytes.fromhex(manifest["auth"]["device_key_hex"]),
-        bytes.fromhex(manifest["auth"]["challenge_hex"]),
-        frame.header.pico_boot_id,
-    )) == 32
+    assert (
+        len(
+            derive_session_key(
+                bytes.fromhex(manifest["auth"]["device_key_hex"]),
+                bytes.fromhex(manifest["auth"]["challenge_hex"]),
+                frame.header.pico_boot_id,
+            )
+        )
+        == 32
+    )
 
 
 def test_ack_global_scope_and_rejections() -> None:
@@ -146,7 +178,9 @@ def test_embedded_bmcu_frames_are_crc_valid_and_preserved() -> None:
 def test_bmcu_semantic_decoder_and_timeline_inputs() -> None:
     expected_types = (BMCUStatus, BMCUEvent, BMCUFullStatusRecord)
     for name, expected in zip(
-        ("bmcu_status.bin", "bmcu_event.bin", "bmcu_full_status.bin"), expected_types,
+        ("bmcu_status.bin", "bmcu_event.bin", "bmcu_full_status.bin"),
+        expected_types,
+        strict=True,
     ):
         outer = IncrementalFrameParser().feed((FIXTURES / name).read_bytes())[0]
         embedded = decode_bmcu_frame(outer.payload, validate_alpha3_wire_frame)
@@ -193,17 +227,21 @@ def test_full_u64_database_key_encoding_is_order_preserving() -> None:
 
 def test_transport_drop_range_is_strict() -> None:
     from backend.app.services.bmcu_binary.messages import TransportDrop
+
     assert TransportDrop(1, 2, 4, 3, 1).encode()
     with pytest.raises(InvalidMessage):
         TransportDrop(1, 2, 4, 2, 1).encode()
 
 
-@pytest.mark.parametrize("value", [
-    ServerChallenge(bytes(range(32))),
-    HelloAccepted(42, 5000, 15000),
-    Ping(0x0102030405060708),
-    ProtocolErrorMessage(3, "不正なフレーム"),
-    ControlResult(8, 0, "accepted", b"x" * 32),
-])
+@pytest.mark.parametrize(
+    "value",
+    [
+        ServerChallenge(bytes(range(32))),
+        HelloAccepted(42, 5000, 15000),
+        Ping(0x0102030405060708),
+        ProtocolErrorMessage(3, "不正なフレーム"),
+        ControlResult(8, 0, "accepted", b"x" * 32),
+    ],
+)
 def test_newly_specified_payload_roundtrips(value) -> None:
     assert type(value).decode(value.encode()) == value

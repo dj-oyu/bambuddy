@@ -54,7 +54,9 @@ class BinaryTransportServer:
         self._keys = configured_keys()
         await self.persistence.rehydrate_current_state()
         self._server = await asyncio.start_server(
-            self._accept, settings.bmcu_binary_host, settings.bmcu_binary_port,
+            self._accept,
+            settings.bmcu_binary_host,
+            settings.bmcu_binary_port,
             limit=32 + 4096,
         )
         logger.info("BMCU binary listener started on %s:%d", settings.bmcu_binary_host, settings.bmcu_binary_port)
@@ -83,8 +85,12 @@ class BinaryTransportServer:
             return
         self._connections.add(task)
         session = BinarySession(
-            reader, writer, key_provider=self._keys.get, persistence=self.persistence,
-            registry=self.registry, auth_timeout=settings.bmcu_binary_auth_timeout_s,
+            reader,
+            writer,
+            key_provider=self._keys.get,
+            persistence=self.persistence,
+            registry=self.registry,
+            auth_timeout=settings.bmcu_binary_auth_timeout_s,
             idle_timeout=settings.bmcu_binary_idle_timeout_s,
             write_timeout=settings.bmcu_binary_write_timeout_s,
         )

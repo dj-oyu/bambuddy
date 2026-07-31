@@ -108,7 +108,9 @@ class TestSchedulerTrayValidation:
 
     def test_similar_color_passes(self, scheduler):
         """Within the 40/channel similarity threshold — no false positive."""
-        assert scheduler._validate_stored_ams_mapping([0], [req(1, color="#000000")], [loaded(0, color="#101010")]) == []
+        assert (
+            scheduler._validate_stored_ams_mapping([0], [req(1, color="#000000")], [loaded(0, color="#101010")]) == []
+        )
 
     def test_structural_problem_short_circuits_tray_checks(self, scheduler):
         problems = scheduler._validate_stored_ams_mapping([9], [req(1), req(2)], [loaded(0)])

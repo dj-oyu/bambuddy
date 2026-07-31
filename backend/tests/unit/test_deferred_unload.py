@@ -64,12 +64,7 @@ class TestStripTailUnload:
         assert new == body
 
     def test_block_without_t255_is_noop(self):
-        body = (
-            "; MACHINE_END_GCODE_START\n"
-            "; pull back filament to AMS\n"
-            "M620 S255\n"
-            "M621 S255\n"
-        )
+        body = "; MACHINE_END_GCODE_START\n; pull back filament to AMS\nM620 S255\nM621 S255\n"
         new, block = _strip_tail_unload(body)
         assert block is None
         assert new == body
@@ -201,9 +196,7 @@ async def test_queue_create_roundtrips_defer_unload(async_client, db_session):
     assert resp.json()["defer_unload"] is False
 
     # default is None (auto)
-    resp = await async_client.post(
-        "/api/v1/queue/", json={"archive_id": archive.id, "skip_filament_check": True}
-    )
+    resp = await async_client.post("/api/v1/queue/", json={"archive_id": archive.id, "skip_filament_check": True})
     assert resp.json()["defer_unload"] is None
 
 
@@ -320,7 +313,5 @@ async def test_queue_create_roundtrips_unload_edit(async_client, db_session):
     assert item["unload_edit"] == "start"
     resp = await async_client.patch(f"/api/v1/queue/{item['id']}", json={"unload_edit": "none"})
     assert resp.json()["unload_edit"] == "none"
-    resp = await async_client.post(
-        "/api/v1/queue/", json={"archive_id": archive.id, "unload_edit": "bogus"}
-    )
+    resp = await async_client.post("/api/v1/queue/", json={"archive_id": archive.id, "unload_edit": "bogus"})
     assert resp.status_code == 422

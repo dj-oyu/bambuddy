@@ -835,7 +835,7 @@ def _strip_tail_unload(gcode_content: str) -> tuple[str, str | None]:
         return gcode_content, None
 
     block = matches[0].group(0)
-    new_tail = tail[: matches[0].start()] + tail[matches[0].end():]
+    new_tail = tail[: matches[0].start()] + tail[matches[0].end() :]
     return gcode_content[:marker_idx] + new_tail, block
 
 

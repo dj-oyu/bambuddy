@@ -37,10 +37,8 @@ def test_defensive_on_junk():
 def test_pending_spoof_map_from_client_snapshot():
     client = MagicMock()
     client._active_spoofs = [
-        {"state": "PENDING", "backup_ams_id": 0, "backup_tray_id": 2,
-         "primary_ams_id": 0, "primary_tray_id": 0},
-        {"state": "ENGAGED", "backup_ams_id": 0, "backup_tray_id": 3,
-         "primary_ams_id": 0, "primary_tray_id": 1},
+        {"state": "PENDING", "backup_ams_id": 0, "backup_tray_id": 2, "primary_ams_id": 0, "primary_tray_id": 0},
+        {"state": "ENGAGED", "backup_ams_id": 0, "backup_tray_id": 3, "primary_ams_id": 0, "primary_tray_id": 1},
     ]
     m = pending_spoof_map(client)
     assert m == {(0, 2): {"ams_id": 0, "tray_id": 0}}  # ENGAGED excluded
@@ -53,5 +51,6 @@ def test_both_serializers_use_the_shared_helper():
         "backend/app/api/routes/printers.py",
         "backend/app/services/printer_manager.py",
     ):
-        src = open(path).read()
+        with open(path) as source:
+            src = source.read()
         assert "spoof_status_fields(" in src, f"{path} must use the shared helper"

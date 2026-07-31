@@ -188,9 +188,7 @@ class FilamentSpoofEngine:
         try:
             async with async_session() as db:
                 result = await db.execute(
-                    select(FilamentSpoof.printer_id)
-                    .where(FilamentSpoof.state.in_(("ENGAGED", "PENDING")))
-                    .distinct()
+                    select(FilamentSpoof.printer_id).where(FilamentSpoof.state.in_(("ENGAGED", "PENDING"))).distinct()
                 )
                 printer_ids = [pid for (pid,) in result.all()]
             for pid in printer_ids:
@@ -234,18 +232,13 @@ class FilamentSpoofEngine:
                 client._on_fw_identity_update = None
             else:
                 guarded = {(r.backup_ams_id, r.backup_tray_id) for r in rows}
-                client._spoof_write_guard = (
-                    lambda ams_id, tray_id, _g=guarded: (ams_id, tray_id) in _g
-                )
-                client._on_tray_now_change = (
-                    lambda ams_id, tray_id, prev_global, gcode_state, _pid=printer_id:
+                client._spoof_write_guard = lambda ams_id, tray_id, _g=guarded: (ams_id, tray_id) in _g
+                client._on_tray_now_change = lambda ams_id, tray_id, prev_global, gcode_state, _pid=printer_id: (
                     self._on_tray_now_change(_pid, ams_id, tray_id, prev_global, gcode_state)
                 )
                 # Confirmation/revalidation hook: fires once per AMS message while
                 # spoofs are active (bambu_mqtt gates on _active_spoofs).
-                client._on_fw_identity_update = (
-                    lambda _pid=printer_id: self._on_fw_identity_update(_pid)
-                )
+                client._on_fw_identity_update = lambda _pid=printer_id: self._on_fw_identity_update(_pid)
 
         # Fan out to the virtual-printer slicer-facing view (finding #4).
         try:
@@ -341,9 +334,7 @@ class FilamentSpoofEngine:
                 return True
         return False
 
-    async def adopt(
-        self, printer_id: int, primary: tuple, backup: tuple, real: dict
-    ) -> FilamentSpoof:
+    async def adopt(self, printer_id: int, primary: tuple, backup: tuple, real: dict) -> FilamentSpoof:
         """Adopt an EXISTING firmware-level spoof without writing to the printer.
 
         For when the backup slot already carries the primary's identity on the
@@ -374,31 +365,29 @@ class FilamentSpoofEngine:
             raise FilamentSpoofError("Slot state not available", status=409)
         # Adoption precondition: the firmware must ALREADY show the primary's
         # identity on the backup slot — otherwise this is a normal engage.
-        if not _matches_spoof(
-            backup_fw, primary_fw.get("tray_info_idx"), primary_fw.get("tray_color")
-        ):
+        if not _matches_spoof(backup_fw, primary_fw.get("tray_info_idx"), primary_fw.get("tray_color")):
             raise FilamentSpoofError(
-                "Backup slot does not carry the primary's identity on the printer; "
-                "use a normal engage instead",
+                "Backup slot does not carry the primary's identity on the printer; use a normal engage instead",
                 status=409,
             )
         real_color = (real.get("tray_color") or "").strip()
         if not real_color:
             raise FilamentSpoofError("Real tray_color is required", status=422)
         if _normalize_color(real_color) == _normalize_color(primary_fw.get("tray_color")):
-            raise FilamentSpoofError(
-                "Real color equals the primary's color — nothing to adopt", status=409
-            )
+            raise FilamentSpoofError("Real color equals the primary's color — nothing to adopt", status=409)
 
         async with async_session() as db:
-            if await self._slot_has_active_spoof(db, printer_id, b_ams, b_tray) or \
-               await self._slot_has_active_spoof(db, printer_id, p_ams, p_tray):
+            if await self._slot_has_active_spoof(db, printer_id, b_ams, b_tray) or await self._slot_has_active_spoof(
+                db, printer_id, p_ams, p_tray
+            ):
                 raise FilamentSpoofError("Slot already participates in a runout backup", status=409)
             now = datetime.now(timezone.utc)
             row = FilamentSpoof(
                 printer_id=printer_id,
-                backup_ams_id=b_ams, backup_tray_id=b_tray,
-                primary_ams_id=p_ams, primary_tray_id=p_tray,
+                backup_ams_id=b_ams,
+                backup_tray_id=b_tray,
+                primary_ams_id=p_ams,
+                primary_tray_id=p_tray,
                 real_tray_info_idx=real.get("tray_info_idx") or backup_fw.get("tray_info_idx"),
                 real_tray_type=real.get("tray_type"),
                 real_tray_sub_brands=real.get("tray_sub_brands") or "",
@@ -421,7 +410,12 @@ class FilamentSpoofEngine:
         logger.info(
             "[%s] Filament spoof ADOPTED: backup AMS %s tray %s carries primary AMS %s tray %s "
             "(real color %s declared by user; no firmware write)",
-            printer_id, b_ams, b_tray, p_ams, p_tray, real_color,
+            printer_id,
+            b_ams,
+            b_tray,
+            p_ams,
+            p_tray,
+            real_color,
         )
         return row
 
@@ -496,28 +490,28 @@ class FilamentSpoofEngine:
         ) == _normalize_color(p_fw.get("tray_color")):
             self._ensure_backup_enabled(client, printer_id)
             logger.info("[%s] Native backup (identical identity), no spoof row created", printer_id)
-            return {"native": True, "primary_ams_id": p_ams, "primary_tray_id": p_tray,
-                    "backup_ams_id": b_ams, "backup_tray_id": b_tray}
+            return {
+                "native": True,
+                "primary_ams_id": p_ams,
+                "primary_tray_id": p_tray,
+                "backup_ams_id": b_ams,
+                "backup_tray_id": b_tray,
+            }
 
         # --- design rule B: native-group lock -------------------------------
         p_partners = self._native_partners(client, p_ams, p_tray, p_fw.get("tray_info_idx"), p_fw.get("tray_color"))
         if p_partners:
-            raise FilamentSpoofError(
-                "The primary spool is already backed up by another matching spool", status=409
-            )
+            raise FilamentSpoofError("The primary spool is already backed up by another matching spool", status=409)
         b_partners = self._native_partners(client, b_ams, b_tray, b_fw.get("tray_info_idx"), b_fw.get("tray_color"))
         if b_partners:
             if not force:
                 raise FilamentSpoofError(
-                    "This spool currently backs up another spool of the same color; "
-                    "pass force to reassign it",
+                    "This spool currently backs up another spool of the same color; pass force to reassign it",
                     status=409,
                 )
             # force refused mid-print (fail-safe: mapping may reference the slot).
             if str(getattr(client.state, "state", "")).upper() == "RUNNING":
-                raise FilamentSpoofError(
-                    "Cannot reassign this backup spool while a print is running", status=409
-                )
+                raise FilamentSpoofError("Cannot reassign this backup spool while a print is running", status=409)
 
         # --- snapshot the backup's REAL identity + K before overwriting -----
         real_idx = backup_live.get("tray_info_idx")
@@ -540,13 +534,15 @@ class FilamentSpoofEngine:
         # Versioned setting_id from the primary slot's persisted preset —
         # BMCU drops writes without it (see _setting_id_for_slot).
         async with async_session() as db:
-            spoof_setting_id = await self._setting_id_for_slot(
-                db, printer_id, p_ams, p_tray, spoof_idx or ""
-            )
+            spoof_setting_id = await self._setting_id_for_slot(db, printer_id, p_ams, p_tray, spoof_idx or "")
 
         ok = client.ams_set_filament_setting(
-            b_ams, b_tray,
-            spoof_idx or "", spoof_type or "", spoof_sub or "", spoof_color or "",
+            b_ams,
+            b_tray,
+            spoof_idx or "",
+            spoof_type or "",
+            spoof_sub or "",
+            spoof_color or "",
             int(spoof_tmin) if spoof_tmin is not None else 0,
             int(spoof_tmax) if spoof_tmax is not None else 0,
             setting_id=spoof_setting_id,
@@ -575,17 +571,23 @@ class FilamentSpoofEngine:
         async with async_session() as db:
             row = FilamentSpoof(
                 printer_id=printer_id,
-                backup_ams_id=b_ams, backup_tray_id=b_tray,
-                primary_ams_id=p_ams, primary_tray_id=p_tray,
-                real_tray_info_idx=real_idx, real_tray_type=real_type,
-                real_tray_sub_brands=real_sub, real_tray_color=real_color,
+                backup_ams_id=b_ams,
+                backup_tray_id=b_tray,
+                primary_ams_id=p_ams,
+                primary_tray_id=p_tray,
+                real_tray_info_idx=real_idx,
+                real_tray_type=real_type,
+                real_tray_sub_brands=real_sub,
+                real_tray_color=real_color,
                 real_nozzle_temp_min=int(real_tmin) if real_tmin is not None else None,
                 real_nozzle_temp_max=int(real_tmax) if real_tmax is not None else None,
                 real_cali_idx=str(real_cali) if real_cali is not None else None,
                 real_k=float(real_k) if isinstance(real_k, (int, float)) else None,
                 extruder_id=int(b_ext) if b_ext is not None else None,
-                spoof_tray_info_idx=spoof_idx, spoof_tray_color=spoof_color,
-                state="PENDING", engaged_at=now,
+                spoof_tray_info_idx=spoof_idx,
+                spoof_tray_color=spoof_color,
+                state="PENDING",
+                engaged_at=now,
             )
             db.add(row)
             await db.commit()
@@ -595,7 +597,11 @@ class FilamentSpoofEngine:
         logger.info(
             "[%s] Filament spoof PENDING: backup AMS %s tray %s impersonates primary AMS %s tray %s "
             "(awaiting firmware confirmation)",
-            printer_id, b_ams, b_tray, p_ams, p_tray,
+            printer_id,
+            b_ams,
+            b_tray,
+            p_ams,
+            p_tray,
         )
         return row
 
@@ -660,14 +666,19 @@ class FilamentSpoofEngine:
                 fw = self._fw_identity(client, b_ams, b_tray) if client else None
                 # Only write back if firmware STILL shows the spoofed identity —
                 # otherwise the user already changed it; don't clobber.
-                if client is not None and fw is not None and _matches_spoof(
-                    fw, row.spoof_tray_info_idx, row.spoof_tray_color
+                if (
+                    client is not None
+                    and fw is not None
+                    and _matches_spoof(fw, row.spoof_tray_info_idx, row.spoof_tray_color)
                 ):
                     # Best-effort (BMCU writes can silently fail); don't block.
                     client.ams_set_filament_setting(
-                        b_ams, b_tray,
-                        row.real_tray_info_idx or "", row.real_tray_type or "",
-                        row.real_tray_sub_brands or "", row.real_tray_color or "",
+                        b_ams,
+                        b_tray,
+                        row.real_tray_info_idx or "",
+                        row.real_tray_type or "",
+                        row.real_tray_sub_brands or "",
+                        row.real_tray_color or "",
                         int(row.real_nozzle_temp_min) if row.real_nozzle_temp_min is not None else 0,
                         int(row.real_nozzle_temp_max) if row.real_nozzle_temp_max is not None else 0,
                         setting_id=await self._setting_id_for_slot(
@@ -685,23 +696,21 @@ class FilamentSpoofEngine:
             await db.refresh(row)
 
         await self.refresh_client(printer_id)
-        logger.info("[%s] Filament spoof RELEASED: backup AMS %s tray %s (restore=%s)", printer_id, b_ams, b_tray, restore)
+        logger.info(
+            "[%s] Filament spoof RELEASED: backup AMS %s tray %s (restore=%s)", printer_id, b_ams, b_tray, restore
+        )
         return row
 
     # ---- runout detection ----------------------------------------------
 
-    def _on_tray_now_change(self, printer_id: int, ams_id: int, tray_id: int,
-                            prev_global: int, gcode_state) -> None:
+    def _on_tray_now_change(self, printer_id: int, ams_id: int, tray_id: int, prev_global: int, gcode_state) -> None:
         """Sync entry from the MQTT thread; schedule async runout handling."""
         try:
-            self._pm()._schedule_async(
-                self._handle_runout(printer_id, ams_id, tray_id, prev_global, gcode_state)
-            )
+            self._pm()._schedule_async(self._handle_runout(printer_id, ams_id, tray_id, prev_global, gcode_state))
         except Exception:
             logger.debug("[%s] failed to schedule spoof runout handler", printer_id, exc_info=True)
 
-    async def _handle_runout(self, printer_id: int, ams_id: int, tray_id: int,
-                             prev_global: int, gcode_state) -> None:
+    async def _handle_runout(self, printer_id: int, ams_id: int, tray_id: int, prev_global: int, gcode_state) -> None:
         """Auto-release a spoof ONLY on a genuine mid-print runout switch.
 
         Genuine runout = the newly-active tray is a spoof's BACKUP slot AND the
@@ -731,7 +740,10 @@ class FilamentSpoofEngine:
                     # Backup became active but NOT because the primary ran out.
                     logger.info(
                         "[%s] tray_now→backup AMS %s tray %s but prev(%s)≠primary; keeping ENGAGED",
-                        printer_id, ams_id, tray_id, prev_global,
+                        printer_id,
+                        ams_id,
+                        tray_id,
+                        prev_global,
                     )
                     continue
                 row.state = "RELEASED"
@@ -739,7 +751,9 @@ class FilamentSpoofEngine:
                 released_any = True
                 logger.info(
                     "[%s] Filament spoof auto-RELEASED on runout: backup AMS %s tray %s became active",
-                    printer_id, ams_id, tray_id,
+                    printer_id,
+                    ams_id,
+                    tray_id,
                 )
             if released_any:
                 await db.commit()
@@ -771,9 +785,7 @@ class FilamentSpoofEngine:
             self._reconcile_inflight.discard(printer_id)
             logger.debug("[%s] failed to schedule spoof reconcile", printer_id, exc_info=True)
 
-    async def _setting_id_for_slot(
-        self, db, printer_id: int, ams_id: int, tray_id: int, tray_info_idx: str
-    ) -> str:
+    async def _setting_id_for_slot(self, db, printer_id: int, ams_id: int, tray_id: int, tray_info_idx: str) -> str:
         """Best VERSIONED setting_id for a slot's preset.
 
         BMCU firmware silently drops ams_filament_setting whose setting_id
@@ -801,7 +813,10 @@ class FilamentSpoofEngine:
         except Exception:
             logger.debug(
                 "[%s] slot preset lookup failed for AMS %s tray %s",
-                printer_id, ams_id, tray_id, exc_info=True,
+                printer_id,
+                ams_id,
+                tray_id,
+                exc_info=True,
             )
         return filament_id_to_setting_id(tray_info_idx or "")
 
@@ -835,7 +850,10 @@ class FilamentSpoofEngine:
                         if row is None:
                             return  # ENGAGED / FAILED / released — done.
                         setting_id = await self._setting_id_for_slot(
-                            db, printer_id, row.primary_ams_id, row.primary_tray_id,
+                            db,
+                            printer_id,
+                            row.primary_ams_id,
+                            row.primary_tray_id,
                             row.spoof_tray_info_idx or "",
                         )
                     client = self._get_client(printer_id)
@@ -848,18 +866,25 @@ class FilamentSpoofEngine:
                     # is never overlaid, so raw_data is genuine for it).
                     from backend.app.services.filament_spoof import _find_tray
 
-                    primary_tray = _find_tray(
-                        (getattr(client.state, "raw_data", None) or {}).get("ams", []),
-                        row.primary_ams_id, row.primary_tray_id,
-                    ) or {}
+                    primary_tray = (
+                        _find_tray(
+                            (getattr(client.state, "raw_data", None) or {}).get("ams", []),
+                            row.primary_ams_id,
+                            row.primary_tray_id,
+                        )
+                        or {}
+                    )
                     tmin = primary_tray.get("nozzle_temp_min", row.real_nozzle_temp_min)
                     tmax = primary_tray.get("nozzle_temp_max", row.real_nozzle_temp_max)
                     logger.info(
                         "[%s] Resending spoof write for AMS %s tray %s (still PENDING)",
-                        printer_id, b_ams, b_tray,
+                        printer_id,
+                        b_ams,
+                        b_tray,
                     )
                     client.ams_set_filament_setting(
-                        b_ams, b_tray,
+                        b_ams,
+                        b_tray,
                         row.spoof_tray_info_idx or "",
                         primary_tray.get("tray_type") or row.real_tray_type or "",
                         primary_tray.get("tray_sub_brands") or "",
@@ -945,7 +970,9 @@ class FilamentSpoofEngine:
                         changed = True
                         logger.info(
                             "[%s] Filament spoof CONFIRMED: backup AMS %s tray %s now ENGAGED",
-                            printer_id, row.backup_ams_id, row.backup_tray_id,
+                            printer_id,
+                            row.backup_ams_id,
+                            row.backup_tray_id,
                         )
                     elif row.engaged_at is not None:
                         age = (now - row.engaged_at.replace(tzinfo=timezone.utc)).total_seconds()
@@ -956,7 +983,10 @@ class FilamentSpoofEngine:
                             logger.warning(
                                 "[%s] Filament spoof FAILED to confirm within %.0fs: backup AMS %s tray %s "
                                 "(firmware never accepted the write; power-cycle may be required)",
-                                printer_id, timeout, row.backup_ams_id, row.backup_tray_id,
+                                printer_id,
+                                timeout,
+                                row.backup_ams_id,
+                                row.backup_tray_id,
                             )
                 elif row.state == "ENGAGED":
                     # Positive-evidence release only — hardened against printer
@@ -1000,13 +1030,21 @@ class FilamentSpoofEngine:
             logger.info(
                 "[%s] Filament spoof revalidation dropped (firmware identity changed, "
                 "%d observations over %.0fs): backup AMS %s tray %s",
-                printer_id, count, elapsed, row.backup_ams_id, row.backup_tray_id,
+                printer_id,
+                count,
+                elapsed,
+                row.backup_ams_id,
+                row.backup_tray_id,
             )
             return True
         logger.debug(
             "[%s] spoof identity mismatch %d/%d (%.0fs) for AMS %s tray %s — holding",
-            printer_id, count, _RELEASE_MISMATCH_STREAK, elapsed,
-            row.backup_ams_id, row.backup_tray_id,
+            printer_id,
+            count,
+            _RELEASE_MISMATCH_STREAK,
+            elapsed,
+            row.backup_ams_id,
+            row.backup_tray_id,
         )
         return False
 

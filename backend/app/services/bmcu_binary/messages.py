@@ -18,7 +18,7 @@ class _Reader:
     def take(self, size: int) -> bytes:
         if size < 0 or self.at + size > len(self.data):
             raise InvalidMessage("truncated payload")
-        result = self.data[self.at:self.at + size]
+        result = self.data[self.at : self.at + size]
         self.at += size
         return result
 
@@ -57,7 +57,7 @@ class ServerChallenge:
         return self.nonce
 
     @classmethod
-    def decode(cls, payload: bytes) -> "ServerChallenge":
+    def decode(cls, payload: bytes) -> ServerChallenge:
         result = cls(bytes(payload))
         result.encode()
         return result
@@ -73,7 +73,7 @@ class HelloAccepted:
         return struct.pack(">QII", self.persisted_through_sequence, self.ack_timeout_ms, self.ping_interval_ms)
 
     @classmethod
-    def decode(cls, payload: bytes) -> "HelloAccepted":
+    def decode(cls, payload: bytes) -> HelloAccepted:
         if len(payload) != 16:
             raise InvalidMessage("HELLO_ACCEPTED payload must be 16 bytes")
         return cls(*struct.unpack(">QII", payload))
@@ -87,7 +87,7 @@ class Ping:
         return self.token.to_bytes(8, "big")
 
     @classmethod
-    def decode(cls, payload: bytes) -> "Ping":
+    def decode(cls, payload: bytes) -> Ping:
         if len(payload) != 8:
             raise InvalidMessage("PING/PONG payload must be 8 bytes")
         return cls(int.from_bytes(payload, "big"))
@@ -102,7 +102,7 @@ class ProtocolErrorMessage:
         return self.code.to_bytes(2, "big") + _text(self.detail, 160, 2)
 
     @classmethod
-    def decode(cls, payload: bytes) -> "ProtocolErrorMessage":
+    def decode(cls, payload: bytes) -> ProtocolErrorMessage:
         r = _Reader(payload)
         code = r.integer(2)
         detail = _bounded_utf8(r, 2, 160)
@@ -166,7 +166,7 @@ class Hello:
         return self.transcript() + self.mac
 
     @classmethod
-    def decode(cls, payload: bytes) -> "Hello":
+    def decode(cls, payload: bytes) -> Hello:
         r = _Reader(payload)
         device = _bounded_utf8(r, 1, 63)
         firmware = _bounded_utf8(r, 1, 63)
@@ -195,7 +195,7 @@ class LinkStateMessage:
         return struct.pack(">QBBH", self.observed_at_us, self.state, self.reason, 0)
 
     @classmethod
-    def decode(cls, payload: bytes) -> "LinkStateMessage":
+    def decode(cls, payload: bytes) -> LinkStateMessage:
         if len(payload) != 12:
             raise InvalidMessage("LINK_STATE payload must be 12 bytes")
         observed, state, reason, _reserved = struct.unpack(">QBBH", payload)
@@ -213,12 +213,17 @@ class TransportDrop:
     def encode(self) -> bytes:
         self.validate()
         return struct.pack(
-            ">QQQIB3s", self.observed_at_us, self.first_sequence, self.last_sequence,
-            self.count, self.reason, b"\0\0\0",
+            ">QQQIB3s",
+            self.observed_at_us,
+            self.first_sequence,
+            self.last_sequence,
+            self.count,
+            self.reason,
+            b"\0\0\0",
         )
 
     @classmethod
-    def decode(cls, payload: bytes) -> "TransportDrop":
+    def decode(cls, payload: bytes) -> TransportDrop:
         if len(payload) != 32:
             raise InvalidMessage("TRANSPORT_DROP payload must be 32 bytes")
         observed, first, last, count, reason, _reserved = struct.unpack(">QQQIB3s", payload)
@@ -249,25 +254,28 @@ class Ack:
     def encode(self) -> bytes:
         if self.scope != 0xFF or len(self.rejects) > 0xFF:
             raise InvalidMessage("ACK scope/count invalid")
-        out = bytearray(struct.pack(
-            ">QBBHQ", self.pico_boot_id, self.scope, len(self.rejects), 0,
-            self.persisted_through_sequence,
-        ))
+        out = bytearray(
+            struct.pack(
+                ">QBBHQ",
+                self.pico_boot_id,
+                self.scope,
+                len(self.rejects),
+                0,
+                self.persisted_through_sequence,
+            )
+        )
         for reject in self.rejects:
             out.extend(struct.pack(">QB", reject.sequence, reject.reason))
         return bytes(out)
 
     @classmethod
-    def decode(cls, payload: bytes) -> "Ack":
+    def decode(cls, payload: bytes) -> Ack:
         if len(payload) < 20:
             raise InvalidMessage("truncated ACK")
         boot, scope, count, _reserved, watermark = struct.unpack(">QBBHQ", payload[:20])
         if scope != 0xFF or len(payload) != 20 + count * 9:
             raise InvalidMessage("ACK scope or reject count invalid")
-        rejects = tuple(
-            Reject(*struct.unpack(">QB", payload[20 + i * 9:29 + i * 9]))
-            for i in range(count)
-        )
+        rejects = tuple(Reject(*struct.unpack(">QB", payload[20 + i * 9 : 29 + i * 9])) for i in range(count))
         return cls(boot, watermark, rejects, scope)
 
 
@@ -300,8 +308,16 @@ def decode_tlvs(payload: bytes, maximum_total: int = 4096) -> tuple[TLV, ...]:
 
 def typed_tlv_value(item: TLV):
     """Decode registry scalar types while preserving unknown values as hex."""
-    widths = {1: (1, False), 2: (2, False), 3: (4, False), 4: (8, False),
-              5: (1, True), 6: (2, True), 7: (4, True), 8: (8, True)}
+    widths = {
+        1: (1, False),
+        2: (2, False),
+        3: (4, False),
+        4: (8, False),
+        5: (1, True),
+        6: (2, True),
+        7: (4, True),
+        8: (8, True),
+    }
     if item.value_type in widths:
         width, signed = widths[item.value_type]
         if len(item.value) != width:
@@ -333,13 +349,22 @@ class PicoLog:
         if len(component) > 40 or len(message) > 320 or len(self.detail) > 512:
             raise InvalidMessage("PICO_LOG field exceeds bound")
         return (
-            struct.pack(">QQBBHH", self.log_sequence, self.uptime_ms, self.severity,
-                        len(component), len(message), len(self.detail))
-            + component + message + self.detail
+            struct.pack(
+                ">QQBBHH",
+                self.log_sequence,
+                self.uptime_ms,
+                self.severity,
+                len(component),
+                len(message),
+                len(self.detail),
+            )
+            + component
+            + message
+            + self.detail
         )
 
     @classmethod
-    def decode(cls, payload: bytes) -> "PicoLog":
+    def decode(cls, payload: bytes) -> PicoLog:
         if len(payload) < 22:
             raise InvalidMessage("truncated PICO_LOG")
         r = _Reader(payload)
@@ -370,10 +395,17 @@ class Control:
     def unsigned_payload(self) -> bytes:
         if len(self.arguments) > 128:
             raise InvalidMessage("CONTROL arguments exceed bound")
-        return struct.pack(
-            ">QQIBB", self.command_sequence, self.issued_at_us, self.ttl_ms,
-            self.command, len(self.arguments),
-        ) + self.arguments
+        return (
+            struct.pack(
+                ">QQIBB",
+                self.command_sequence,
+                self.issued_at_us,
+                self.ttl_ms,
+                self.command,
+                len(self.arguments),
+            )
+            + self.arguments
+        )
 
     def encode(self) -> bytes:
         if len(self.mac) != 32:
@@ -381,13 +413,11 @@ class Control:
         return self.unsigned_payload() + self.mac
 
     @classmethod
-    def decode(cls, payload: bytes) -> "Control":
+    def decode(cls, payload: bytes) -> Control:
         if len(payload) < 54:
             raise InvalidMessage("truncated CONTROL")
         r = _Reader(payload)
-        seq, issued, ttl, command, size = (
-            r.integer(8), r.integer(8), r.integer(4), r.integer(1), r.integer(1)
-        )
+        seq, issued, ttl, command, size = (r.integer(8), r.integer(8), r.integer(4), r.integer(1), r.integer(1))
         if size > 128:
             raise InvalidMessage("CONTROL arguments exceed bound")
         arguments, mac = r.take(size), r.take(32)
@@ -414,7 +444,7 @@ class ControlResult:
         return self.unsigned_payload() + self.mac
 
     @classmethod
-    def decode(cls, payload: bytes) -> "ControlResult":
+    def decode(cls, payload: bytes) -> ControlResult:
         if len(payload) < 44:
             raise InvalidMessage("truncated CONTROL_RESULT")
         r = _Reader(payload)

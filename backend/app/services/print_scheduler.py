@@ -24,6 +24,7 @@ from backend.app.models.settings import Settings
 from backend.app.models.smart_plug import SmartPlug
 from backend.app.models.spool_assignment import SpoolAssignment
 from backend.app.models.spoolman_slot_assignment import SpoolmanSlotAssignment
+from backend.app.services import printer_lifecycle
 from backend.app.services.bambu_ftp import (
     UploadCancelled,
     cache_3mf_download,
@@ -32,7 +33,6 @@ from backend.app.services.bambu_ftp import (
     upload_file_async,
     with_ftp_retry,
 )
-from backend.app.services import printer_lifecycle
 from backend.app.services.filament_deficit import compute_deficit_for_queue_item
 from backend.app.services.notification_service import notification_service
 from backend.app.services.printer_manager import (
@@ -1564,12 +1564,9 @@ class PrintScheduler:
             "stored_mapping": mapping,
             "problems": problems,
             "required": [
-                {"slot_id": r["slot_id"], "type": r.get("type", ""), "color": r.get("color", "")}
-                for r in filament_reqs
+                {"slot_id": r["slot_id"], "type": r.get("type", ""), "color": r.get("color", "")} for r in filament_reqs
             ],
-            "loaded_trays": [
-                {"tray": f["global_tray_id"], "type": f["type"], "color": f["color"]} for f in loaded
-            ],
+            "loaded_trays": [{"tray": f["global_tray_id"], "type": f["type"], "color": f["color"]} for f in loaded],
         }
 
         computed = await self._compute_ams_mapping_for_printer(db, printer_id, item)
@@ -2166,9 +2163,7 @@ class PrintScheduler:
 
         return True
 
-    def _is_printer_idle(
-        self, printer_id: int, require_plate_clear: bool = True, for_dispatch: bool = True
-    ) -> bool:
+    def _is_printer_idle(self, printer_id: int, require_plate_clear: bool = True, for_dispatch: bool = True) -> bool:
         """Check if a printer is connected and idle.
 
         for_dispatch=False (auto-drying etc.) skips the HMS retry backoff
@@ -2263,7 +2258,9 @@ class PrintScheduler:
         except (ValueError, TypeError):
             return None
 
-    async def _resolve_deferred_unload(self, db: AsyncSession, item: PrintQueueItem, stripped_block: str | None) -> None:
+    async def _resolve_deferred_unload(
+        self, db: AsyncSession, item: PrintQueueItem, stripped_block: str | None
+    ) -> None:
         """Bookkeeping for the deferred-unload patch, called only after the
         print command was accepted (so a failed upload/start never consumes or
         rewrites state that still describes physical reality).
@@ -2286,13 +2283,17 @@ class PrintScheduler:
             if prev_mapping is not None and prev_mapping == cur_mapping:
                 logger.info(
                     "Queue item %s: deferred unload from item %s discarded — same filament, no swap needed",
-                    item.id, entry.get("item_id"),
+                    item.id,
+                    entry.get("item_id"),
                 )
             else:
                 logger.info(
                     "Queue item %s: filament differs from item %s (trays %s → %s) — "
                     "start G-code performs the swap from the still-loaded filament",
-                    item.id, entry.get("item_id"), prev_mapping, cur_mapping,
+                    item.id,
+                    entry.get("item_id"),
+                    prev_mapping,
+                    cur_mapping,
                 )
 
         new_entry = None
@@ -3527,10 +3528,7 @@ class PrintScheduler:
             installed = _installed_nozzle_diameters(printer_manager.get_status(item.printer_id))
             mismatch_msg = _nozzle_mismatch_message(sliced_nozzle, installed)
             if mismatch_msg:
-                item.status = "failed"
-                item.error_message = mismatch_msg
-                item.completed_at = datetime.now(timezone.utc)
-                await db.commit()
+                await self._fail_queue_item(db, item, mismatch_msg, reason="nozzle diameter mismatch")
                 logger.warning("Queue item %s: nozzle mismatch — %s", item.id, mismatch_msg)
                 await notification_service.on_queue_job_failed(
                     job_name=filename.replace(".gcode.3mf", "").replace(".3mf", ""),
@@ -3577,10 +3575,7 @@ class PrintScheduler:
             else:
                 mode = "auto"
         env_ok = os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
-        if mode == "none":
-            defer_unload = False
-            force_start_unload = False
-        elif mode == "end":
+        if mode == "none" or mode == "end":
             defer_unload = False
             force_start_unload = False
         elif mode == "start":
@@ -3607,7 +3602,10 @@ class PrintScheduler:
 
                         strip_result: dict | None = {} if defer_unload else None
                         injected_path = inject_gcode_into_3mf(
-                            file_path, item.plate_id or 1, start_gc or None, end_gc or None,
+                            file_path,
+                            item.plate_id or 1,
+                            start_gc or None,
+                            end_gc or None,
                             strip_tail_unload=strip_result,
                             force_start_unload=force_start_unload,
                         )
@@ -4054,9 +4052,16 @@ class PrintScheduler:
                     item.printer_id,
                     post_dispatch_state,
                 )
-                item.status = "pending"
-                item.started_at = None
-                await db.commit()
+                await printer_lifecycle.transition(
+                    db,
+                    item.id,
+                    to_status="pending",
+                    from_states=("printing",),
+                    reason="printer became busy before start command",
+                    caller="print_scheduler._start_print",
+                    extra={"started_at": None},
+                    item=item,
+                )
                 return
 
             # Print command failed - revert status
@@ -4214,35 +4219,43 @@ class PrintScheduler:
         # — and each lap also consumes an upload slot that the other printers in the
         # farm are waiting on. Retrying is right; retrying forever is not.
         async def _do_revert(db):
-            result = await printer_lifecycle.transition(
-                db,
-                queue_item_id,
-                to_status="pending",
-                from_states=("printing",),
-                reason="watchdog revert (no active-state transition)",
-                caller="print_scheduler._watchdog_print_start",
-                extra={"started_at": None},
-            )
-            # NOT_FOUND (row deleted) counts as already_moved_on, same as before.
-            return "reverted" if result else "already_moved_on"
             item = await db.get(PrintQueueItem, queue_item_id)
             if not item or item.status != "printing":
                 return "already_moved_on"
-            item.dispatch_attempts = (item.dispatch_attempts or 0) + 1
-            item.started_at = None
-            if item.dispatch_attempts >= DISPATCH_MAX_ATTEMPTS:
-                item.status = "failed"
-                item.error_message = (
-                    f"The printer accepted the file but never started printing, after "
-                    f"{item.dispatch_attempts} attempts. Check the printer's screen for a "
-                    f"prompt or error, confirm its SD card is readable, and start the job again."
+
+            attempts = (item.dispatch_attempts or 0) + 1
+            gave_up = attempts >= DISPATCH_MAX_ATTEMPTS
+            extra = {
+                "dispatch_attempts": attempts,
+                "started_at": None,
+            }
+            if gave_up:
+                extra.update(
+                    {
+                        "error_message": (
+                            "The printer accepted the file but never started printing, "
+                            f"after {attempts} attempts. Check the printer's screen for a "
+                            "prompt or error, confirm its SD card is readable, and start "
+                            "the job again."
+                        ),
+                        "completed_at": datetime.now(timezone.utc),
+                    }
                 )
-                item.completed_at = datetime.now(timezone.utc)
-                await db.commit()
-                return "gave_up"
-            item.status = "pending"
-            await db.commit()
-            return "reverted"
+
+            result = await printer_lifecycle.transition(
+                db,
+                queue_item_id,
+                to_status="failed" if gave_up else "pending",
+                from_states=("printing",),
+                reason="watchdog revert (no active-state transition)",
+                caller="print_scheduler._watchdog_print_start",
+                extra=extra,
+                item=item,
+            )
+            # NOT_FOUND (row deleted) counts as already_moved_on, same as before.
+            if not result:
+                return "already_moved_on"
+            return "gave_up" if gave_up else "reverted"
 
         try:
             revert_outcome = await run_with_retry(_do_revert, label=f"watchdog revert item={queue_item_id}")

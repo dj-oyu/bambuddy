@@ -51,9 +51,7 @@ MAX_TOKEN_LIFETIME_DAYS = 365
 #                   precisely because it reveals the part name a camwall token
 #                   is trusted never to expose, so folding it into camwall would
 #                   silently widen every wall token already handed out.
-ALLOWED_SCOPES: frozenset[str] = frozenset(
-    {"camera_stream", "camwall", "overlay"}
-)
+ALLOWED_SCOPES: frozenset[str] = frozenset({"camera_stream", "camwall", "overlay"})
 
 # Scopes the camera stream / snapshot endpoints honour. A Cam Wall or overlay
 # token has to be able to pull the video its own view is showing.

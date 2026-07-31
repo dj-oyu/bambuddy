@@ -37,18 +37,44 @@ async def session_maker(monkeypatch):
     await engine.dispose()
 
 
-def _fake_client(*, backup_type="PLA", primary_type="PLA", backup_present=True,
-                 tray_now=255, backup_enabled=False, extra_trays=None, extruder_map=None):
+def _fake_client(
+    *,
+    backup_type="PLA",
+    primary_type="PLA",
+    backup_present=True,
+    tray_now=255,
+    backup_enabled=False,
+    extra_trays=None,
+    extruder_map=None,
+):
     trays0 = [
-        {"id": 0, "tray_info_idx": "GFA00", "tray_type": primary_type, "tray_sub_brands": "PLA Basic",
-         "tray_color": "FF0000FF", "nozzle_temp_min": 190, "nozzle_temp_max": 230, "cali_idx": 3, "k": 0.02},
+        {
+            "id": 0,
+            "tray_info_idx": "GFA00",
+            "tray_type": primary_type,
+            "tray_sub_brands": "PLA Basic",
+            "tray_color": "FF0000FF",
+            "nozzle_temp_min": 190,
+            "nozzle_temp_max": 230,
+            "cali_idx": 3,
+            "k": 0.02,
+        },
     ]
     if backup_present:
         trays0.append(
-            {"id": 1, "tray_info_idx": "GFB11", "tray_type": backup_type, "tray_sub_brands": "PLA Matte",
-             "tray_color": "002E96FF", "nozzle_temp_min": 195, "nozzle_temp_max": 235, "cali_idx": 7, "k": 0.025},
+            {
+                "id": 1,
+                "tray_info_idx": "GFB11",
+                "tray_type": backup_type,
+                "tray_sub_brands": "PLA Matte",
+                "tray_color": "002E96FF",
+                "nozzle_temp_min": 195,
+                "nozzle_temp_max": 235,
+                "cali_idx": 7,
+                "k": 0.025,
+            },
         )
-    for t in (extra_trays or []):
+    for t in extra_trays or []:
         trays0.append(t)
     client = MagicMock()
     client.state.connected = True
@@ -90,6 +116,7 @@ async def _rows(maker, printer_id=1):
 
 
 # ---- engage ------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_engage_creates_pending_row(session_maker):
@@ -139,10 +166,22 @@ async def test_engage_disabled_raises_503(session_maker, monkeypatch):
 async def test_engage_extruder_mismatch_rejected(session_maker):
     # AMS 0 tray0 primary; add AMS 1 tray0 backup on a different extruder.
     client = _fake_client(extruder_map={"0": 0, "1": 1})
-    client.state.raw_data["ams"].append({"id": 1, "tray": [
-        {"id": 0, "tray_info_idx": "GFB11", "tray_type": "PLA", "tray_sub_brands": "PLA Matte",
-         "tray_color": "002E96FF", "nozzle_temp_min": 195, "nozzle_temp_max": 235},
-    ]})
+    client.state.raw_data["ams"].append(
+        {
+            "id": 1,
+            "tray": [
+                {
+                    "id": 0,
+                    "tray_info_idx": "GFB11",
+                    "tray_type": "PLA",
+                    "tray_sub_brands": "PLA Matte",
+                    "tray_color": "002E96FF",
+                    "nozzle_temp_min": 195,
+                    "nozzle_temp_max": 235,
+                },
+            ],
+        }
+    )
     eng = _engine_with(client)
     with pytest.raises(FilamentSpoofError) as ei:
         await eng.engage(1, (0, 0), (1, 0))
@@ -168,10 +207,19 @@ async def test_engage_native_identical_short_circuit(session_maker):
 @pytest.mark.asyncio
 async def test_engage_backup_native_group_lock_needs_force(session_maker):
     # A third slot shares the backup's firmware identity → native partner.
-    client = _fake_client(extra_trays=[
-        {"id": 2, "tray_info_idx": "GFB11", "tray_type": "PLA", "tray_sub_brands": "PLA Matte",
-         "tray_color": "002E96FF", "nozzle_temp_min": 195, "nozzle_temp_max": 235},
-    ])
+    client = _fake_client(
+        extra_trays=[
+            {
+                "id": 2,
+                "tray_info_idx": "GFB11",
+                "tray_type": "PLA",
+                "tray_sub_brands": "PLA Matte",
+                "tray_color": "002E96FF",
+                "nozzle_temp_min": 195,
+                "nozzle_temp_max": 235,
+            },
+        ]
+    )
     eng = _engine_with(client)
     with pytest.raises(FilamentSpoofError) as ei:
         await eng.engage(1, (0, 0), (0, 1))
@@ -184,10 +232,19 @@ async def test_engage_backup_native_group_lock_needs_force(session_maker):
 
 @pytest.mark.asyncio
 async def test_engage_force_refused_while_running(session_maker):
-    client = _fake_client(extra_trays=[
-        {"id": 2, "tray_info_idx": "GFB11", "tray_type": "PLA", "tray_sub_brands": "PLA Matte",
-         "tray_color": "002E96FF", "nozzle_temp_min": 195, "nozzle_temp_max": 235},
-    ])
+    client = _fake_client(
+        extra_trays=[
+            {
+                "id": 2,
+                "tray_info_idx": "GFB11",
+                "tray_type": "PLA",
+                "tray_sub_brands": "PLA Matte",
+                "tray_color": "002E96FF",
+                "nozzle_temp_min": 195,
+                "nozzle_temp_max": 235,
+            },
+        ]
+    )
     client.state.state = "RUNNING"
     eng = _engine_with(client)
     with pytest.raises(FilamentSpoofError) as ei:
@@ -219,6 +276,7 @@ async def test_engage_backup_is_active_rejected(session_maker):
 
 
 # ---- confirmation lifecycle -------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_pending_confirms_on_firmware_echo(session_maker):
@@ -253,6 +311,7 @@ async def test_pending_fails_on_timeout(session_maker, monkeypatch):
 
 # ---- release -----------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_release_restores_identity(session_maker):
     client = _fake_client()
@@ -283,6 +342,7 @@ async def test_release_works_when_disabled(session_maker, monkeypatch):
 
 # ---- runout ------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_runout_release_only_on_genuine_switch(session_maker):
     client = _fake_client()
@@ -304,6 +364,7 @@ async def test_runout_release_only_on_genuine_switch(session_maker):
 
 
 # ---- revalidate --------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_revalidate_keeps_row_when_no_firmware_data(session_maker):
@@ -335,7 +396,7 @@ async def test_revalidate_drops_on_positive_evidence(session_maker, monkeypatch)
     b["tray_color"] = "00FF00FF"
     assert await eng.revalidate(1) == 0  # 1st mismatch — held
     assert await eng.revalidate(1) == 0  # 2nd mismatch — held
-    changed = await eng.revalidate(1)    # 3rd — sustained, released
+    changed = await eng.revalidate(1)  # 3rd — sustained, released
     assert changed == 1
     assert (await _rows(session_maker))[0].state == "RELEASED"
 
@@ -375,6 +436,7 @@ async def test_reboot_transient_does_not_release(session_maker, monkeypatch):
 
 
 # ---- BMCU write acceptance (setting_id) + confirmation timer ------------
+
 
 @pytest.mark.asyncio
 async def test_engage_write_includes_setting_id(session_maker):
@@ -461,10 +523,16 @@ async def test_engage_uses_versioned_setting_id_from_slot_preset(session_maker):
     from backend.app.models.slot_preset import SlotPresetMapping
 
     async with session_maker() as db:
-        db.add(SlotPresetMapping(
-            printer_id=1, ams_id=0, tray_id=0,
-            preset_id="GFSA00_05", preset_name="PLA Basic", preset_source="cloud",
-        ))
+        db.add(
+            SlotPresetMapping(
+                printer_id=1,
+                ams_id=0,
+                tray_id=0,
+                preset_id="GFSA00_05",
+                preset_name="PLA Basic",
+                preset_source="cloud",
+            )
+        )
         await db.commit()
 
     client = _fake_client()
@@ -480,10 +548,16 @@ async def test_engage_ignores_mismatched_slot_preset(session_maker):
     from backend.app.models.slot_preset import SlotPresetMapping
 
     async with session_maker() as db:
-        db.add(SlotPresetMapping(
-            printer_id=1, ams_id=0, tray_id=0,
-            preset_id="GFSZ99_07", preset_name="Other", preset_source="cloud",
-        ))
+        db.add(
+            SlotPresetMapping(
+                printer_id=1,
+                ams_id=0,
+                tray_id=0,
+                preset_id="GFSZ99_07",
+                preset_name="Other",
+                preset_source="cloud",
+            )
+        )
         await db.commit()
 
     client = _fake_client()
@@ -495,6 +569,7 @@ async def test_engage_ignores_mismatched_slot_preset(session_maker):
 
 # ---- adopt (existing firmware-level spoof, no write) ---------------------
 
+
 @pytest.mark.asyncio
 async def test_adopt_existing_firmware_spoof(session_maker):
     client = _fake_client()
@@ -504,11 +579,19 @@ async def test_adopt_existing_firmware_spoof(session_maker):
     b["tray_color"] = "FF0000FF"
     eng = _engine_with(client)
 
-    row = await eng.adopt(1, (0, 0), (0, 1), {
-        "tray_info_idx": "GFA00", "tray_type": "PLA",
-        "tray_sub_brands": "", "tray_color": "000000FF",
-        "nozzle_temp_min": 190, "nozzle_temp_max": 230,
-    })
+    row = await eng.adopt(
+        1,
+        (0, 0),
+        (0, 1),
+        {
+            "tray_info_idx": "GFA00",
+            "tray_type": "PLA",
+            "tray_sub_brands": "",
+            "tray_color": "000000FF",
+            "nozzle_temp_min": 190,
+            "nozzle_temp_max": 230,
+        },
+    )
     assert row.state == "ENGAGED"
     assert row.real_tray_color == "000000FF"
     assert row.spoof_tray_color == "FF0000FF"

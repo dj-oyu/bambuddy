@@ -87,7 +87,7 @@ function formatWeight(g: number, useKg = false): string {
 //   start = this item's start G-code will unload the still-loaded filament
 //           (a previous job withheld its tail unload and the trays differ)
 //   end   = this item keeps its sliced tail unload (not deferred)
-export type UnloadTiming = { start: boolean; end: boolean };
+type UnloadTiming = { start: boolean; end: boolean };
 
 function normalizeTrays(mapping: number[] | null | undefined): number[] | null {
   if (!mapping) return null;
@@ -107,7 +107,7 @@ function tailDeferred(item: PrintQueueItem): boolean {
   return !!item.gcode_injection;
 }
 
-export function computeUnloadTiming(
+function computeUnloadTiming(
   pendingItems: PrintQueueItem[],
   deferredStates: Record<number, { withheld: boolean; trays: number[] | null } | undefined>,
 ): Map<number, UnloadTiming> {

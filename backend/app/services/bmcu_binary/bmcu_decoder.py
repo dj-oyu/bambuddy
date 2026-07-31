@@ -7,13 +7,13 @@ the shared BMCU validator; this module never guesses a wire format.
 
 from __future__ import annotations
 
+import struct
 from collections.abc import Callable
 from dataclasses import dataclass
-import struct
 
 from .errors import InvalidBMCUFrame
 
-SYNC = b"\xA5\x5A"
+SYNC = b"\xa5\x5a"
 SUPPORTED_VERSIONS = frozenset((0x83, 0x01))
 MAX_PAYLOAD_SIZE = 57
 MAX_EMBEDDED_WIRE_SIZE = 66
@@ -127,8 +127,11 @@ def decode_wire_frame(wire_bytes: bytes) -> BMCUEnvelope:
         raise InvalidBMCUFrame("invalid BMCU length, version, or CRC")
     size = wire_bytes[6]
     return BMCUEnvelope(
-        wire_bytes[2], wire_bytes[3], int.from_bytes(wire_bytes[4:6], "little"),
-        bytes(wire_bytes[7:7 + size]), bytes(wire_bytes),
+        wire_bytes[2],
+        wire_bytes[3],
+        int.from_bytes(wire_bytes[4:6], "little"),
+        bytes(wire_bytes[7 : 7 + size]),
+        bytes(wire_bytes),
     )
 
 
@@ -140,24 +143,46 @@ def decode_semantic(frame: BMCUEnvelope):
     if frame.kind == 2 and len(p) == 27:
         values = struct.unpack("<IHHHHBBB4B4BHBB", p)
         return BMCUStatus(
-            values[0], values[1], values[2], values[3], values[4],
-            values[5], values[6], values[7], tuple(values[8:12]),
-            tuple(values[12:16]), values[16], values[17], values[18],
+            values[0],
+            values[1],
+            values[2],
+            values[3],
+            values[4],
+            values[5],
+            values[6],
+            values[7],
+            tuple(values[8:12]),
+            tuple(values[12:16]),
+            values[16],
+            values[17],
+            values[18],
         )
     if frame.kind == 3 and len(p) == 16:
         hw_tick, record_type, severity, source, payload_size = struct.unpack("<IBBBB", p[:8])
         if payload_size > 8:
             raise InvalidBMCUFrame("EVENT union length exceeds 8")
-        detail = bytes(p[8:8 + payload_size])
+        detail = bytes(p[8 : 8 + payload_size])
         if record_type == 4 and payload_size >= 6:
             return BMCUEvent(
-                hw_tick, record_type, severity, source, detail, detail[0], detail[1],
-                int.from_bytes(detail[2:4], "little"), int.from_bytes(detail[4:6], "little"),
+                hw_tick,
+                record_type,
+                severity,
+                source,
+                detail,
+                detail[0],
+                detail[1],
+                int.from_bytes(detail[2:4], "little"),
+                int.from_bytes(detail[4:6], "little"),
             )
         return BMCUEvent(hw_tick, record_type, severity, source, detail)
     if frame.kind == 115 and len(p) == 26:
         return BMCUFullStatusRecord(
-            int.from_bytes(p[:2], "little"), p[2], p[3], p[4], p[5],
-            int.from_bytes(p[6:10], "little"), bytes(p[10:26]),
+            int.from_bytes(p[:2], "little"),
+            p[2],
+            p[3],
+            p[4],
+            p[5],
+            int.from_bytes(p[6:10], "little"),
+            bytes(p[10:26]),
         )
     return None

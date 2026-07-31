@@ -161,6 +161,8 @@ def _reject_inconsistent_ams_mapping(
                 "or map every used slot_id to a loaded tray",
             },
         )
+
+
 async def _resolve_source_path(db: AsyncSession, item: PrintQueueItem) -> Path | None:
     """Resolve an existing queue item's source 3MF on disk, or None."""
     if item.archive_id:

@@ -3,10 +3,9 @@ import logging
 import re
 import zipfile
 
-from pydantic import BaseModel
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

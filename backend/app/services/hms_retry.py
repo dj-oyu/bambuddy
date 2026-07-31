@@ -72,9 +72,9 @@ def _env_backoff(name: str, default: tuple[float, ...]) -> tuple[float, ...]:
 
 
 # Action kinds returned by tick()
-ATTEMPT = "attempt"        # run clear+requeue now, then call mark_attempted
-ESCALATE = "escalate"      # send/refresh the human notification, then mark_notified
-RECOVERED = "recovered"    # send the recovery notification (episode already closed)
+ATTEMPT = "attempt"  # run clear+requeue now, then call mark_attempted
+ESCALATE = "escalate"  # send/refresh the human notification, then mark_notified
+RECOVERED = "recovered"  # send the recovery notification (episode already closed)
 
 
 @dataclass
@@ -96,11 +96,11 @@ class _Episode:
     since: float
     baseline_severity: int  # severity when first observed (4=info .. 1=fatal)
     failures: int = 0
-    next_attempt_at: float = 0.0     # <= now means "may attempt"
+    next_attempt_at: float = 0.0  # <= now means "may attempt"
     attempt_pending: bool = False
-    attempt_deadline: float = 0.0    # settle window end for the pending attempt
-    code_present: bool = True        # as of the last connected tick
-    blocked_reason: str = ""         # non-empty = attempts held (severity gate)
+    attempt_deadline: float = 0.0  # settle window end for the pending attempt
+    code_present: bool = True  # as of the last connected tick
+    blocked_reason: str = ""  # non-empty = attempts held (severity gate)
     # Failure count at the last escalation actually sent; None = never sent.
     notified_at_failures: int | None = None
     blocked_notified: bool = False
@@ -121,26 +121,22 @@ class HmsRetryTracker:
         renotify_every: int | None = None,
         absent_grace_s: float | None = None,
     ) -> None:
-        self.backoff_s = backoff_s or _env_backoff(
-            "BAMBUDDY_HMS_RETRY_BACKOFF_S", (60.0, 300.0, 900.0, 1800.0)
-        )
+        self.backoff_s = backoff_s or _env_backoff("BAMBUDDY_HMS_RETRY_BACKOFF_S", (60.0, 300.0, 900.0, 1800.0))
         # How long after an attempt we wait for the printer to visibly start
         # printing before counting a failure (A1 state lag + 30s scheduler
         # tick + filament load).
-        self.settle_s = settle_s if settle_s is not None else _env_float(
-            "BAMBUDDY_HMS_RETRY_SETTLE_S", 150.0
+        self.settle_s = settle_s if settle_s is not None else _env_float("BAMBUDDY_HMS_RETRY_SETTLE_S", 150.0)
+        self.escalate_after = (
+            escalate_after if escalate_after is not None else _env_int("BAMBUDDY_HMS_RETRY_ESCALATE_AFTER", 3)
         )
-        self.escalate_after = escalate_after if escalate_after is not None else _env_int(
-            "BAMBUDDY_HMS_RETRY_ESCALATE_AFTER", 3
-        )
-        self.renotify_every = renotify_every if renotify_every is not None else _env_int(
-            "BAMBUDDY_HMS_RETRY_RENOTIFY_EVERY", 3
+        self.renotify_every = (
+            renotify_every if renotify_every is not None else _env_int("BAMBUDDY_HMS_RETRY_RENOTIFY_EVERY", 3)
         )
         # A code that vanishes must stay gone this long (with no active print
         # required) before the episode closes — 409D flickers off after a
         # clear and back on at the next dispatch.
-        self.absent_grace_s = absent_grace_s if absent_grace_s is not None else _env_float(
-            "BAMBUDDY_HMS_RETRY_ABSENT_GRACE_S", 180.0
+        self.absent_grace_s = (
+            absent_grace_s if absent_grace_s is not None else _env_float("BAMBUDDY_HMS_RETRY_ABSENT_GRACE_S", 180.0)
         )
         # {(printer_id, short_code): _Episode}
         self._episodes: dict[tuple[int, str], _Episode] = {}
@@ -179,9 +175,7 @@ class HmsRetryTracker:
         for code, severity in autoclear_present.items():
             key = (printer_id, code)
             if key not in self._episodes:
-                self._episodes[key] = _Episode(
-                    since=now, baseline_severity=severity, next_attempt_at=now
-                )
+                self._episodes[key] = _Episode(since=now, baseline_severity=severity, next_attempt_at=now)
 
         for key in [k for k in self._episodes if k[0] == printer_id]:
             code = key[1]
@@ -220,16 +214,12 @@ class HmsRetryTracker:
             if other_serious:
                 blocked = "serious/fatal HMS co-present: " + "; ".join(other_serious[:3])
             elif severity < ep.baseline_severity:
-                blocked = (
-                    f"severity worsened ({ep.baseline_severity} -> {severity})"
-                )
+                blocked = f"severity worsened ({ep.baseline_severity} -> {severity})"
             if blocked:
                 ep.blocked_reason = blocked
                 ep.attempt_pending = False
                 if not ep.blocked_notified:
-                    actions.append(
-                        Action(ESCALATE, printer_id, code, ep.failures, blocked, ep.since)
-                    )
+                    actions.append(Action(ESCALATE, printer_id, code, ep.failures, blocked, ep.since))
                 continue
             if ep.blocked_reason:
                 # Unblocked: allow an attempt now; re-arm block notification.
@@ -246,22 +236,16 @@ class HmsRetryTracker:
                 step = self.backoff_s[min(ep.failures - 1, len(self.backoff_s) - 1)]
                 ep.next_attempt_at = now + step
                 if self._should_escalate(ep):
-                    actions.append(
-                        Action(ESCALATE, printer_id, code, ep.failures, "", ep.since)
-                    )
+                    actions.append(Action(ESCALATE, printer_id, code, ep.failures, "", ep.since))
                 continue
 
             # ---- idle episode: attempt when backoff expires ------------------
             if now >= ep.next_attempt_at:
-                actions.append(
-                    Action(ATTEMPT, printer_id, code, ep.failures, "", ep.since)
-                )
+                actions.append(Action(ATTEMPT, printer_id, code, ep.failures, "", ep.since))
             elif self._should_escalate(ep):
                 # Escalation owed but the last send failed — retry it even
                 # while waiting out the backoff.
-                actions.append(
-                    Action(ESCALATE, printer_id, code, ep.failures, "", ep.since)
-                )
+                actions.append(Action(ESCALATE, printer_id, code, ep.failures, "", ep.since))
 
         return actions
 

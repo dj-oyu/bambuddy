@@ -20,9 +20,7 @@ def test_provisioning_key_file_is_private_and_round_trips(monkeypatch, tmp_path)
     save_key_file(keys)
     assert load_key_file() == keys
     assert key_file_path().stat().st_mode & 0o777 == 0o600
-    assert json.loads(key_file_path().read_text()) == {
-        "pico-bmcu-bridge": keys["pico-bmcu-bridge"].hex()
-    }
+    assert json.loads(key_file_path().read_text()) == {"pico-bmcu-bridge": keys["pico-bmcu-bridge"].hex()}
 
 
 @pytest.mark.parametrize("device_id", ["", "with space", "\ninvalid", "x" * 64])

@@ -20,10 +20,14 @@ def _status(pull=(41, 49, 48, 0), motion=(0, 0, 0, 2), slot=3):
 
 
 def _detector(**kw):
-    defaults = dict(
-        starve_pct=5, neutral_pct=20, after_s=30.0, warn_after_s=15.0,
-        warn_cooldown_s=300.0, max_age_s=20.0,
-    )
+    defaults = {
+        "starve_pct": 5,
+        "neutral_pct": 20,
+        "after_s": 30.0,
+        "warn_after_s": 15.0,
+        "warn_cooldown_s": 300.0,
+        "max_age_s": 20.0,
+    }
     defaults.update(kw)
     return FeedStallDetector(**defaults)
 

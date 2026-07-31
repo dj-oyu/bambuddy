@@ -31,9 +31,7 @@ def test_bypass_flag_writes_through_guard():
     c = _client()
     c._spoof_write_guard = lambda ams_id, tray_id: True  # guard everything
 
-    ok = c.ams_set_filament_setting(
-        0, 1, "GFA00", "PLA", "PLA Basic", "FF0000FF", 190, 230, bypass_spoof_guard=True
-    )
+    ok = c.ams_set_filament_setting(0, 1, "GFA00", "PLA", "PLA Basic", "FF0000FF", 190, 230, bypass_spoof_guard=True)
     assert ok is True
     c._client.publish.assert_called_once()
 

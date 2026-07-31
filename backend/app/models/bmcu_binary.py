@@ -35,9 +35,7 @@ class BMCUBinaryBoot(Base):
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("device_id", "pico_boot_id", name="uq_bmcu_binary_boot"),
-    )
+    __table_args__ = (UniqueConstraint("device_id", "pico_boot_id", name="uq_bmcu_binary_boot"),)
 
 
 class BMCUBinaryLink(Base):
@@ -126,8 +124,7 @@ class BMCUBinaryControlResult(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("device_id", "pico_boot_id", "command_sequence",
-                         name="uq_bmcu_binary_control_result"),
+        UniqueConstraint("device_id", "pico_boot_id", "command_sequence", name="uq_bmcu_binary_control_result"),
         Index("ix_bmcu_binary_control_device_time", "device_id", "recorded_at"),
     )
 

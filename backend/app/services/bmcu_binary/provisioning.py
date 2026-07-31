@@ -19,12 +19,7 @@ def key_file_path() -> Path:
 def validate_device_id(device_id: str) -> str:
     value = device_id.strip()
     encoded = value.encode("utf-8")
-    if (
-        value != device_id
-        or not value
-        or len(encoded) > 63
-        or any(ord(char) < 0x21 for char in value)
-    ):
+    if value != device_id or not value or len(encoded) > 63 or any(ord(char) < 0x21 for char in value):
         raise ValueError("device_id must contain 1-63 printable non-space bytes")
     return value
 

@@ -27,7 +27,11 @@ def hello_mac(device_key: bytes, challenge: bytes, pico_boot_id: int, transcript
 
 
 def verify_hello_mac(
-    device_key: bytes, challenge: bytes, pico_boot_id: int, transcript: bytes, supplied: bytes,
+    device_key: bytes,
+    challenge: bytes,
+    pico_boot_id: int,
+    transcript: bytes,
+    supplied: bytes,
 ) -> bool:
     if len(supplied) != hashlib.sha256().digest_size:
         return False

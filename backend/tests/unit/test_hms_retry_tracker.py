@@ -21,13 +21,13 @@ SEV_COMMON = 3
 
 
 def make_tracker(**kw):
-    defaults = dict(
-        backoff_s=(60.0, 300.0, 900.0, 1800.0),
-        settle_s=150.0,
-        escalate_after=3,
-        renotify_every=3,
-        absent_grace_s=180.0,
-    )
+    defaults = {
+        "backoff_s": (60.0, 300.0, 900.0, 1800.0),
+        "settle_s": 150.0,
+        "escalate_after": 3,
+        "renotify_every": 3,
+        "absent_grace_s": 180.0,
+    }
     defaults.update(kw)
     return HmsRetryTracker(**defaults)
 
@@ -221,7 +221,7 @@ class TestPowerAndConnectivity:
         assert tick(tr, now + 600) == []
         assert tr.episode_info(1, CODE).failures == 0
         # New settle window expires with code still present -> now it fails.
-        actions = tick(tr, now + 600 + tr.settle_s + 1)
+        tick(tr, now + 600 + tr.settle_s + 1)
         assert tr.episode_info(1, CODE).failures == 1
 
     def test_reconnect_with_code_gone_recovers(self):

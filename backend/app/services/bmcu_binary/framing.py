@@ -30,8 +30,15 @@ class FrameHeader:
         if not 0 <= self.link_index <= 0xFF:
             raise InvalidHeader("link index out of range")
         return _HEADER.pack(
-            MAGIC, VERSION, self.message_type, self.flags, self.payload_length,
-            self.transport_sequence, self.pico_boot_id, self.link_index, b"\0\0\0",
+            MAGIC,
+            VERSION,
+            self.message_type,
+            self.flags,
+            self.payload_length,
+            self.transport_sequence,
+            self.pico_boot_id,
+            self.link_index,
+            b"\0\0\0",
         )
 
 
@@ -58,8 +65,12 @@ def encode_frame(header: FrameHeader, payload: bytes | bytearray | memoryview = 
     if len(raw) > MAX_PAYLOAD_SIZE:
         raise PayloadTooLarge("payload exceeds 4096-byte limit")
     normalized = FrameHeader(
-        header.message_type, header.flags, len(raw), header.transport_sequence,
-        header.pico_boot_id, header.link_index,
+        header.message_type,
+        header.flags,
+        len(raw),
+        header.transport_sequence,
+        header.pico_boot_id,
+        header.link_index,
     )
     return normalized.encode() + raw
 
@@ -84,7 +95,7 @@ class IncrementalFrameParser:
         while offset < len(view):
             target = HEADER_SIZE if self._expected is None else self._expected
             take = min(target - len(self._buffer), len(view) - offset)
-            self._buffer.extend(view[offset:offset + take])
+            self._buffer.extend(view[offset : offset + take])
             offset += take
             if self._expected is None and len(self._buffer) == HEADER_SIZE:
                 header = decode_header(self._buffer)

@@ -110,9 +110,7 @@ class TestTransitionCAS:
             assert stale.status == "pending"
 
             async with session_maker() as db_b:
-                await force_transition(
-                    db_b, item_id, to_status="cancelled", reason="user cancel", caller="test-b"
-                )
+                await force_transition(db_b, item_id, to_status="cancelled", reason="user cancel", caller="test-b")
 
             result = await transition(
                 db_a,

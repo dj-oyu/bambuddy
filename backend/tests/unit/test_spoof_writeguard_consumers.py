@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-
 # ---------------------------------------------------------------------------
 # inventory.apply_spool_to_slot_via_mqtt — guarded write is honored
 # ---------------------------------------------------------------------------
@@ -262,8 +261,10 @@ def _spoof_body(force=False):
     from backend.app.api.routes.printers import _FilamentSpoofRequest
 
     return _FilamentSpoofRequest(
-        primary_ams_id=0, primary_tray_id=0,
-        backup_ams_id=0, backup_tray_id=1,
+        primary_ams_id=0,
+        primary_tray_id=0,
+        backup_ams_id=0,
+        backup_tray_id=1,
         force=force,
     )
 
@@ -284,9 +285,7 @@ async def test_engage_returns_503_when_disabled(monkeypatch):
     monkeypatch.setenv("BAMBUDDY_FILAMENT_SPOOF", "0")
 
     with pytest.raises(HTTPException) as exc:
-        await printers_mod.engage_filament_spoof(
-            printer_id=1, body=_spoof_body(), _=None, db=MagicMock()
-        )
+        await printers_mod.engage_filament_spoof(printer_id=1, body=_spoof_body(), _=None, db=MagicMock())
     assert exc.value.status_code == 503
     assert "disabled" in exc.value.detail.lower()
 
@@ -320,11 +319,7 @@ async def test_engage_returns_native_dict_verbatim(monkeypatch):
     monkeypatch.setenv("BAMBUDDY_FILAMENT_SPOOF", "1")
 
     native = {"native": True, "detail": "handled by firmware group"}
-    monkeypatch.setattr(
-        fse_mod.filament_spoof_engine, "engage", AsyncMock(return_value=native)
-    )
+    monkeypatch.setattr(fse_mod.filament_spoof_engine, "engage", AsyncMock(return_value=native))
 
-    out = await printers_mod.engage_filament_spoof(
-        printer_id=1, body=_spoof_body(), _=None, db=_db_returning_printer()
-    )
+    out = await printers_mod.engage_filament_spoof(printer_id=1, body=_spoof_body(), _=None, db=_db_returning_printer())
     assert out == native

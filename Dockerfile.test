@@ -23,6 +23,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY backend/ ./backend/
 COPY pyproject.toml ./
 
+# Cross-stack contract fixtures used by backend tests. Keep these explicit so
+# the backend test image stays small while still validating the shared wire/API
+# contracts against their canonical frontend and documentation artifacts.
+COPY docs/bmcu_binary_registry.json ./docs/bmcu_binary_registry.json
+COPY frontend/src/__tests__/fixtures/bmcuMonitorApi.json ./frontend/src/__tests__/fixtures/bmcuMonitorApi.json
+
 # Embedded GCode viewer assets — required so the @app.get("/gcode-viewer/...")
 # packaging-regression test in tests/integration/test_gcode_viewer.py actually
 # runs instead of pytest-skipping with "index.html not present". Path matches

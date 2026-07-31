@@ -21,13 +21,12 @@ even when disabled so operators can clean up.
 import logging
 import os
 
+from backend.app.services.filament_deficit import _normalize_color_for_id
+
 logger = logging.getLogger(__name__)
 
 # Reuse the single canonical color normaliser (identity comparison) shared with
 # the deficit/backup-peer logic so the overlay and that code agree exactly.
-from backend.app.services.filament_deficit import _normalize_color_for_id
-
-
 # States that the overlay treats as "active" (should be overlaid). PENDING is
 # included: its fail-safe key naturally no-ops until firmware reports the new
 # identity, at which point the overlay fires and the slot is confirmed.
@@ -177,18 +176,14 @@ def apply_spoof_overlay(units: list, spoofs: list) -> int:
             if tray is None:
                 continue
 
-            matches_fw = _matches_spoof(
-                tray, spoof.get("spoof_tray_info_idx"), spoof.get("spoof_tray_color")
-            )
+            matches_fw = _matches_spoof(tray, spoof.get("spoof_tray_info_idx"), spoof.get("spoof_tray_color"))
             # Partial AMS pushes merge into the PREVIOUSLY OVERLAID tray (real
             # color), so the firmware-identity check fails even though the spoof
             # is healthy. Treat "already overlaid" as a match too, otherwise the
             # marker is stripped (badge/pairing vanish) on every partial push.
-            already_overlaid = (
-                tray.get("tray_info_idx") == spoof.get("spoof_tray_info_idx")
-                and _normalize_color(tray.get("tray_color"))
-                == _normalize_color(spoof.get("real_tray_color"))
-            )
+            already_overlaid = tray.get("tray_info_idx") == spoof.get("spoof_tray_info_idx") and _normalize_color(
+                tray.get("tray_color")
+            ) == _normalize_color(spoof.get("real_tray_color"))
             if not (matches_fw or already_overlaid):
                 # Firmware hasn't (yet) reported the spoofed identity (PENDING),
                 # or the user swapped the spool / firmware drifted. Leave alone.
@@ -197,10 +192,9 @@ def apply_spoof_overlay(units: list, spoofs: list) -> int:
             # Overlay the real identity. Keep tray_info_idx spoofed. Count a
             # rewrite only when a value actually changes (an already-overlaid
             # tray still gets its marker refreshed but isn't "rewritten").
-            _changed = (
-                tray.get("tray_color") != spoof.get("real_tray_color")
-                or tray.get("tray_sub_brands") != spoof.get("real_tray_sub_brands")
-            )
+            _changed = tray.get("tray_color") != spoof.get("real_tray_color") or tray.get(
+                "tray_sub_brands"
+            ) != spoof.get("real_tray_sub_brands")
             tray["tray_color"] = spoof.get("real_tray_color")
             tray["tray_sub_brands"] = spoof.get("real_tray_sub_brands")
             tray["_spoof"] = {

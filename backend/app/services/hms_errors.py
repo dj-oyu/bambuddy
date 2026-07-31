@@ -869,7 +869,7 @@ HMS_ERROR_DESCRIPTIONS: dict[str, str] = {
 # get_error_description_full(). Descriptions verbatim from Bambu's official
 # HMS database (https://e.bambulab.com/query.php?lang=en, ver 202607111942).
 HMS_ERROR_DESCRIPTIONS_FULL: dict[str, str] = {
-    "0500040000010044": "The firmware of AMS A does not match the printer. Please upgrade it on the \"Firmware\" page.",
+    "0500040000010044": 'The firmware of AMS A does not match the printer. Please upgrade it on the "Firmware" page.',
     "0700200000020001": "AMS A Slot 1 filament has run out. Please insert a new filament.",
     "0700200000030001": "AMS A Slot 1 filament has run out. Please wait while old filament is purged.",
     "0700210000020001": "AMS A Slot 2 filament has run out. Please insert a new filament.",

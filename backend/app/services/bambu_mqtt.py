@@ -2338,9 +2338,7 @@ class BambuMQTTClient:
                             # only treats a backup-slot activation as a genuine
                             # runout when it followed the primary running out
                             # mid-print (finding #7).
-                            self._on_tray_now_change(
-                                _sp_ams, _sp_tray, _sp_prev, self.state.state
-                            )
+                            self._on_tray_now_change(_sp_ams, _sp_tray, _sp_prev, self.state.state)
                         except Exception:
                             logger.debug("[%s] spoof tray_now hook raised", self.serial_number, exc_info=True)
                 # Track the last physical AMS slot for the runout hook's
@@ -2543,7 +2541,9 @@ class BambuMQTTClient:
         if self._active_spoofs:
             logger.debug(
                 "[%s] spoof overlay pass: %d active, %d rewritten",
-                self.serial_number, len(self._active_spoofs), _spoof_rewritten,
+                self.serial_number,
+                len(self._active_spoofs),
+                _spoof_rewritten,
             )
 
         # Notify the engine so it can confirm PENDING spoofs / revalidate off the
@@ -4114,7 +4114,9 @@ class BambuMQTTClient:
             and self.on_print_complete
             and (
                 self._previous_gcode_state == "RUNNING"  # Normal abort transition
-                or (self._was_running and self._previous_gcode_state != self.state.state)  # PAUSE-routed cancel / missed edge
+                or (
+                    self._was_running and self._previous_gcode_state != self.state.state
+                )  # PAUSE-routed cancel / missed edge
             )
         ):
             should_trigger_completion = True
@@ -4427,13 +4429,13 @@ class BambuMQTTClient:
         filename: str,
         plate_id: int = 1,
         ams_mapping: list[int] | None = None,
-        bed_levelling: str = "auto",
-        flow_cali: str = "auto",
+        bed_levelling: str | bool = "auto",
+        flow_cali: str | bool = "auto",
         vibration_cali: bool = True,
         layer_inspect: bool = False,
         timelapse: bool = False,
         use_ams: bool = True,
-        nozzle_offset_cali: str = "auto",
+        nozzle_offset_cali: str | bool = "auto",
         nozzle_mapping: str | None = None,
     ):
         """Start a print job on the printer.
@@ -4633,6 +4635,14 @@ class BambuMQTTClient:
             # only for the explicit "on" state — for "auto" the bool is false and
             # the int carries the intent, exactly as BambuStudio's SelectMachine
             # sends it. Unknown values fall back to auto.
+            # Accept the legacy boolean form as well as the current tri-state
+            # API. Some internal integrations and older clients still call
+            # this service directly with booleans.
+            bed_levelling = "on" if bed_levelling is True else "off" if bed_levelling is False else bed_levelling
+            flow_cali = "on" if flow_cali is True else "off" if flow_cali is False else flow_cali
+            nozzle_offset_cali = (
+                "on" if nozzle_offset_cali is True else "off" if nozzle_offset_cali is False else nozzle_offset_cali
+            )
             _tristate_wire = {"off": 0, "on": 1, "auto": 2}
             bed_level_int = _tristate_wire.get(bed_levelling, 2)
             flow_cali_int = _tristate_wire.get(flow_cali, 2)
@@ -6176,7 +6186,9 @@ class BambuMQTTClient:
                 if self._spoof_write_guard(ams_id, tray_id):
                     logger.info(
                         "[%s] reset_ams_slot suppressed for spoofed slot AMS %s tray %s (write-guard)",
-                        self.serial_number, ams_id, tray_id,
+                        self.serial_number,
+                        ams_id,
+                        tray_id,
                     )
                     return False
             except Exception:
