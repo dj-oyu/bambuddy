@@ -1723,8 +1723,14 @@ describe('PrintModal — per-plate filament mapping (#2551 follow-up)', () => {
     await waitFor(() => expect(screen.getByText('Plate 2')).toBeInTheDocument());
     await user.click(screen.getByText('Plate 2'));
     await user.click(screen.getByRole('button', { name: /any model/i }));
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
-    await user.selectOptions(screen.getByRole('combobox'), 'X1C');
+    const modelSelect = await waitFor(() => {
+      const select = screen.getAllByRole('combobox').find((element) =>
+        Array.from((element as HTMLSelectElement).options).some((option) => option.value === 'X1C'),
+      );
+      expect(select).toBeDefined();
+      return select as HTMLSelectElement;
+    });
+    await user.selectOptions(modelSelect, 'X1C');
 
     await user.click(document.querySelector('button[type="submit"]') as HTMLElement);
 
