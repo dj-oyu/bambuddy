@@ -13,6 +13,7 @@ export default {
     makerworld: 'MakerWorld',
     notifications: 'Bildirimler',
     settings: 'Ayarlar',
+    bmcuLink: 'BMCU Bağlantısı',
     system: 'Sistem',
     collapseSidebar: 'Kenar çubuğunu daralt',
     expandSidebar: 'Kenar çubuğunu genişlet',

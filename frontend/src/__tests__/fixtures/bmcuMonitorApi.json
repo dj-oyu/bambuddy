@@ -1,0 +1,99 @@
+{
+  "list": [
+    {
+      "deviceId": "pico-01",
+      "displayName": "Pico loader",
+      "firmware": "1.0.0",
+      "health": "online",
+      "lastSeenAt": "2026-07-31T10:00:00Z",
+      "bootId": "0000000000000001",
+      "linkCount": 1,
+      "onlineLinks": 1,
+      "ackSequence": "00000000000000000008",
+      "replayPending": 2,
+      "anomalyCount": 1
+    }
+  ],
+  "detail": {
+    "deviceId": "pico-01",
+    "displayName": "Pico loader",
+    "firmware": "1.0.0",
+    "health": "online",
+    "lastSeenAt": "2026-07-31T10:00:00Z",
+    "bootId": "0000000000000001",
+    "linkCount": 1,
+    "onlineLinks": 1,
+    "ackSequence": "00000000000000000008",
+    "replayPending": 2,
+    "anomalyCount": 1,
+    "firstSeenAt": "2026-07-31T09:00:00Z",
+    "links": [
+      {
+        "linkIndex": 0,
+        "linkId": "bmcu-0",
+        "state": "online",
+        "currentSlot": 1,
+        "activeMask": 15,
+        "motion": "(0, 2, 0, 0)",
+        "pullPercent": 42,
+        "pressure": 17,
+        "faultCount": 0,
+        "lastSeenAt": "2026-07-31T10:00:00Z"
+      }
+    ]
+  },
+  "timeline": {
+    "points": [
+      {
+        "id": "0000000000000001:00000000000000000007:state_change:1:0",
+        "at": "2026-07-31T09:59:00Z",
+        "linkIndex": 0,
+        "slot": 1,
+        "pullPercent": null,
+        "pressure": null,
+        "motion": "2",
+        "kind": "state_change",
+        "label": "state change",
+        "severity": "info",
+        "source": "bmcu",
+        "anomaly": false,
+        "missingData": false
+      },
+      {
+        "id": "0000000000000001:00000000000000000008:control_error:bridge:1",
+        "at": "2026-07-31T10:00:00Z",
+        "linkIndex": 0,
+        "slot": null,
+        "pullPercent": null,
+        "pressure": null,
+        "motion": null,
+        "kind": "control_error",
+        "label": "control error",
+        "severity": "critical",
+        "source": "bmcu",
+        "anomaly": true,
+        "missingData": false
+      }
+    ],
+    "from": "2026-07-31T09:00:00Z",
+    "to": "2026-07-31T10:00:00Z",
+    "downsampled": false
+  },
+  "metrics": [
+    {
+      "at": "2026-07-31T10:00:00Z",
+      "heapFreeBytes": 120000,
+      "temperatureC": 42.125,
+      "loopDelayUs": 100,
+      "uartBacklog": 12,
+      "uartErrors": 3,
+      "wifiRssiDbm": -55,
+      "replayPending": 2,
+      "journalBytes": 4096,
+      "ackAgeMs": 25,
+      "loopGapP99Us": 900,
+      "transportSendMaxUs": 2000,
+      "uartOverflowTotal": 3
+    }
+  ]
+}

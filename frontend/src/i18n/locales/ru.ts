@@ -12,6 +12,7 @@ export default {
     makerworld: "MakerWorld",
     notifications: "Уведомления",
     settings: "Настройки",
+    bmcuLink: 'Связь BMCU',
     system: "Система",
     collapseSidebar: "Свернуть боковую панель",
     expandSidebar: "Развернуть боковую панель",

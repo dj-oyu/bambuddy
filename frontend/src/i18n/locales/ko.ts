@@ -12,6 +12,7 @@ export default {
     makerworld: 'MakerWorld',
     notifications: '알림',
     settings: '설정',
+    bmcuLink: 'BMCU 연결',
     system: '시스템',
     collapseSidebar: '사이드바 접기',
     expandSidebar: '사이드바 펼치기',

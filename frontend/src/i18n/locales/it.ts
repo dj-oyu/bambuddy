@@ -13,6 +13,7 @@ export default {
     makerworld: 'MakerWorld',
     notifications: 'Notifiche',
     settings: 'Impostazioni',
+    bmcuLink: 'Collegamento BMCU',
     system: 'Sistema',
     collapseSidebar: 'Comprimi barra laterale',
     expandSidebar: 'Espandi barra laterale',
