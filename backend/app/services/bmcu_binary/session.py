@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import logging
 import os
 import time
 
@@ -24,6 +25,9 @@ from .messages import (
     TransportDrop,
     decode_tlvs,
 )
+
+logger = logging.getLogger(__name__)
+
 
 GLOBAL_SCOPE = 0xFF
 DURABLE_TYPES = frozenset(
@@ -61,6 +65,7 @@ class BinarySession:
         self._closed = False
         self._write_lock = asyncio.Lock()
         self._pending: list[Frame] = []
+        self.close_reason: str | None = None
 
     async def run(self) -> None:
         challenge = os.urandom(32)
@@ -99,8 +104,12 @@ class BinarySession:
             )
             while not self._closed:
                 await self._handle(await asyncio.wait_for(self._next_frame(), self.idle_timeout))
-        except (EOFError, asyncio.TimeoutError, ConnectionError, BinaryProtocolError):
-            pass
+        except (EOFError, asyncio.TimeoutError, ConnectionError, BinaryProtocolError) as error:
+            self.close_reason = str(error) or type(error).__name__
+            if self.device_id is None:
+                logger.warning("BMCU binary session rejected before authentication: %s", self.close_reason)
+            else:
+                logger.debug("BMCU binary session %s closed: %s", self.device_id, self.close_reason)
         finally:
             await self.close()
             if self.device_id:

@@ -118,7 +118,7 @@ def test_authenticated_session_and_ping(monkeypatch) -> None:
     assert writer.closed
 
 
-def test_telemetry_before_hello_is_rejected(monkeypatch) -> None:
+def test_telemetry_before_hello_is_rejected(monkeypatch, caplog) -> None:
     challenge = bytes(range(32))
     incoming = encode_frame(
         FrameHeader(MessageType.PICO_DIAGNOSTIC, transport_sequence=1, pico_boot_id=1, link_index=0xFF),
@@ -140,6 +140,8 @@ def test_telemetry_before_hello_is_rejected(monkeypatch) -> None:
     frames = IncrementalFrameParser().feed(writer.output)
     assert [f.header.message_type for f in frames] == [MessageType.SERVER_CHALLENGE]
     assert writer.closed
+    assert session.close_reason == "HELLO required before telemetry"
+    assert "HELLO required before telemetry" in caplog.text
 
 
 def test_control_timestamp_is_session_relative(monkeypatch) -> None:
