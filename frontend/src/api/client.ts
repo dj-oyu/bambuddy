@@ -7762,10 +7762,37 @@ export interface BMCULinkConnectionInfo {
   endpoints: BMCULinkConnectionEndpoint[];
 }
 
+export interface BMCUProvisionedDevice {
+  device_id: string;
+  key_hex: string;
+}
+
+export interface BMCUProvisioningInfo {
+  enabled: boolean;
+  port: number;
+  endpoints: BMCULinkConnectionEndpoint[];
+  devices: BMCUProvisionedDevice[];
+}
+
+export interface BMCUProvisioningRotation {
+  device_id: string;
+  key_hex: string;
+  rotated: boolean;
+}
+
 // BMCU Link API
 export const bmcuLinkApi = {
   getConnectionInfo: () =>
     request<BMCULinkConnectionInfo>('/bmcu-link/connection-info'),
+
+  getProvisioning: () =>
+    request<BMCUProvisioningInfo>('/bmcu-link/provisioning'),
+
+  rotateProvisioningKey: (deviceId: string) =>
+    request<BMCUProvisioningRotation>('/bmcu-link/provisioning/rotate', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: deviceId }),
+    }),
 
   getDevices: () =>
     request<BMCULinkDevicesResponse>('/bmcu-link/devices'),

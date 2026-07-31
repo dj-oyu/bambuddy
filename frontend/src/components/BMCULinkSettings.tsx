@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Info, Clock, AlertTriangle, Copy, Check, Cable } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Info, Clock, AlertTriangle, Copy, Check, Cable, KeyRound, RefreshCw } from 'lucide-react';
 import {
   bmcuLinkApi,
   type BMCULinkDevice,
@@ -108,6 +108,134 @@ function ConnectionInfoPanel() {
             ? t('settings.bmcuLink.connectionAuthOn')
             : t('settings.bmcuLink.connectionAuthOff')}
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProvisioningPanel() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [copied, setCopied] = useState<string | null>(null);
+  const provisioning = useQuery({
+    queryKey: ['bmcu-link-provisioning'],
+    queryFn: () => bmcuLinkApi.getProvisioning(),
+    staleTime: 0,
+  });
+  const rotate = useMutation({
+    mutationFn: (deviceId: string) => bmcuLinkApi.rotateProvisioningKey(deviceId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bmcu-link-provisioning'] }),
+  });
+
+  if (provisioning.isLoading) {
+    return <Loader2 className="h-5 w-5 animate-spin text-bambu-green" />;
+  }
+  if (!provisioning.data) return null;
+
+  const endpoint = provisioning.data.endpoints[0];
+  const copy = (id: string, value: string) => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-bambu-green" />
+          <h3 className="font-medium text-white">
+            {t('settings.bmcuLink.provisioningTitle', 'Pico provisioning')}
+          </h3>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-bambu-gray">
+          {t(
+            'settings.bmcuLink.provisioningBody',
+            'Copy these values into config.py on the Pico. Rotating a key immediately disconnects the old key.',
+          )}
+        </p>
+        {provisioning.data.devices.map((device) => {
+          const snippet = [
+            `BMCU_BINARY_HOST = "${endpoint?.ip ?? '<BAMBUDDY_IP>'}"`,
+            `BMCU_BINARY_PORT = ${provisioning.data.port}`,
+            `BMCU_BINARY_DEVICE_ID = "${device.device_id}"`,
+            `BMCU_BINARY_DEVICE_KEY = "${device.key_hex}"`,
+          ].join('\n');
+          return (
+            <div key={device.device_id} className="rounded-lg border border-bambu-dark-tertiary p-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-white">{device.device_id}</p>
+                  <p className="text-xs text-bambu-gray">{endpoint?.tcp_url ?? `TCP port ${provisioning.data.port}`}</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={rotate.isPending}
+                  onClick={() => {
+                    if (window.confirm(
+                      t(
+                        'settings.bmcuLink.rotateConfirm',
+                        'Rotate this device key? The Pico will disconnect until its config is updated.',
+                      ),
+                    )) {
+                      rotate.mutate(device.device_id);
+                    }
+                  }}
+                >
+                  {rotate.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <RefreshCw className="h-4 w-4" />}
+                  {t('settings.bmcuLink.rotateKey', 'Reissue key')}
+                </Button>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs text-bambu-gray">
+                    {t('settings.bmcuLink.deviceKey', 'Device key')}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-bambu-gray hover:text-white"
+                    onClick={() => copy(`key:${device.device_id}`, device.key_hex)}
+                  >
+                    {copied === `key:${device.device_id}`
+                      ? <Check className="h-3.5 w-3.5 text-green-400" />
+                      : <Copy className="h-3.5 w-3.5" />}
+                    {t('common.copy', 'Copy')}
+                  </button>
+                </div>
+                <code className="block break-all rounded bg-bambu-dark-tertiary p-2 text-xs text-white">
+                  {device.key_hex}
+                </code>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs text-bambu-gray">config.py</span>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-bambu-gray hover:text-white"
+                    onClick={() => copy(`config:${device.device_id}`, snippet)}
+                  >
+                    {copied === `config:${device.device_id}`
+                      ? <Check className="h-3.5 w-3.5 text-green-400" />
+                      : <Copy className="h-3.5 w-3.5" />}
+                    {t('common.copy', 'Copy')}
+                  </button>
+                </div>
+                <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-bambu-dark-tertiary p-2 text-xs text-white">
+                  {snippet}
+                </pre>
+              </div>
+            </div>
+          );
+        })}
+        {rotate.isError && (
+          <p className="text-xs text-red-400">{String(rotate.error)}</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -769,6 +897,7 @@ export function BMCULinkSettings() {
       </Card>
 
       <ConnectionInfoPanel />
+      <ProvisioningPanel />
 
       {devices.length === 0 ? (
         <Card>

@@ -2,7 +2,8 @@
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,10 +13,33 @@ from backend.app.core.database import get_db
 from backend.app.core.permissions import Permission
 from backend.app.models.bmcu_binary import BMCUBinaryDevice, BMCUBinaryLog, BMCUBinaryRecord
 from backend.app.models.user import User
+from backend.app.services.bmcu_binary.provisioning import generate_device_key, validate_device_id
 from backend.app.services.bmcu_binary.server import binary_transport_server
+from backend.app.services.network_utils import get_all_interface_ips
 
 router = APIRouter(prefix="/bmcu-link", tags=["bmcu-link"])
 ReadAccess = RequirePermissionIfAuthEnabled(Permission.INVENTORY_READ)
+ProvisionAccess = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE)
+
+
+class RotateProvisioningKey(BaseModel):
+    device_id: str = Field(min_length=1, max_length=63)
+
+
+def _connection_endpoints() -> list[dict[str, str]]:
+    host = settings.bmcu_binary_host
+    if host not in ("0.0.0.0", "::"):
+        addresses = [host]
+    else:
+        addresses = []
+        for interface in get_all_interface_ips():
+            address = interface.get("ip")
+            if address and not address.startswith("127.") and address not in addresses:
+                addresses.append(address)
+    return [
+        {"ip": address, "tcp_url": f"tcp://{address}:{settings.bmcu_binary_port}"}
+        for address in addresses
+    ]
 
 
 def _device(row, count=0):
@@ -36,8 +60,39 @@ async def connection_info(_: User | None = ReadAccess):
     return {
         "auth_enabled": True, "telemetry_scope": "BMB1-HMAC",
         "port": settings.bmcu_binary_port,
-        "endpoints": [{"ip": settings.bmcu_binary_host,
-                       "tcp_url": f"tcp://{settings.bmcu_binary_host}:{settings.bmcu_binary_port}"}],
+        "endpoints": _connection_endpoints(),
+    }
+
+
+@router.get("/provisioning")
+async def provisioning(response: Response, _: User | None = ProvisionAccess):
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "enabled": settings.bmcu_binary_enabled,
+        "port": settings.bmcu_binary_port,
+        "endpoints": _connection_endpoints(),
+        "devices": [
+            {"device_id": device_id, "key_hex": key.hex()}
+            for device_id, key in sorted(binary_transport_server.provisioning_keys().items())
+        ],
+    }
+
+
+@router.post("/provisioning/rotate")
+async def rotate_provisioning_key(
+    body: RotateProvisioningKey, response: Response, _: User | None = ProvisionAccess,
+):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        device_id = validate_device_id(body.device_id)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    key = generate_device_key()
+    await binary_transport_server.set_device_key(device_id, key)
+    return {
+        "device_id": device_id,
+        "key_hex": key.hex(),
+        "rotated": True,
     }
 
 

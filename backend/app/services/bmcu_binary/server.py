@@ -12,6 +12,7 @@ from backend.app.core.config import settings
 from backend.app.core.database import async_session
 
 from .persistence import BinaryPersistence
+from .provisioning import load_key_file, save_key_file, validate_device_id
 from .registry import SessionRegistry
 from .session import BinarySession
 
@@ -29,8 +30,9 @@ def configured_keys() -> dict[str, bytes]:
             if not isinstance(device_id, str) or len(device_id.encode()) > 63 or len(key) != 32:
                 raise ValueError
             result[device_id] = key
+        result.update(load_key_file())
         return result
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except (TypeError, ValueError, OSError, UnicodeError, json.JSONDecodeError):
         logger.error("BMCU binary device key configuration is invalid")
         return {}
 
@@ -44,6 +46,7 @@ class BinaryTransportServer:
         self._keys: dict[str, bytes] = {}
         self._auth_failures = defaultdict(deque)
         self.control_lock = asyncio.Lock()
+        self.provisioning_lock = asyncio.Lock()
 
     async def start(self) -> None:
         if self._server is not None or not settings.bmcu_binary_enabled:
@@ -100,6 +103,22 @@ class BinaryTransportServer:
         self._server = None
         sessions = self.registry.sessions()
         await asyncio.gather(*(session.close() for session in sessions), return_exceptions=True)
+
+    def provisioning_keys(self) -> dict[str, bytes]:
+        return dict(self._keys)
+
+    async def set_device_key(self, device_id: str, key: bytes) -> None:
+        device_id = validate_device_id(device_id)
+        if len(key) != 32:
+            raise ValueError("device key must be 256 bits")
+        async with self.provisioning_lock:
+            updated = dict(self._keys)
+            updated[device_id] = key
+            await asyncio.to_thread(save_key_file, updated)
+            self._keys = updated
+            session = self.registry.get(device_id)
+            if session is not None:
+                await session.close()
 
 
 binary_transport_server = BinaryTransportServer()
