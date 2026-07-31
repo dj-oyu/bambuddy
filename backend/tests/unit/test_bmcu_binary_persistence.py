@@ -5,7 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.app.core.database import Base
-from backend.app.models.bmcu_binary import BMCUBinaryLossRange, BMCUBinaryRecord
+from backend.app.models.bmcu_binary import (
+    BMCUBinaryBoot,
+    BMCUBinaryDevice,
+    BMCUBinaryLossRange,
+    BMCUBinaryRecord,
+)
 from backend.app.services.bmcu_binary.constants import MessageType
 from backend.app.services.bmcu_binary.framing import FrameHeader, IncrementalFrameParser
 from backend.app.services.bmcu_binary.messages import Hello, HelloLink, HelloReplayRange, TransportDrop
@@ -30,7 +35,7 @@ async def test_drop_range_advances_global_ack_idempotently(tmp_path) -> None:
         "monitor-drop",
         "1",
         (HelloLink(0, "bmcu-a"),),
-        (HelloReplayRange(boot, 1, 5),),
+        (HelloReplayRange(boot, 1, 1),),
         b"x" * 32,
     )
     assert await persistence.register_hello(hello, boot) == 0
@@ -60,6 +65,36 @@ async def test_drop_range_advances_global_ack_idempotently(tmp_path) -> None:
     assert await persistence.persist("monitor-drop", drop) == 4
     assert await persistence.persist("monitor-drop", drop) == 4
     async with factory() as db:
+        stored_boot = (await db.execute(select(BMCUBinaryBoot))).scalar_one()
+        stored_device = (await db.execute(select(BMCUBinaryDevice))).scalar_one()
+        assert int(stored_boot.newest_available_sequence) == 4
+        assert int(stored_device.newest_available_sequence) == 4
         assert len((await db.execute(select(BMCUBinaryRecord))).scalars().all()) == 2
         assert len((await db.execute(select(BMCUBinaryLossRange))).scalars().all()) == 1
+
+    next_boot = boot + 1
+    next_hello = Hello(
+        "monitor-drop",
+        "1",
+        (HelloLink(0, "bmcu-a"),),
+        (
+            HelloReplayRange(next_boot, 1, 1),
+            HelloReplayRange(boot, 1, 4),
+        ),
+        b"x" * 32,
+    )
+    assert await persistence.register_hello(next_hello, next_boot) == 0
+    historical_payload = TransportDrop(200, 4, 5, 2, 1).encode()
+    historical_drop = type(status)(
+        FrameHeader(
+            MessageType.TRANSPORT_DROP,
+            payload_length=len(historical_payload),
+            transport_sequence=4,
+            pico_boot_id=boot,
+            link_index=0xFF,
+        ),
+        historical_payload,
+    )
+    with pytest.raises(ValueError, match="exceeds HELLO advertised range"):
+        await persistence.persist("monitor-drop", historical_drop)
     await test_engine.dispose()

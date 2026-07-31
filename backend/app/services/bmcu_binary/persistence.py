@@ -169,7 +169,15 @@ class BinaryPersistence:
                 )
                 db.add(boot)
                 await db.flush()
-            if drop and drop.last_sequence > int(boot.newest_available_sequence):
+            reported_newest = max(
+                sequence, drop.last_sequence if drop else sequence
+            )
+            if device.pico_boot_id == boot_key:
+                if reported_newest > int(boot.newest_available_sequence):
+                    boot.newest_available_sequence = u64_decimal(reported_newest)
+                if reported_newest > int(device.newest_available_sequence):
+                    device.newest_available_sequence = u64_decimal(reported_newest)
+            elif drop and drop.last_sequence > int(boot.newest_available_sequence):
                 raise ValueError("TRANSPORT_DROP exceeds HELLO advertised range")
             existing = (
                 await db.execute(
