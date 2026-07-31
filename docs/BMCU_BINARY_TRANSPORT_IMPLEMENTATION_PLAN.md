@@ -162,7 +162,7 @@ Required data model:
 - first/last seen;
 - connection and aggregate health;
 - provisioned-key metadata, never the key itself in API responses;
-- last durable ACK per boot/link;
+- last durable global ACK per boot;
 - oldest pending replay information reported by HELLO.
 
 ### Raw transport event
@@ -201,7 +201,7 @@ ACK rules:
 
 - stage all accepted messages in one bounded transaction;
 - commit;
-- compute the highest contiguous persisted sequence per boot/link;
+- compute the highest contiguous persisted global sequence per boot;
 - enqueue ACK only after successful commit;
 - never advance across an absent or retryable-rejected sequence;
 - duplicates are successful idempotent input, not duplicate rows;
@@ -407,4 +407,3 @@ the shared end-to-end suite.
 - The shared malformed-input, authentication, replay, CONTROL, and integration
   suites pass.
 - Legacy Pico JSON WebSocket and NDJSON ingestion are removed.
-
