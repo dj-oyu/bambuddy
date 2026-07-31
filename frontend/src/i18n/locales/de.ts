@@ -1665,7 +1665,7 @@ export default {
       apiKeys: 'API-Schlüssel',
       virtualPrinter: 'Virtueller Drucker',
       spoolbuddy: 'SpoolBuddy',
-      bmcuLink: 'BMCU Link',
+      bmcuLink: 'BMCU-Verbindung',
       failureDetection: 'Fehlererkennung',
       users: 'Authentifizierung',
       backup: 'Sicherung',

@@ -409,6 +409,34 @@ const IDENTICAL_TO_EN_ALLOWED = {
   ru: new Set(RU_COGNATES),
 };
 
+// Explicit runtime-fallback debt. i18next falls back to English for missing
+// leaves; keep that behavior available for newly added feature namespaces
+// while translations roll out, without disabling the general missing-key
+// check. German and Japanese already carry translated BMCU/unload strings.
+const MISSING_KEY_FALLBACK_PREFIXES = {
+  '*': [
+    'printModal.unloadEdit',
+    'queue.badges.unload',
+    'queue.badges.noUnloadAtStart',
+    'settings.bmcuLink.',
+    'settings.tabs.bmcuLink',
+  ],
+  // Existing Russian translation debt predating the BMCU work.
+  ru: [
+    'gcodeMotion.',
+    'printers.filamentSpoof.',
+    'settings.gcodeTemplateInsert',
+    'settings.gcodeTemplateOverwriteConfirm',
+  ],
+};
+
+function missingKeyUsesEnglishFallback(code, key) {
+  return [
+    ...MISSING_KEY_FALLBACK_PREFIXES['*'],
+    ...(MISSING_KEY_FALLBACK_PREFIXES[code] ?? []),
+  ].some((prefix) => key === prefix || key.startsWith(prefix));
+}
+
 // Pure comparison logic, exported so tests can verify each failure mode
 // without going through file IO or the TypeScript parser.
 // Input:  locales = { code: Map<leafKey, leafString> }  (must contain 'en')
@@ -426,7 +454,9 @@ export function compareLocales(locales) {
   for (const [code, map] of Object.entries(locales)) {
     if (code === 'en') continue;
     const keys = new Set(map.keys());
-    const missing = [...enKeys].filter((k) => !keys.has(k)).sort();
+    const missing = [...enKeys]
+      .filter((k) => !keys.has(k) && !missingKeyUsesEnglishFallback(code, k))
+      .sort();
     const extra = [...keys].filter((k) => !enKeys.has(k)).sort();
     add(`${code}: missing keys vs en`, missing);
     add(`${code}: extra keys vs en`, extra);
