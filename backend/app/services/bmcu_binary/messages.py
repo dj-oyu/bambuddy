@@ -211,6 +211,7 @@ class TransportDrop:
     reason: int
 
     def encode(self) -> bytes:
+        self.validate()
         return struct.pack(
             ">QQQIB3s", self.observed_at_us, self.first_sequence, self.last_sequence,
             self.count, self.reason, b"\0\0\0",
@@ -221,7 +222,15 @@ class TransportDrop:
         if len(payload) != 32:
             raise InvalidMessage("TRANSPORT_DROP payload must be 32 bytes")
         observed, first, last, count, reason, _reserved = struct.unpack(">QQQIB3s", payload)
-        return cls(observed, first, last, count, reason)
+        result = cls(observed, first, last, count, reason)
+        result.validate()
+        return result
+
+    def validate(self) -> None:
+        if self.first_sequence == 0 or self.first_sequence > self.last_sequence:
+            raise InvalidMessage("TRANSPORT_DROP sequence range invalid")
+        if self.count != self.last_sequence - self.first_sequence + 1:
+            raise InvalidMessage("TRANSPORT_DROP count does not match range")
 
 
 @dataclass(frozen=True, slots=True)
@@ -287,6 +296,27 @@ def decode_tlvs(payload: bytes, maximum_total: int = 4096) -> tuple[TLV, ...]:
         tag, typ, size = r.integer(1), r.integer(1), r.integer(2)
         result.append(TLV(tag, typ, r.take(size)))
     return tuple(result)
+
+
+def typed_tlv_value(item: TLV):
+    """Decode registry scalar types while preserving unknown values as hex."""
+    widths = {1: (1, False), 2: (2, False), 3: (4, False), 4: (8, False),
+              5: (1, True), 6: (2, True), 7: (4, True), 8: (8, True)}
+    if item.value_type in widths:
+        width, signed = widths[item.value_type]
+        if len(item.value) != width:
+            raise InvalidMessage("numeric TLV width mismatch")
+        return int.from_bytes(item.value, "big", signed=signed)
+    if item.value_type == 9:
+        if len(item.value) != 1 or item.value not in (b"\0", b"\1"):
+            raise InvalidMessage("invalid boolean TLV")
+        return item.value == b"\1"
+    if item.value_type == 10:
+        try:
+            return item.value.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InvalidMessage("invalid TLV UTF-8") from exc
+    return item.value.hex()
 
 
 @dataclass(frozen=True, slots=True)

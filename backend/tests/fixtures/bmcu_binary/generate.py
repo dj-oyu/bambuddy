@@ -65,7 +65,7 @@ def main() -> None:
     result_base = ControlResult(77, 0, "accepted", b"\0" * 32)
     result_header = FrameHeader(
         MessageType.CONTROL_RESULT, payload_length=len(result_base.unsigned_payload()) + 32,
-        transport_sequence=12, pico_boot_id=boot, link_index=0,
+        transport_sequence=0, pico_boot_id=boot, link_index=0,
     )
     result = ControlResult(
         77, 0, "accepted",

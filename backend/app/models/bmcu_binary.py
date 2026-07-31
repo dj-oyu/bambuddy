@@ -20,6 +20,7 @@ class BMCUBinaryDevice(Base):
     last_ack_sequence: Mapped[str] = mapped_column(String(20), nullable=False, default="00000000000000000000")
     oldest_available_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
     newest_available_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    control_sequence: Mapped[str] = mapped_column(String(20), nullable=False, default="00000000000000000000")
 
 
 class BMCUBinaryBoot(Base):
@@ -29,11 +30,27 @@ class BMCUBinaryBoot(Base):
     device_id: Mapped[str] = mapped_column(String(63), nullable=False)
     pico_boot_id: Mapped[str] = mapped_column(String(16), nullable=False)
     last_ack_sequence: Mapped[str] = mapped_column(String(20), nullable=False, default="00000000000000000000")
+    oldest_available_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    newest_available_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("device_id", "pico_boot_id", name="uq_bmcu_binary_boot"),
+    )
+
+
+class BMCUBinaryLink(Base):
+    __tablename__ = "bmcu_binary_links"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(63), nullable=False)
+    link_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    link_id: Mapped[str] = mapped_column(String(31), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("device_id", "link_index", name="uq_bmcu_binary_link_index"),
+        UniqueConstraint("device_id", "link_id", name="uq_bmcu_binary_link_id"),
     )
 
 
@@ -94,4 +111,41 @@ class BMCUBinaryLog(Base):
         Index("ix_bmcu_binary_log_device_time", "device_id", "recorded_at"),
         Index("ix_bmcu_binary_log_severity", "device_id", "severity", "recorded_at"),
         Index("ix_bmcu_binary_log_component", "device_id", "component", "recorded_at"),
+    )
+
+
+class BMCUBinaryControlResult(Base):
+    __tablename__ = "bmcu_binary_control_results"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(63), nullable=False)
+    pico_boot_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    command_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    result: Mapped[int] = mapped_column(Integer, nullable=False)
+    detail: Mapped[str] = mapped_column(String(160), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("device_id", "pico_boot_id", "command_sequence",
+                         name="uq_bmcu_binary_control_result"),
+        Index("ix_bmcu_binary_control_device_time", "device_id", "recorded_at"),
+    )
+
+
+class BMCUBinaryLossRange(Base):
+    __tablename__ = "bmcu_binary_loss_ranges"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(63), nullable=False)
+    pico_boot_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    report_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    first_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    last_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    dropped_count: Mapped[str] = mapped_column(String(20), nullable=False)
+    reason: Mapped[int] = mapped_column(Integer, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("device_id", "pico_boot_id", "report_sequence", name="uq_bmcu_binary_loss_report"),
+        Index("ix_bmcu_binary_loss_boot_range", "device_id", "pico_boot_id", "first_sequence"),
     )

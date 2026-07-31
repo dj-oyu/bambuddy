@@ -7752,8 +7752,7 @@ export interface BMCULinkEnums {
 
 export interface BMCULinkConnectionEndpoint {
   ip: string;
-  ws_url: string;
-  ingest_url: string;
+  tcp_url: string;
 }
 
 export interface BMCULinkConnectionInfo {

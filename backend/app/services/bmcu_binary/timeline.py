@@ -41,9 +41,13 @@ def timeline_points(
     if isinstance(value, BMCUStatus):
         return (
             TimelinePoint(received_at_us, link_index, "current_slot", None, value.current_slot),
-            TimelinePoint(received_at_us, link_index, "motion", None, value.motion),
-            TimelinePoint(received_at_us, link_index, "pull_pct", None, value.pull_pct),
             TimelinePoint(received_at_us, link_index, "pressure", None, value.pressure),
+        ) + tuple(
+            TimelinePoint(received_at_us, link_index, "motion", slot, value.motion[slot])
+            for slot in range(4)
+        ) + tuple(
+            TimelinePoint(received_at_us, link_index, "pull_pct", slot, value.pull_pct[slot])
+            for slot in range(4)
         )
     if isinstance(value, BMCUFullStatusRecord):
         return (TimelinePoint(

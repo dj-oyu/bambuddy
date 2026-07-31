@@ -137,8 +137,7 @@ async def test_engine():
         api_key,
         archive,
         auth_ephemeral,
-        bmcu_link_device,  # noqa: F401
-        bmcu_link_event,  # noqa: F401
+        bmcu_binary,  # noqa: F401
         color_catalog,
         external_link,
         filament,

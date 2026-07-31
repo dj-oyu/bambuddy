@@ -36,11 +36,6 @@ from backend.app.models.long_lived_token import LongLivedToken
 # (90 days) and the create route enforces this ceiling.
 MAX_TOKEN_LIFETIME_DAYS = 365
 
-# BMCU Link device telemetry token (firmware issue #2): maps to the agreed
-# `telemetry:write` contract scope. Accepted ONLY by the bmcu-link ingest
-# WS/POST endpoints — it can never authorize CONTROL or any other surface.
-BMCU_LINK_TELEMETRY_SCOPE = "bmcu_link:telemetry"
-
 # Every scope is a separate grant, never implied by another. A token minted for
 # one purpose must not silently widen when a later scope is added.
 #
@@ -57,7 +52,7 @@ BMCU_LINK_TELEMETRY_SCOPE = "bmcu_link:telemetry"
 #                   is trusted never to expose, so folding it into camwall would
 #                   silently widen every wall token already handed out.
 ALLOWED_SCOPES: frozenset[str] = frozenset(
-    {"camera_stream", "camwall", "overlay", BMCU_LINK_TELEMETRY_SCOPE}
+    {"camera_stream", "camwall", "overlay"}
 )
 
 # Scopes the camera stream / snapshot endpoints honour. A Cam Wall or overlay

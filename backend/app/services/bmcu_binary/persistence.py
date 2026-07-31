@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import asyncio
+import time
 
 from sqlalchemy import select
 
 from backend.app.models.bmcu_binary import (
-    BMCUBinaryBoot, BMCUBinaryDevice, BMCUBinaryDiagnostic, BMCUBinaryLog,
+    BMCUBinaryBoot, BMCUBinaryControlResult, BMCUBinaryDevice,
+    BMCUBinaryDiagnostic, BMCUBinaryLink, BMCUBinaryLog, BMCUBinaryLossRange,
     BMCUBinaryRecord,
 )
 
 from .bmcu_decoder import decode_semantic, decode_wire_frame, validate_alpha3_wire_frame
 from .constants import MessageType
 from .framing import Frame
-from .messages import Hello, PicoLog, decode_bmcu_frame
-from .storage_keys import advance_contiguous, u64_decimal, u64_hex
+from .messages import ControlResult, Hello, PicoLog, TransportDrop, decode_bmcu_frame
+from .storage_keys import advance_contiguous_with_losses, u64_decimal, u64_hex
 
 
 def _utcnow() -> datetime:
@@ -26,8 +29,14 @@ class BinaryPersistence:
     def __init__(self, session_factory) -> None:
         self._session_factory = session_factory
         self.current_state = {}
+        self.current_state_seen = {}
+        self._hello_lock = asyncio.Lock()
 
     async def register_hello(self, hello: Hello, boot_id: int) -> int:
+        async with self._hello_lock:
+            return await self._register_hello_unlocked(hello, boot_id)
+
+    async def _register_hello_unlocked(self, hello: Hello, boot_id: int) -> int:
         now = _utcnow()
         boot_key = u64_hex(boot_id)
         current_range = next((item for item in hello.replay_ranges if item.pico_boot_id == boot_id), None)
@@ -53,6 +62,21 @@ class BinaryPersistence:
                 row.oldest_available_sequence = u64_decimal(current_range.oldest_available_sequence)
                 row.newest_available_sequence = u64_decimal(current_range.newest_available_sequence)
             current_boot = None
+            existing_links = {
+                item.link_index: item
+                for item in (await db.execute(select(BMCUBinaryLink).where(
+                    BMCUBinaryLink.device_id == hello.device_id
+                ))).scalars()
+            }
+            for link in hello.links:
+                stored = existing_links.get(link.link_index)
+                if stored is None:
+                    db.add(BMCUBinaryLink(
+                        device_id=hello.device_id, link_index=link.link_index,
+                        link_id=link.link_id,
+                    ))
+                else:
+                    stored.link_id = link.link_id
             for replay_range in hello.replay_ranges:
                 replay_key = u64_hex(replay_range.pico_boot_id)
                 replay_boot = (await db.execute(select(BMCUBinaryBoot).where(
@@ -64,6 +88,8 @@ class BinaryPersistence:
                     replay_boot = BMCUBinaryBoot(
                         device_id=hello.device_id, pico_boot_id=replay_key,
                         last_ack_sequence=u64_decimal(floor),
+                        oldest_available_sequence=u64_decimal(replay_range.oldest_available_sequence),
+                        newest_available_sequence=u64_decimal(replay_range.newest_available_sequence),
                         first_seen_at=now, last_seen_at=now,
                     )
                     db.add(replay_boot)
@@ -71,6 +97,8 @@ class BinaryPersistence:
                     floor = max(0, replay_range.oldest_available_sequence - 1)
                     if int(replay_boot.last_ack_sequence) < floor:
                         replay_boot.last_ack_sequence = u64_decimal(floor)
+                    replay_boot.oldest_available_sequence = u64_decimal(replay_range.oldest_available_sequence)
+                    replay_boot.newest_available_sequence = u64_decimal(replay_range.newest_available_sequence)
                     replay_boot.last_seen_at = now
                 if replay_range.pico_boot_id == boot_id:
                     current_boot = replay_boot
@@ -96,6 +124,12 @@ class BinaryPersistence:
             bmcu = decode_wire_frame(wire)
             semantic = decode_semantic(bmcu)
         log = PicoLog.decode(frame.payload) if frame.header.message_type == MessageType.PICO_LOG else None
+        drop = (
+            TransportDrop.decode(frame.payload)
+            if frame.header.message_type == MessageType.TRANSPORT_DROP else None
+        )
+        if drop and drop.first_sequence != sequence:
+            raise ValueError("TRANSPORT_DROP header sequence must equal first dropped sequence")
 
         async with self._session_factory() as db:
             device = (await db.execute(
@@ -109,10 +143,14 @@ class BinaryPersistence:
                 boot = BMCUBinaryBoot(
                     device_id=device_id, pico_boot_id=boot_key,
                     last_ack_sequence="00000000000000000000",
+                    oldest_available_sequence="00000000000000000000",
+                    newest_available_sequence=u64_decimal(sequence),
                     first_seen_at=now, last_seen_at=now,
                 )
                 db.add(boot)
                 await db.flush()
+            if drop and drop.last_sequence > int(boot.newest_available_sequence):
+                raise ValueError("TRANSPORT_DROP exceeds HELLO advertised range")
             existing = (await db.execute(
                 select(BMCUBinaryRecord.id).where(
                     BMCUBinaryRecord.device_id == device_id,
@@ -145,6 +183,15 @@ class BinaryPersistence:
                         component=log.component, message=log.message, detail=log.detail,
                         recorded_at=now,
                     ))
+                if drop and drop.first_sequence:
+                    db.add(BMCUBinaryLossRange(
+                        device_id=device_id, pico_boot_id=boot_key,
+                        report_sequence=sequence_key,
+                        first_sequence=u64_decimal(drop.first_sequence),
+                        last_sequence=u64_decimal(drop.last_sequence),
+                        dropped_count=u64_decimal(drop.count), reason=drop.reason,
+                        recorded_at=now,
+                    ))
                 await db.flush()
 
             watermark = int(boot.last_ack_sequence)
@@ -155,7 +202,14 @@ class BinaryPersistence:
                     BMCUBinaryRecord.transport_sequence > u64_decimal(watermark),
                 ).order_by(BMCUBinaryRecord.transport_sequence)
             )).scalars()
-            watermark = advance_contiguous(watermark, sequences)
+            losses = (await db.execute(select(
+                BMCUBinaryLossRange.first_sequence, BMCUBinaryLossRange.last_sequence,
+            ).where(
+                BMCUBinaryLossRange.device_id == device_id,
+                BMCUBinaryLossRange.pico_boot_id == boot_key,
+                BMCUBinaryLossRange.last_sequence > u64_decimal(watermark),
+            ))).all()
+            watermark = advance_contiguous_with_losses(watermark, sequences, losses)
             boot.last_ack_sequence = u64_decimal(watermark)
             boot.last_seen_at = now
             if device.pico_boot_id == boot_key:
@@ -165,4 +219,39 @@ class BinaryPersistence:
 
         if semantic is not None and received_at_us is not None:
             self.current_state[(device_id, frame.header.link_index)] = semantic
+            self.current_state_seen[(device_id, frame.header.link_index)] = time.monotonic()
         return watermark
+
+    async def persist_control_result(self, device_id: str, boot_id: int, result: ControlResult) -> None:
+        boot_key, command_key, now = u64_hex(boot_id), u64_decimal(result.command_sequence), _utcnow()
+        async with self._session_factory() as db:
+            existing = (await db.execute(select(BMCUBinaryControlResult.id).where(
+                BMCUBinaryControlResult.device_id == device_id,
+                BMCUBinaryControlResult.pico_boot_id == boot_key,
+                BMCUBinaryControlResult.command_sequence == command_key,
+            ))).scalar_one_or_none()
+            if existing is None:
+                db.add(BMCUBinaryControlResult(
+                    device_id=device_id, pico_boot_id=boot_key,
+                    command_sequence=command_key, result=result.result,
+                    detail=result.detail, recorded_at=now,
+                ))
+                await db.commit()
+
+    async def rehydrate_current_state(self) -> None:
+        """Restore latest decoded per-link state before accepting Pico sessions."""
+        async with self._session_factory() as db:
+            rows = (await db.execute(select(BMCUBinaryRecord).where(
+                BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
+                BMCUBinaryRecord.raw_bmcu_frame.isnot(None),
+            ).order_by(BMCUBinaryRecord.server_received_at.desc()))).scalars()
+            seen = set()
+            for row in rows:
+                key = (row.device_id, row.link_index)
+                if key in seen:
+                    continue
+                semantic = decode_semantic(decode_wire_frame(row.raw_bmcu_frame))
+                if semantic is not None:
+                    self.current_state[key] = semantic
+                    self.current_state_seen[key] = time.monotonic()
+                    seen.add(key)

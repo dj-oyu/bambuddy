@@ -22,8 +22,11 @@ from backend.app.services.bmcu_binary.framing import (
 from backend.app.services.bmcu_binary.messages import (
     Ack, ControlResult, Hello, HelloAccepted, PicoLog, Ping, ProtocolErrorMessage,
     ServerChallenge, decode_bmcu_frame, decode_tlvs,
+    typed_tlv_value,
 )
-from backend.app.services.bmcu_binary.storage_keys import advance_contiguous, u64_decimal, u64_hex
+from backend.app.services.bmcu_binary.storage_keys import (
+    advance_contiguous, advance_contiguous_with_losses, u64_decimal, u64_hex,
+)
 from backend.app.services.bmcu_binary.timeline import anomaly_inputs, timeline_points
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "bmcu_binary"
@@ -158,6 +161,11 @@ def test_unknown_diagnostic_tags_are_preserved_for_skip() -> None:
     assert [item.tag for item in decode_tlvs(frame.payload)] == [240, 241]
 
 
+def test_typed_hardware_metric_values() -> None:
+    assert typed_tlv_value(type("T", (), {"value_type": 3, "value": b"\0\0\0\x2a"})()) == 42
+    assert typed_tlv_value(type("T", (), {"value_type": 5, "value": b"\xff"})()) == -1
+
+
 def test_utf8_log_and_tlv_detail() -> None:
     frame = IncrementalFrameParser().feed((FIXTURES / "pico_log_utf8.bin").read_bytes())[0]
     log = PicoLog.decode(frame.payload)
@@ -180,6 +188,14 @@ def test_full_u64_database_key_encoding_is_order_preserving() -> None:
         u64_decimal(2**64)
     assert advance_contiguous(7, map(u64_decimal, (8, 9, 11, 12))) == 9
     assert advance_contiguous(2**64 - 2, (u64_decimal(2**64 - 1),)) == 2**64 - 1
+    assert advance_contiguous_with_losses(1, ("00000000000000000005",), (("2", "4"),)) == 5
+
+
+def test_transport_drop_range_is_strict() -> None:
+    from backend.app.services.bmcu_binary.messages import TransportDrop
+    assert TransportDrop(1, 2, 4, 3, 1).encode()
+    with pytest.raises(InvalidMessage):
+        TransportDrop(1, 2, 4, 2, 1).encode()
 
 
 @pytest.mark.parametrize("value", [

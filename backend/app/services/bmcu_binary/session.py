@@ -19,7 +19,7 @@ from .messages import (
 GLOBAL_SCOPE = 0xFF
 DURABLE_TYPES = frozenset((
     MessageType.BMCU_FRAME, MessageType.LINK_STATE, MessageType.TRANSPORT_DROP,
-    MessageType.PICO_DIAGNOSTIC, MessageType.PICO_LOG, MessageType.CONTROL_RESULT,
+    MessageType.PICO_DIAGNOSTIC, MessageType.PICO_LOG,
 ))
 
 
@@ -49,8 +49,8 @@ class BinarySession:
             if hello_frame.header.message_type != MessageType.HELLO:
                 raise BinaryProtocolError("HELLO required before telemetry")
             hello = Hello.decode(hello_frame.payload)
-            if not any(item.pico_boot_id == hello_frame.header.pico_boot_id for item in hello.replay_ranges):
-                raise BinaryProtocolError("HELLO replay table omits current boot")
+            if hello.replay_ranges[0].pico_boot_id != hello_frame.header.pico_boot_id:
+                raise BinaryProtocolError("HELLO replay table must list current boot first")
             key = self.key_provider(hello.device_id)
             candidate_key = key if key is not None else b"\0" * 32
             verified = verify_hello_mac(
@@ -105,21 +105,23 @@ class BinarySession:
         if typ == MessageType.PONG:
             Ping.decode(frame.payload)
             return
+        if typ == MessageType.CONTROL_RESULT:
+            if frame.header.transport_sequence != 0 or frame.header.pico_boot_id != self.authenticated_boot_id:
+                raise BinaryProtocolError("CONTROL_RESULT must be current-session non-durable")
+            result = ControlResult.decode(frame.payload)
+            assert self.session_key is not None
+            expected = control_mac(self.session_key, frame.header.encode(), result.unsigned_payload())
+            if not hmac.compare_digest(expected, result.mac):
+                raise BinaryProtocolError("invalid CONTROL_RESULT authentication")
+            await self.persistence.persist_control_result(self.device_id, frame.header.pico_boot_id, result)
+            return
         if typ not in DURABLE_TYPES or frame.header.transport_sequence == 0:
             raise BinaryProtocolError("unexpected or non-durable telemetry")
         if frame.header.pico_boot_id != self.authenticated_boot_id and not (frame.header.flags & 1):
             raise BinaryProtocolError("historical boot record requires REPLAY flag")
         if typ in (MessageType.PICO_DIAGNOSTIC, MessageType.PICO_LOG) and frame.header.link_index != GLOBAL_SCOPE:
             raise BinaryProtocolError("bridge record requires global link scope")
-        if typ == MessageType.CONTROL_RESULT:
-            result = ControlResult.decode(frame.payload)
-            assert self.session_key is not None
-            expected = control_mac(
-                self.session_key, frame.header.encode(), result.unsigned_payload(),
-            )
-            if not hmac.compare_digest(expected, result.mac):
-                raise BinaryProtocolError("invalid CONTROL_RESULT authentication")
-        elif typ == MessageType.LINK_STATE:
+        if typ == MessageType.LINK_STATE:
             LinkStateMessage.decode(frame.payload)
         elif typ == MessageType.TRANSPORT_DROP:
             TransportDrop.decode(frame.payload)

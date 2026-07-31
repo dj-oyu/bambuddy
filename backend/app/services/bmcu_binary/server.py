@@ -43,11 +43,13 @@ class BinaryTransportServer:
         self._connections: set[asyncio.Task] = set()
         self._keys: dict[str, bytes] = {}
         self._auth_failures = defaultdict(deque)
+        self.control_lock = asyncio.Lock()
 
     async def start(self) -> None:
         if self._server is not None or not settings.bmcu_binary_enabled:
             return
         self._keys = configured_keys()
+        await self.persistence.rehydrate_current_state()
         self._server = await asyncio.start_server(
             self._accept, settings.bmcu_binary_host, settings.bmcu_binary_port,
             limit=32 + 4096,

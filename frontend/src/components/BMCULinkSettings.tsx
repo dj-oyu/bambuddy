@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Info, Clock, AlertTriangle, Copy, Check, Cable } from 'lucide-react';
@@ -98,8 +98,7 @@ function ConnectionInfoPanel() {
           <div className="space-y-2 text-xs">
             {data.endpoints.map((ep) => (
               <div key={ep.ip} className="space-y-1">
-                <CopyableUrl label="WebSocket" url={ep.ws_url} />
-                <CopyableUrl label="HTTP" url={ep.ingest_url} />
+                <CopyableUrl label="BMB1 TCP" url={ep.tcp_url} />
               </div>
             ))}
           </div>
@@ -638,24 +637,7 @@ interface DeviceCardProps {
 
 function DeviceCard({ device, enums }: DeviceCardProps) {
   const { t } = useTranslation();
-  // Live status pushed over WebSocket (bmcu_link_status → 'bmcu-link-status'
-  // CustomEvent). Overrides the persisted last_status without a refetch.
-  const [liveStatus, setLiveStatus] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as
-        | { device_id?: string; status?: Record<string, unknown> }
-        | undefined;
-      if (detail?.device_id === device.device_id && detail.status) {
-        setLiveStatus(detail.status);
-      }
-    };
-    window.addEventListener('bmcu-link-status', handler);
-    return () => window.removeEventListener('bmcu-link-status', handler);
-  }, [device.device_id]);
-
-  const status = liveStatus ?? device.last_status;
+  const status = device.last_status;
   const linkStyle = LINK_STATE_STYLES[device.link_state] ?? LINK_STATE_STYLES.offline;
   const isBenchStub = device.mode === 'bench_stub';
 

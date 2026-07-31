@@ -25,6 +25,7 @@ from backend.app.api.routes import (
     archives,
     auth,
     bmcu_link,
+    bmcu_monitors,
     bug_report,
     camera,
     camwall,
@@ -4700,7 +4701,8 @@ async def _pause_feed_stall_with_confirmation(printer_id: int) -> bool:
 
 
 async def _feed_stall_tick(now: float) -> None:
-    from backend.app.services.bmcu_link import bmcu_link_service
+    from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus
+    from backend.app.services.bmcu_binary.server import binary_transport_server
     from backend.app.services.feed_stall import FeedStallTrigger
 
     log = logging.getLogger(__name__)
@@ -4715,13 +4717,21 @@ async def _feed_stall_tick(now: float) -> None:
     )
     layer_num = int(getattr(status, "layer_num", 0) or 0) if status is not None else 0
 
-    statuses = bmcu_link_service.latest_statuses()
     inner, age_s = None, float("inf")
-    candidates = [entry for entry in statuses if not _FEED_STALL_LINK_ID or entry[1] == _FEED_STALL_LINK_ID]
+    candidates = [
+        (key, value) for key, value in binary_transport_server.persistence.current_state.items()
+        if isinstance(value, BMCUStatus)
+        and (not _FEED_STALL_LINK_ID or str(key[1]) == _FEED_STALL_LINK_ID)
+    ]
     if candidates:
-        _, _, payload, age_s = candidates[0]
-        data = payload.get("data")
-        inner = data if isinstance(data, dict) else None
+        key, value = candidates[0]
+        age_s = now - binary_transport_server.persistence.current_state_seen.get(key, now)
+        inner = {
+            "current_slot": value.current_slot, "inserted_mask": value.inserted_mask,
+            "online_mask": value.online_mask, "motion": list(value.motion),
+            "pull_pct": list(value.pull_pct), "pressure": value.pressure,
+            "control_error": value.control_error,
+        }
 
     event = detector.observe(
         printer_id,
@@ -6956,75 +6966,6 @@ def stop_spoolbuddy_watchdog():
         logging.getLogger(__name__).info("SpoolBuddy watchdog stopped")
 
 
-# BMCU Link watchdog (private fork): 1s cadence tick for link-state
-# transitions, time-based flushes and retention pruning.
-_bmcu_link_watchdog_task: asyncio.Task | None = None
-
-
-async def _bmcu_link_watchdog_loop():
-    from backend.app.services.bmcu_link import bmcu_link_service
-
-    while True:
-        try:
-            await bmcu_link_service.watchdog_tick()
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            logging.getLogger(__name__).warning("BMCU Link watchdog failed: %s", e)
-        await asyncio.sleep(1)
-
-
-def start_bmcu_link_watchdog():
-    global _bmcu_link_watchdog_task
-    if _bmcu_link_watchdog_task is None:
-        _bmcu_link_watchdog_task = asyncio.create_task(_bmcu_link_watchdog_loop())
-        logging.getLogger(__name__).info("BMCU Link watchdog started")
-
-
-async def stop_bmcu_link_watchdog():
-    """Cancel AND await the watchdog so no tick races the final flush."""
-    global _bmcu_link_watchdog_task
-    if _bmcu_link_watchdog_task:
-        _bmcu_link_watchdog_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError, Exception):
-            await _bmcu_link_watchdog_task
-        _bmcu_link_watchdog_task = None
-        logging.getLogger(__name__).info("BMCU Link watchdog stopped")
-
-
-# BMCU Link Pico /api/status poller (private fork): pull-mode bridge for
-# alpha.3 firmware that has no push transport yet.
-# Toggle: BAMBUDDY_BMCU_LINK_POLL_URL (unset = disabled).
-_bmcu_link_poller = None
-_bmcu_link_poller_task: asyncio.Task | None = None
-
-
-def start_bmcu_link_poller():
-    global _bmcu_link_poller, _bmcu_link_poller_task
-    from backend.app.services.bmcu_link_poller import BMCULinkPoller, bmcu_link_poll_url
-
-    url = bmcu_link_poll_url()
-    if url is None or _bmcu_link_poller_task is not None:
-        return
-    _bmcu_link_poller = BMCULinkPoller(url)
-    _bmcu_link_poller_task = asyncio.create_task(_bmcu_link_poller.run())
-    logging.getLogger(__name__).info("BMCU Link poller started (%s)", url)
-
-
-async def stop_bmcu_link_poller():
-    global _bmcu_link_poller, _bmcu_link_poller_task
-    if _bmcu_link_poller_task:
-        _bmcu_link_poller_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError, Exception):
-            await _bmcu_link_poller_task
-        _bmcu_link_poller_task = None
-    if _bmcu_link_poller:
-        with contextlib.suppress(Exception):
-            await _bmcu_link_poller.close()
-        _bmcu_link_poller = None
-        logging.getLogger(__name__).info("BMCU Link poller stopped")
-
-
 # Camera stream orphan cleanup
 _camera_cleanup_task: asyncio.Task | None = None
 CAMERA_CLEANUP_INTERVAL = 60
@@ -7590,13 +7531,6 @@ async def lifespan(app: FastAPI):
     # Start SpoolBuddy device watchdog
     start_spoolbuddy_watchdog()
 
-    # Start BMCU Link watchdog (private fork; toggle: BAMBUDDY_BMCU_LINK)
-    from backend.app.services.bmcu_link import bmcu_link_enabled
-
-    if bmcu_link_enabled():
-        start_bmcu_link_watchdog()
-        start_bmcu_link_poller()
-
     # Start camera stream orphan cleanup
     start_camera_cleanup()
 
@@ -7657,15 +7591,6 @@ async def lifespan(app: FastAPI):
     stop_printer_sensor_history_recording()
     stop_runtime_tracking()
     stop_spoolbuddy_watchdog()
-    await stop_bmcu_link_poller()
-    await stop_bmcu_link_watchdog()
-    # Final flush so pending BMCU Link rows aren't lost on shutdown
-    try:
-        from backend.app.services.bmcu_link import bmcu_link_service
-
-        await bmcu_link_service.flush()
-    except Exception as e:
-        logging.warning("BMCU Link final flush failed: %s", e)
     stop_camera_cleanup()
     from backend.app.services.loop_watchdog import stop_loop_watchdog
 
@@ -8012,14 +7937,6 @@ async def auth_middleware(request, call_next):
         # API keys are validated per-route since they have different permission levels
         return await call_next(request)
 
-    # BMCU Link device telemetry tokens (issue #2 contract): same pattern as
-    # API keys — pass through ONLY on the ingest path, where the route
-    # dependency validates the token against scope bmcu_link:telemetry.
-    # Any other path with a bblt_ bearer falls through to JWT validation
-    # below and is rejected, keeping the token ingest-only.
-    if path in ("/api/v1/bmcu-link/ingest", "/api/v1/bmcu-link/ndjson") and auth_header and auth_header.startswith("Bearer bblt_"):
-        return await call_next(request)
-
     # Check for JWT auth
     if not auth_header or not auth_header.startswith("Bearer "):
         return JSONResponse(
@@ -8197,6 +8114,7 @@ app.include_router(metrics.router, prefix=app_settings.api_prefix)
 app.include_router(virtual_printers.router, prefix=app_settings.api_prefix)
 app.include_router(spoolbuddy.router, prefix=app_settings.api_prefix)
 app.include_router(bmcu_link.router, prefix=app_settings.api_prefix)
+app.include_router(bmcu_monitors.router, prefix=app_settings.api_prefix)
 
 
 # Serve static files (React build)

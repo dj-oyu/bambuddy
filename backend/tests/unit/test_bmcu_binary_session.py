@@ -1,9 +1,11 @@
 import asyncio
 
-from backend.app.services.bmcu_binary.auth import hello_mac
+from backend.app.services.bmcu_binary.auth import control_mac, derive_session_key, hello_mac
 from backend.app.services.bmcu_binary.constants import MessageType
 from backend.app.services.bmcu_binary.framing import FrameHeader, IncrementalFrameParser, encode_frame
-from backend.app.services.bmcu_binary.messages import Control, Hello, HelloLink, HelloReplayRange, Ping
+from backend.app.services.bmcu_binary.messages import (
+    Control, ControlResult, Hello, HelloLink, HelloReplayRange, Ping,
+)
 from backend.app.services.bmcu_binary.registry import SessionRegistry
 from backend.app.services.bmcu_binary.session import BinarySession
 
@@ -38,6 +40,7 @@ class Persistence:
     def __init__(self):
         self.registered = []
         self.persisted = []
+        self.control_results = []
 
     async def register_hello(self, hello, boot):
         self.registered.append((hello.device_id, boot))
@@ -46,6 +49,9 @@ class Persistence:
     async def persist(self, device_id, frame):
         self.persisted.append((device_id, frame.header.transport_sequence))
         return frame.header.transport_sequence
+
+    async def persist_control_result(self, device_id, boot, result):
+        self.control_results.append((device_id, boot, result.command_sequence))
 
 
 def test_authenticated_session_and_ping(monkeypatch) -> None:
@@ -56,6 +62,16 @@ def test_authenticated_session_and_ping(monkeypatch) -> None:
         unsigned.device_id, unsigned.firmware, unsigned.links, ranges,
         hello_mac(key, challenge, boot, unsigned.transcript()),
     )
+    result_base = ControlResult(3, 0, "ok", b"\0" * 32)
+    result_header = FrameHeader(
+        MessageType.CONTROL_RESULT, payload_length=len(result_base.unsigned_payload()) + 32,
+        pico_boot_id=boot, link_index=0,
+    )
+    result = ControlResult(
+        3, 0, "ok",
+        control_mac(derive_session_key(key, challenge, boot), result_header.encode(),
+                    result_base.unsigned_payload()),
+    )
     incoming = (
         encode_frame(FrameHeader(MessageType.HELLO, pico_boot_id=boot, link_index=0xFF), hello.encode())
         + encode_frame(FrameHeader(MessageType.PING, pico_boot_id=boot, link_index=0xFF), Ping(55).encode())
@@ -64,6 +80,7 @@ def test_authenticated_session_and_ping(monkeypatch) -> None:
                         pico_boot_id=boot, link_index=0xFF),
             b"",
         )
+        + encode_frame(result_header, result.encode())
     )
     reader, writer, persistence, registry = Reader([incoming]), Writer(), Persistence(), SessionRegistry()
     monkeypatch.setattr("backend.app.services.bmcu_binary.session.os.urandom", lambda _n: challenge)
@@ -79,6 +96,7 @@ def test_authenticated_session_and_ping(monkeypatch) -> None:
     ]
     assert persistence.registered == [("monitor-1", boot)]
     assert persistence.persisted == [("monitor-1", 10)]
+    assert persistence.control_results == [("monitor-1", boot, 3)]
     assert writer.closed
 
 

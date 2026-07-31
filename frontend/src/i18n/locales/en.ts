@@ -13,6 +13,7 @@ export default {
     makerworld: 'MakerWorld',
     notifications: 'Notifications',
     settings: 'Settings',
+    bmcuLink: 'BMCU Link',
     system: 'System',
     collapseSidebar: 'Collapse sidebar',
     expandSidebar: 'Expand sidebar',
@@ -1700,7 +1701,7 @@ export default {
       connectionTitle: 'Bridge connection endpoints',
       connectionBody: 'Configure the Pi/Pico bridge with one of these URLs. They use this server’s LAN address — the address in your browser may be a Tailscale/VPN address the bridge cannot reach.',
       connectionNoLan: 'No LAN IPv4 address detected on this server.',
-      connectionAuthOn: 'Authentication is enabled: the bridge must send "Authorization: Bearer bblt_..." using a telemetry token (scope bmcu_link:telemetry) minted by an admin.',
+      connectionAuthOn: 'BMB1 uses a provisioned per-device key and HMAC authentication on the dedicated TCP connection.',
       connectionAuthOff: 'Authentication is currently disabled: no token is required.',
       empty: 'No BMCU Link devices have connected yet',
       linkState: {

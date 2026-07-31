@@ -247,10 +247,6 @@ async def init_db():
         api_key,
         archive,
         auth_ephemeral,
-        # bmcu_link_* tables are created by create_all below; hand-migration
-        # ALTERs in run_migrations() are only needed for FUTURE column changes.
-        bmcu_link_device,
-        bmcu_link_event,
         bmcu_binary,
         bug_report,
         color_catalog,
@@ -3792,27 +3788,26 @@ async def run_migrations(conn):
     # names by appending " Email" (#1792). See ``_migrate_rename_user_print_template_names``.
     await _migrate_rename_user_print_template_names(conn)
 
-    # Migration (private fork): PICO_BAMBUDDY_ENVELOPE.md added a link id for
-    # multi-BMCU bridges; part of the dedup tuple, defaulted for old rows.
-    await _safe_execute(
-        conn, "ALTER TABLE bmcu_link_events ADD COLUMN link_id VARCHAR(50) NOT NULL DEFAULT 'default'"
-    )
-    # Migration (private fork): issue #2 contract — u64 Pico transport
-    # sequence becomes the dedup/ordering key (BMCU u16 wraps).
-    await _safe_execute(conn, "ALTER TABLE bmcu_link_events ADD COLUMN transport_sequence BIGINT")
-    # Migration (private fork): issue #2 CONTROL security contract —
-    # per-device control key (encrypted at rest) + persisted monotonic
-    # control_sequence allocator state.
-    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_key_encrypted TEXT")
-    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_key_set_at TIMESTAMP")
-    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_session_nonce VARCHAR(100)")
-    await _safe_execute(conn, "ALTER TABLE bmcu_link_devices ADD COLUMN control_sequence BIGINT NOT NULL DEFAULT 0")
     # Migration (private fork): explicit tri-state deferred-tail-unload flag
     # on queue items (NULL = legacy auto behavior via gcode_injection).
     await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN defer_unload BOOLEAN")
     # Migration (private fork): 4-mode unload edit selector (auto / start /
     # end / none) superseding the boolean defer_unload tri-state.
     await _safe_execute(conn, "ALTER TABLE print_queue ADD COLUMN unload_edit VARCHAR(8)")
+    # Binary BMCU CONTROL allocator added after the initial monitor table.
+    await _safe_execute(
+        conn,
+        "ALTER TABLE bmcu_binary_devices ADD COLUMN control_sequence VARCHAR(20) "
+        "NOT NULL DEFAULT '00000000000000000000'",
+    )
+    await _safe_execute(
+        conn, "ALTER TABLE bmcu_binary_boots ADD COLUMN oldest_available_sequence "
+        "VARCHAR(20) NOT NULL DEFAULT '00000000000000000000'"
+    )
+    await _safe_execute(
+        conn, "ALTER TABLE bmcu_binary_boots ADD COLUMN newest_available_sequence "
+        "VARCHAR(20) NOT NULL DEFAULT '00000000000000000000'"
+    )
 
 
 _USER_PRINT_TEMPLATE_RENAMES: tuple[tuple[str, str, str], ...] = (

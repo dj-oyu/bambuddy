@@ -109,7 +109,7 @@ async def test_create_rejects_expiry_above_policy_cap(db_session, alice: User):
 async def test_create_rejects_unsupported_scope(db_session, alice: User):
     """Only explicitly registered scopes are accepted (camera_stream plus
     the BMCU Link telemetry scope from firmware issue #2)."""
-    assert {"camera_stream", "bmcu_link:telemetry"} == set(ALLOWED_SCOPES)
+    assert {"camera_stream", "camwall", "overlay"} == set(ALLOWED_SCOPES)
     with pytest.raises(ValueError, match="unsupported scope"):
         await create_token(
             db_session,

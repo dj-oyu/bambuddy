@@ -13,6 +13,7 @@ export default {
     makerworld: 'MakerWorld',
     notifications: '通知',
     settings: '設定',
+    bmcuLink: 'BMCUリンク',
     system: 'システム',
     collapseSidebar: 'サイドバーを閉じる',
     expandSidebar: 'サイドバーを開く',
@@ -1679,7 +1680,7 @@ export default {
       connectionTitle: 'ブリッジ接続先',
       connectionBody: 'Pi/Pico ブリッジには以下のいずれかの URL を設定してください。これらはこのサーバーの LAN アドレスです — ブラウザに表示されているアドレスは Tailscale/VPN のもので、ブリッジからは到達できない場合があります。',
       connectionNoLan: 'このサーバーで LAN の IPv4 アドレスを検出できませんでした。',
-      connectionAuthOn: '認証が有効です: ブリッジは管理者が発行したテレメトリトークン(スコープ bmcu_link:telemetry)を "Authorization: Bearer bblt_..." で送信する必要があります。',
+      connectionAuthOn: 'BMB1はデバイスごとに設定された鍵とHMACで専用TCP接続を認証します。',
       connectionAuthOff: '認証は現在無効です: トークンは不要です。',
       empty: 'BMCU Link デバイスはまだ接続されていません',
       linkState: {
