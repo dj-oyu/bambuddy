@@ -12,7 +12,7 @@ fires. The workaround:
 """
 
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -97,6 +97,18 @@ class TestPushallFallback:
         mqtt_client.state.total_layers = 0
 
         mqtt_client._process_message(self._running_payload())
+        assert mqtt_client._request_push_all.call_count == 1
+
+    def test_first_pushall_does_not_depend_on_monotonic_uptime(self, mqtt_client):
+        mqtt_client._request_push_all = MagicMock()
+        mqtt_client._was_running = True
+        mqtt_client._previous_gcode_state = "RUNNING"
+        mqtt_client.state.total_layers = 0
+        mqtt_client._total_layers_pushall_time = 0.0
+
+        with patch("backend.app.services.bambu_mqtt.time.monotonic", return_value=5.0):
+            mqtt_client._process_message(self._running_payload())
+
         assert mqtt_client._request_push_all.call_count == 1
 
     def test_pushall_rate_limited_to_120s(self, mqtt_client):

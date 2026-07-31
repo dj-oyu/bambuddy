@@ -3921,7 +3921,10 @@ class BambuMQTTClient:
         # Short-interval repeats are ignored by the firmware, hence the gap.
         if self.state.state == "RUNNING" and (self.state.total_layers or 0) <= 0:
             now_mono = time.monotonic()
-            if now_mono - self._total_layers_pushall_time >= 120.0:
+            # A zero timestamp means "never requested". Do not rely on the
+            # process/container monotonic clock already being at least 120s:
+            # fresh time namespaces may start close to zero.
+            if self._total_layers_pushall_time == 0.0 or now_mono - self._total_layers_pushall_time >= 120.0:
                 self._total_layers_pushall_time = now_mono
                 logger.info(
                     "[%s] total_layers still 0 while RUNNING; requesting pushall",
