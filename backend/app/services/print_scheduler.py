@@ -141,6 +141,14 @@ DISPATCH_MAX_ATTEMPTS = 3
 _FILAMENT_TYPE_GROUPS: list[list[str]] = [
     ["PA-CF", "PA12-CF", "PAHT-CF"],
 ]
+
+# BMCU firmware whitelists tray_type strings and normalizes the slicer-side
+# "TPU-AMS" ("TPU for AMS") to plain "TPU" in its AMS reports, so a 3MF sliced
+# with a TPU-AMS preset can never match the loaded tray by exact string.
+# Treat the two as equivalent (this rig feeds TPU through the modified BMCU by
+# design). Disable with BAMBUDDY_TPU_AMS_EQUIV=0 to restore strict matching.
+if os.environ.get("BAMBUDDY_TPU_AMS_EQUIV", "1") != "0":
+    _FILAMENT_TYPE_GROUPS.append(["TPU", "TPU-AMS"])
 _FILAMENT_EQUIV_MAP: dict[str, str] = {}
 for _group in _FILAMENT_TYPE_GROUPS:
     _canonical = _group[0].upper()
@@ -1486,7 +1494,7 @@ class PrintScheduler:
             fil = loaded_by_tray.get(tray)
             if fil is None:
                 problems.append({"issue": "mapped_tray_not_loaded", "slot_id": req["slot_id"], "tray": tray})
-            elif req.get("type") and fil["type"] != req["type"]:
+            elif req.get("type") and _canonical_filament_type(fil["type"]) != _canonical_filament_type(req["type"]):
                 problems.append(
                     {
                         "issue": "mapped_tray_type_mismatch",

@@ -120,3 +120,24 @@ class TestSchedulerTrayValidation:
         """A -1 on a used slot is reported structurally, not also as a tray problem."""
         problems = scheduler._validate_stored_ams_mapping([-1], [req(1)], [loaded(0)])
         assert [p["issue"] for p in problems] == ["used_slot_unmapped"]
+
+
+class TestTpuAmsEquivalence:
+    """BMCU normalizes the slicer's "TPU-AMS" tray type to plain "TPU" in its
+    AMS reports, so a 3MF sliced with a TPU-for-AMS preset must still map onto
+    a tray reporting "TPU" (live incident 2026-08-02, queue item 186 held with
+    mapped_tray_type_mismatch TPU-AMS vs TPU)."""
+
+    @pytest.fixture
+    def scheduler(self):
+        return PrintScheduler.__new__(PrintScheduler)
+
+    def test_tpu_ams_requirement_matches_tpu_tray(self, scheduler):
+        assert scheduler._validate_stored_ams_mapping([0], [req(1, ftype="TPU-AMS")], [loaded(0, ftype="TPU")]) == []
+
+    def test_tpu_requirement_matches_tpu_ams_tray(self, scheduler):
+        assert scheduler._validate_stored_ams_mapping([0], [req(1, ftype="TPU")], [loaded(0, ftype="TPU-AMS")]) == []
+
+    def test_unrelated_type_still_mismatches(self, scheduler):
+        problems = scheduler._validate_stored_ams_mapping([0], [req(1, ftype="TPU-AMS")], [loaded(0, ftype="PETG")])
+        assert problems and problems[0]["issue"] == "mapped_tray_type_mismatch"
