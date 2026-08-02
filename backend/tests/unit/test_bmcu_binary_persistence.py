@@ -299,3 +299,66 @@ async def test_rehydrated_state_carries_the_records_real_age(tmp_path) -> None:
     # An hours-old record must not be presented as a fresh reading after a restart.
     assert age_s > 7000
     await engine.dispose()
+
+
+def _drop_frame(boot, first, last, count, reason=1):
+    """The protocol requires the header sequence to be the first dropped one."""
+    payload = TransportDrop(100 + first, first, last, count, reason).encode()
+    return Frame(
+        FrameHeader(MessageType.TRANSPORT_DROP, 0, len(payload), first, boot, 0xFF),
+        payload,
+    )
+
+
+async def _loss_rows(factory):
+    async with factory() as db:
+        return (await db.execute(select(BMCUBinaryLossRange).order_by(BMCUBinaryLossRange.id))).scalars().all()
+
+
+@pytest.mark.asyncio
+async def test_contiguous_drop_reports_merge_into_one_range(tmp_path) -> None:
+    engine, factory, persistence, boot = await _persistence(tmp_path, "monitor-merge", newest=40)
+    await persistence.persist("monitor-merge", _frame("bmcu_status.bin", 1, boot))
+    await persistence.persist("monitor-merge", _drop_frame(boot, 10, 13, 4))
+    await persistence.persist("monitor-merge", _drop_frame(boot, 14, 17, 4))
+    await persistence.persist("monitor-merge", _drop_frame(boot, 18, 20, 3))
+    rows = await _loss_rows(factory)
+    assert len(rows) == 1
+    assert (int(rows[0].first_sequence), int(rows[0].last_sequence)) == (10, 20)
+    assert int(rows[0].dropped_count) == 11
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_non_contiguous_drop_report_starts_a_new_range(tmp_path) -> None:
+    engine, factory, persistence, boot = await _persistence(tmp_path, "monitor-gap", newest=40)
+    await persistence.persist("monitor-gap", _frame("bmcu_status.bin", 1, boot))
+    await persistence.persist("monitor-gap", _drop_frame(boot, 10, 13, 4))
+    await persistence.persist("monitor-gap", _drop_frame(boot, 20, 22, 3))
+    rows = await _loss_rows(factory)
+    assert [(int(row.first_sequence), int(row.last_sequence)) for row in rows] == [(10, 13), (20, 22)]
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_overlapping_re_report_does_not_inflate_the_dropped_count(tmp_path) -> None:
+    engine, factory, persistence, boot = await _persistence(tmp_path, "monitor-overlap", newest=40)
+    await persistence.persist("monitor-overlap", _frame("bmcu_status.bin", 1, boot))
+    await persistence.persist("monitor-overlap", _drop_frame(boot, 10, 15, 6))
+    await persistence.persist("monitor-overlap", _drop_frame(boot, 13, 18, 6))
+    rows = await _loss_rows(factory)
+    assert len(rows) == 1
+    assert (int(rows[0].first_sequence), int(rows[0].last_sequence)) == (10, 18)
+    assert int(rows[0].dropped_count) == 9
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_merge_toggle_keeps_one_row_per_report(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(persistence_module, "_MERGE_LOSS_RANGES", False)
+    engine, factory, persistence, boot = await _persistence(tmp_path, "monitor-nomerge", newest=40)
+    await persistence.persist("monitor-nomerge", _frame("bmcu_status.bin", 1, boot))
+    await persistence.persist("monitor-nomerge", _drop_frame(boot, 10, 13, 4))
+    await persistence.persist("monitor-nomerge", _drop_frame(boot, 14, 17, 4))
+    assert len(await _loss_rows(factory)) == 2
+    await engine.dispose()

@@ -40,6 +40,9 @@ from .storage_keys import advance_contiguous_with_losses, u64_decimal, u64_hex
 # behaviour if firmware ever carries realtime data in a non-STATUS kind.
 _STRICT_STATE = os.getenv("BAMBUDDY_BMCU_STRICT_STATUS_STATE", "1") != "0"
 _REHYDRATE_SCAN_LIMIT = 500
+# Contiguous drop reports are merged into one stored range; set to "0" to keep
+# one row per report.
+_MERGE_LOSS_RANGES = os.getenv("BAMBUDDY_BMCU_MERGE_LOSS_RANGES", "1") != "0"
 
 
 def _utcnow() -> datetime:
@@ -144,6 +147,53 @@ class BinaryPersistence:
             await db.commit()
             assert current_boot is not None
             return int(current_boot.last_ack_sequence)
+
+    async def _store_loss_range(self, db, device_id, boot_key, sequence_key, drop, now) -> None:
+        """Record one reported gap, extending the adjacent stored range when the
+        two touch.
+
+        The bridge reports gaps at 3-4 message granularity several times a
+        second, and consecutive reports are usually contiguous, so one row per
+        report grew the table by ~20k rows an hour for no added information.
+        Merging touching ranges is lossless: the union of the sequences is
+        identical, which is all the ACK watermark computation reads.
+        """
+        first, last = drop.first_sequence, drop.last_sequence
+        if _MERGE_LOSS_RANGES:
+            previous = (
+                await db.execute(
+                    select(BMCUBinaryLossRange)
+                    .where(
+                        BMCUBinaryLossRange.device_id == device_id,
+                        BMCUBinaryLossRange.pico_boot_id == boot_key,
+                        BMCUBinaryLossRange.reason == drop.reason,
+                    )
+                    .order_by(BMCUBinaryLossRange.id.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if previous is not None and int(previous.last_sequence) + 1 >= first > int(previous.first_sequence):
+                stored_last = int(previous.last_sequence)
+                if last > stored_last:
+                    # Count only what this report adds beyond the stored range,
+                    # so an overlapping re-report cannot inflate the total.
+                    added = min(drop.count, last - max(stored_last, first - 1))
+                    previous.dropped_count = u64_decimal(int(previous.dropped_count) + added)
+                    previous.last_sequence = u64_decimal(last)
+                previous.recorded_at = now
+                return
+        db.add(
+            BMCUBinaryLossRange(
+                device_id=device_id,
+                pico_boot_id=boot_key,
+                report_sequence=sequence_key,
+                first_sequence=u64_decimal(first),
+                last_sequence=u64_decimal(last),
+                dropped_count=u64_decimal(drop.count),
+                reason=drop.reason,
+                recorded_at=now,
+            )
+        )
 
     async def persist(self, device_id: str, frame: Frame) -> int:
         """Commit one durable record and return the global contiguous watermark."""
@@ -252,18 +302,7 @@ class BinaryPersistence:
                         )
                     )
                 if drop and drop.first_sequence:
-                    db.add(
-                        BMCUBinaryLossRange(
-                            device_id=device_id,
-                            pico_boot_id=boot_key,
-                            report_sequence=sequence_key,
-                            first_sequence=u64_decimal(drop.first_sequence),
-                            last_sequence=u64_decimal(drop.last_sequence),
-                            dropped_count=u64_decimal(drop.count),
-                            reason=drop.reason,
-                            recorded_at=now,
-                        )
-                    )
+                    await self._store_loss_range(db, device_id, boot_key, sequence_key, drop, now)
                 await db.flush()
 
             watermark = int(boot.last_ack_sequence)

@@ -8007,9 +8007,12 @@ async def lifespan(app: FastAPI):
 
     # Dedicated authenticated Pico transport; disabled by default and isolated
     # from the legacy JSON BMCU Link adapter during the migration period.
+    from backend.app.services.bmcu_binary.retention import bmcu_retention_service
     from backend.app.services.bmcu_binary.server import binary_transport_server
 
     await binary_transport_server.start()
+    # Nothing ever aged out BMB1 telemetry; it reached 440 MB of a 451 MB DB.
+    await bmcu_retention_service.start_scheduler()
 
     # After migrations, so the is_env_managed column exists. Never raises --
     # a bad BAMBUDDY_OIDC_* value is logged and skipped rather than blocking
@@ -8446,6 +8449,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     await binary_transport_server.stop()
+    bmcu_retention_service.stop_scheduler()
     print_scheduler.stop()
     smart_plug_manager.stop_scheduler()
     notification_service.stop_digest_scheduler()
