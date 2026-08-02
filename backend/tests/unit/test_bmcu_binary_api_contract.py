@@ -40,6 +40,8 @@ def test_backend_and_frontend_share_complete_contract_fixture() -> None:
     timeline = TimelineResponse.model_validate(FIXTURE["timeline"])
     assert timeline.model_dump(mode="json", by_alias=True) == FIXTURE["timeline"]
     assert len({point.id for point in timeline.points}) == len(timeline.points)
+    # The API omits unknown metrics (exclude_none); a null in the fixture means
+    # "absent on the wire", so compare against the fixture with nulls dropped.
     assert [
         MetricPoint.model_validate(item).model_dump(mode="json", exclude_none=True) for item in FIXTURE["metrics"]
-    ] == FIXTURE["metrics"]
+    ] == [{k: v for k, v in item.items() if v is not None} for item in FIXTURE["metrics"]]
