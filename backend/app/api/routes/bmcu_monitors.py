@@ -1,5 +1,6 @@
 """Read/control API for authenticated binary BMCU Monitors."""
 
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,16 +26,18 @@ from backend.app.schemas.bmcu_binary import (
     MonitorSummary,
     TimelineResponse,
 )
-from backend.app.services.bmcu_binary.bmcu_decoder import decode_semantic, decode_wire_frame
+from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus, decode_semantic, decode_wire_frame
 from backend.app.services.bmcu_binary.constants import MessageType
 from backend.app.services.bmcu_binary.messages import decode_tlvs, typed_tlv_value
 from backend.app.services.bmcu_binary.server import binary_transport_server
+from backend.app.services.bmcu_binary.state_view import status_snapshot
 from backend.app.services.bmcu_binary.storage_keys import u64_decimal
 from backend.app.services.bmcu_binary.timeline import anomaly_inputs, timeline_points
 
 router = APIRouter(prefix="/bmcu-monitors", tags=["bmcu-monitors"])
 ReadAccess = RequirePermissionIfAuthEnabled(Permission.INVENTORY_READ)
 ControlAccess = RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL)
+_STALE_AFTER_S = 15.0
 
 
 async def _device(db, device_id):
@@ -88,24 +91,31 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
         .scalars()
         .all()
     )
+    persistence = binary_transport_server.persistence
     links = []
-    for (stored_device, link), value in binary_transport_server.persistence.current_state.items():
-        if stored_device != device_id:
-            continue
-        current_slot = getattr(value, "current_slot", None)
-        pull = getattr(value, "pull_pct", ())
-        stored = next((item for item in stored_links if item.link_index == link), None)
+    for stored in stored_links:
+        key = (device_id, stored.link_index)
+        value = persistence.current_state.get(key)
+        if not isinstance(value, BMCUStatus):
+            value = None
+        if value is None:
+            snapshot, state, faults = None, "stale", 0
+        else:
+            age_s = time.monotonic() - persistence.current_state_seen.get(key, time.monotonic())
+            snapshot = status_snapshot(value, age_s)
+            state = "online" if age_s < _STALE_AFTER_S else "stale"
+            faults = value.crc_error + value.frame_error
         links.append(
             LinkSnapshot(
-                linkIndex=link,
-                linkId=stored.link_id if stored else f"bmcu-{link}",
-                state="online",
-                currentSlot=None if current_slot == 0xFF else current_slot,
-                activeMask=getattr(value, "online_mask", 0),
-                motion=str(getattr(value, "motion", None)),
-                pullPercent=pull[current_slot] if pull and current_slot is not None and current_slot < 4 else None,
-                pressure=getattr(value, "pressure", None),
-                faultCount=0,
+                linkIndex=stored.link_index,
+                linkId=stored.link_id or f"bmcu-{stored.link_index}",
+                state=state,
+                currentSlot=snapshot["current_slot"] if snapshot else None,
+                activeMask=snapshot["online_mask"] if snapshot else 0,
+                motion=snapshot["motion"] if snapshot else None,
+                pullPercent=snapshot["pull_pct"] if snapshot else None,
+                pressure=snapshot["pressure"] if snapshot else None,
+                faultCount=faults,
                 lastSeenAt=row.last_seen_at,
             )
         )
@@ -130,19 +140,21 @@ async def timeline(
         query = query.where(BMCUBinaryRecord.server_received_at >= from_time)
     if to_time:
         query = query.where(BMCUBinaryRecord.server_received_at <= to_time)
-    rows = (
-        (
-            await db.execute(
-                query.order_by(BMCUBinaryRecord.server_received_at, BMCUBinaryRecord.transport_sequence).limit(
-                    limit + 1
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    # Only a caller that asked for no window at all gets the newest-first fetch.
+    # A one-sided `from`/`to` keeps ascending "first rows after the bound"
+    # semantics, which is what such a caller is paginating with.
+    explicit_window = from_time is not None or to_time is not None
+    if explicit_window:
+        order = (BMCUBinaryRecord.server_received_at, BMCUBinaryRecord.transport_sequence)
+    else:
+        # Without an explicit window the useful view is the most recent one; the
+        # ascending fetch returned the oldest rows ever stored.
+        order = (BMCUBinaryRecord.server_received_at.desc(), BMCUBinaryRecord.transport_sequence.desc())
+    rows = (await db.execute(query.order_by(*order).limit(limit + 1))).scalars().all()
     downsampled = len(rows) > limit
     rows = rows[:limit]
+    if not explicit_window:
+        rows = list(reversed(rows))
     output = []
     for row in rows:
         if not row.raw_bmcu_frame or row.received_at_us is None:

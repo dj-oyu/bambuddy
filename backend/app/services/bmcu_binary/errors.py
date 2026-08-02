@@ -23,3 +23,7 @@ class AuthenticationError(BinaryProtocolError):
 
 class InvalidBMCUFrame(BinaryProtocolError):
     pass
+
+
+class InvalidTransportDrop(BinaryProtocolError):
+    pass

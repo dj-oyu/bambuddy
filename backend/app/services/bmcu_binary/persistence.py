@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from backend.app.models.bmcu_binary import (
     BMCUBinaryBoot,
@@ -19,11 +20,26 @@ from backend.app.models.bmcu_binary import (
     BMCUBinaryRecord,
 )
 
-from .bmcu_decoder import decode_semantic, decode_wire_frame, validate_alpha3_wire_frame
+from .bmcu_decoder import (
+    BMCUEvent,
+    BMCUHello,
+    BMCUStatus,
+    decode_semantic,
+    decode_wire_frame,
+    validate_alpha3_wire_frame,
+)
 from .constants import MessageType
+from .errors import InvalidBMCUFrame, InvalidTransportDrop
 from .framing import Frame
 from .messages import ControlResult, Hello, PicoLog, TransportDrop, decode_bmcu_frame
 from .storage_keys import advance_contiguous_with_losses, u64_decimal, u64_hex
+
+# Realtime per-link values live only in BMCUStatus (kind 2). Historically any
+# decoded frame overwrote current_state, so the EVENT flood (~37:1) erased the
+# status snapshot within milliseconds. Set to "0" to restore that last-frame-wins
+# behaviour if firmware ever carries realtime data in a non-STATUS kind.
+_STRICT_STATE = os.getenv("BAMBUDDY_BMCU_STRICT_STATUS_STATE", "1") != "0"
+_REHYDRATE_SCAN_LIMIT = 500
 
 
 def _utcnow() -> datetime:
@@ -35,6 +51,12 @@ class BinaryPersistence:
         self._session_factory = session_factory
         self.current_state = {}
         self.current_state_seen = {}
+        self.last_event = {}
+        self.last_event_seen = {}
+        self.last_hello = {}
+        # There is no BMCU boot id on the wire or in the schema; this monotonic
+        # counter of observed BMCU HELLO frames is the honest stand-in.
+        self.bmcu_hello_epoch = {}
         self._hello_lock = asyncio.Lock()
 
     async def register_hello(self, hello: Hello, boot_id: int) -> int:
@@ -143,7 +165,7 @@ class BinaryPersistence:
         log = PicoLog.decode(frame.payload) if frame.header.message_type == MessageType.PICO_LOG else None
         drop = TransportDrop.decode(frame.payload) if frame.header.message_type == MessageType.TRANSPORT_DROP else None
         if drop and drop.first_sequence != sequence:
-            raise ValueError("TRANSPORT_DROP header sequence must equal first dropped sequence")
+            raise InvalidTransportDrop("TRANSPORT_DROP header sequence must equal first dropped sequence")
 
         async with self._session_factory() as db:
             device = (
@@ -169,16 +191,14 @@ class BinaryPersistence:
                 )
                 db.add(boot)
                 await db.flush()
-            reported_newest = max(
-                sequence, drop.last_sequence if drop else sequence
-            )
+            reported_newest = max(sequence, drop.last_sequence if drop else sequence)
             if device.pico_boot_id == boot_key:
                 if reported_newest > int(boot.newest_available_sequence):
                     boot.newest_available_sequence = u64_decimal(reported_newest)
                 if reported_newest > int(device.newest_available_sequence):
                     device.newest_available_sequence = u64_decimal(reported_newest)
             elif drop and drop.last_sequence > int(boot.newest_available_sequence):
-                raise ValueError("TRANSPORT_DROP exceeds HELLO advertised range")
+                raise InvalidTransportDrop("TRANSPORT_DROP exceeds HELLO advertised range")
             existing = (
                 await db.execute(
                     select(BMCUBinaryRecord.id).where(
@@ -279,8 +299,17 @@ class BinaryPersistence:
             await db.commit()
 
         if semantic is not None and received_at_us is not None:
-            self.current_state[(device_id, frame.header.link_index)] = semantic
-            self.current_state_seen[(device_id, frame.header.link_index)] = time.monotonic()
+            key = (device_id, frame.header.link_index)
+            now_m = time.monotonic()
+            if isinstance(semantic, BMCUStatus) or not _STRICT_STATE:
+                self.current_state[key] = semantic
+                self.current_state_seen[key] = now_m
+            if isinstance(semantic, BMCUEvent):
+                self.last_event[key] = semantic
+                self.last_event_seen[key] = now_m
+            elif isinstance(semantic, BMCUHello):
+                self.last_hello[key] = semantic
+                self.bmcu_hello_epoch[device_id] = self.bmcu_hello_epoch.get(device_id, 0) + 1
         return watermark
 
     async def persist_control_result(self, device_id: str, boot_id: int, result: ControlResult) -> None:
@@ -308,26 +337,78 @@ class BinaryPersistence:
                 )
                 await db.commit()
 
+    async def _newest_semantic(self, db, device_id: str, link_index: int, kind: int):
+        """Newest decodable semantic of one BMCU kind for one link.
+
+        Queried per link rather than with a single global scan: STATUS rates
+        differ wildly between links, so a shared row budget lets a busy link
+        starve a quiet one out of ever being restored.
+        """
+        rows = (
+            await db.execute(
+                select(BMCUBinaryRecord)
+                .where(
+                    BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
+                    BMCUBinaryRecord.raw_bmcu_frame.isnot(None),
+                    BMCUBinaryRecord.bmcu_kind == kind,
+                    BMCUBinaryRecord.device_id == device_id,
+                    BMCUBinaryRecord.link_index == link_index,
+                )
+                .order_by(BMCUBinaryRecord.server_received_at.desc())
+                .limit(_REHYDRATE_SCAN_LIMIT)
+            )
+        ).scalars()
+        for row in rows:
+            try:
+                semantic = decode_semantic(decode_wire_frame(row.raw_bmcu_frame))
+            except InvalidBMCUFrame:
+                continue
+            if semantic is not None:
+                return semantic, row.server_received_at
+        return None, None
+
     async def rehydrate_current_state(self) -> None:
         """Restore latest decoded per-link state before accepting Pico sessions."""
         async with self._session_factory() as db:
-            rows = (
+            links = (
                 await db.execute(
-                    select(BMCUBinaryRecord)
+                    select(BMCUBinaryRecord.device_id, BMCUBinaryRecord.link_index)
                     .where(
                         BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
                         BMCUBinaryRecord.raw_bmcu_frame.isnot(None),
                     )
-                    .order_by(BMCUBinaryRecord.server_received_at.desc())
+                    .group_by(BMCUBinaryRecord.device_id, BMCUBinaryRecord.link_index)
                 )
-            ).scalars()
-            seen = set()
-            for row in rows:
-                key = (row.device_id, row.link_index)
-                if key in seen:
-                    continue
-                semantic = decode_semantic(decode_wire_frame(row.raw_bmcu_frame))
-                if semantic is not None:
-                    self.current_state[key] = semantic
-                    self.current_state_seen[key] = time.monotonic()
-                    seen.add(key)
+            ).all()
+            now_m, now = time.monotonic(), _utcnow()
+            for device_id, link_index in links:
+                key = (device_id, link_index)
+                status, received_at = await self._newest_semantic(db, device_id, link_index, 2)
+                if isinstance(status, BMCUStatus):
+                    self.current_state[key] = status
+                    # Age the restored snapshot by how old the record actually
+                    # is, so a restart cannot present hours-old values as fresh.
+                    age_s = 0.0
+                    if received_at is not None:
+                        # server_received_at is stored naive-UTC, like _utcnow().
+                        stamped = received_at.replace(tzinfo=None) if received_at.tzinfo else received_at
+                        age_s = max(0.0, (now - stamped).total_seconds())
+                    self.current_state_seen[key] = now_m - age_s
+                hello, _ = await self._newest_semantic(db, device_id, link_index, 1)
+                if isinstance(hello, BMCUHello):
+                    self.last_hello[key] = hello
+            # No BMCU boot id exists on the wire, so the HELLO count stands in
+            # for a boot session. Seed it from history to stay monotonic across
+            # bambuddy restarts.
+            epochs = (
+                await db.execute(
+                    select(BMCUBinaryRecord.device_id, func.count())
+                    .where(
+                        BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
+                        BMCUBinaryRecord.bmcu_kind == 1,
+                    )
+                    .group_by(BMCUBinaryRecord.device_id)
+                )
+            ).all()
+            for device_id, count in epochs:
+                self.bmcu_hello_epoch[device_id] = int(count or 0)
