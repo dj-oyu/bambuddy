@@ -144,6 +144,13 @@ it exposes both masks under their wire names — `inserted_mask` (loader hardwar
 presence) and `online_mask` (filament) — unlike §1's `LinkSnapshot`, which
 exposes only `activeMask`.
 
+`channel_flags` is a four-element array, one entry per channel, each with `ks`
+(the raw switch reading), the fault latches `low`, `jam` and `dm_fail`, and the
+merger-ownership pair `loaded` and `tail`. It is **null**, not four zeroed
+channels, when the bridge's STATUS predates the flags byte — a 27-byte frame
+never reported the latches, and that is a different statement from reporting
+none set. §1's `LinkSnapshot` does not expose it.
+
 ## Conventions
 
 - Wire `u64` values keep the text encoding of transport spec §13:

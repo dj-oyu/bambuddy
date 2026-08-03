@@ -1794,6 +1794,7 @@ export default {
       statusFilament: 'Filament',
       statusPull: 'Pull',
       statusMotion: 'Motion',
+      statusLatch: 'Latch',
       recentEvents: 'Recent events',
       kindFilter: 'Filter by kind',
       allKinds: 'All kinds',

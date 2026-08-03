@@ -1771,6 +1771,7 @@ export default {
       statusFilament: 'フィラメント',
       statusPull: '引き込み',
       statusMotion: 'モーション',
+      statusLatch: 'ラッチ',
       recentEvents: '最近のイベント',
       kindFilter: '種別で絞り込み',
       allKinds: 'すべての種別',

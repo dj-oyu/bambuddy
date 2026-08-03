@@ -1732,6 +1732,7 @@ export default {
       statusFilament: 'Filament',
       statusPull: 'Einzug',
       statusMotion: 'Bewegung',
+      statusLatch: 'Verriegelung',
       recentEvents: 'Letzte Ereignisse',
       kindFilter: 'Nach Art filtern',
       allKinds: 'Alle Arten',

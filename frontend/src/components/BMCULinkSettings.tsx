@@ -263,7 +263,26 @@ function bit(mask: unknown, i: number): boolean | null {
 
 const ERROR_COUNTER_KEYS = new Set(['crc_error', 'frame_error', 'rx_drop', 'tx_drop', 'control_error']);
 // Fields folded into the per-channel grid; everything else renders as a tile.
-const CHANNEL_KEYS = new Set(['inserted_mask', 'online_mask', 'pull_pct', 'motion', 'current_slot']);
+const CHANNEL_KEYS = new Set([
+  'inserted_mask',
+  'online_mask',
+  'pull_pct',
+  'motion',
+  'current_slot',
+  'channel_flags',
+]);
+
+// Per-channel latches, in the order they are worth reading. The names are the
+// protocol's, not ours, and stay untranslated for the same reason the motion
+// enum does: they are what the BMCU documentation and the bridge's own UI call
+// them, and a translated latch name cannot be searched for.
+const LATCHES: { key: string; label: string; alarming: boolean }[] = [
+  { key: 'loaded', label: 'LOADED', alarming: false },
+  { key: 'tail', label: 'TAIL', alarming: false },
+  { key: 'jam', label: 'JAM', alarming: true },
+  { key: 'low', label: 'LOW', alarming: true },
+  { key: 'dm_fail', label: 'DM', alarming: true },
+];
 
 function PresenceDot({ on }: { on: boolean | null }) {
   if (on === null) return <span className="text-bambu-gray">—</span>;
@@ -275,7 +294,27 @@ function PresenceDot({ on }: { on: boolean | null }) {
   );
 }
 
-function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums | undefined }) {
+/** The latches set on one channel, or an em dash when none are. */
+function LatchBadges({ flags }: { flags: Record<string, unknown> | undefined }) {
+  const set = LATCHES.filter(({ key }) => flags?.[key] === 1);
+  if (set.length === 0) return <span className="text-bambu-gray">—</span>;
+  return (
+    <span className="inline-flex flex-wrap gap-1 justify-center">
+      {set.map(({ key, label, alarming }) => (
+        <span
+          key={key}
+          className={`rounded px-1 font-mono text-[10px] leading-4 ${
+            alarming ? 'bg-red-500/20 text-red-300' : 'bg-bambu-dark-tertiary text-white'
+          }`}
+        >
+          {label}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums | undefined }) {
   const { t } = useTranslation();
   const parsed = parseStatus(status);
   if (!parsed) {
@@ -294,11 +333,21 @@ function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums |
 
   const pullPct = Array.isArray(data.pull_pct) ? (data.pull_pct as unknown[]) : null;
   const motion = Array.isArray(data.motion) ? (data.motion as unknown[]) : null;
+  // Null when the bridge's STATUS predates the per-channel flags byte. The row
+  // is then absent rather than empty: it never reported, which is not the same
+  // claim as "no latch is set".
+  const channelFlags = Array.isArray(data.channel_flags)
+    ? (data.channel_flags as Record<string, unknown>[])
+    : null;
   const channelCount = Math.max(pullPct?.length ?? 0, motion?.length ?? 0, 4);
   const currentSlot = typeof data.current_slot === 'number' ? data.current_slot : null;
   const channels = Array.from({ length: channelCount }, (_, i) => i);
   const hasChannelData =
-    pullPct !== null || motion !== null || typeof data.inserted_mask === 'number' || typeof data.online_mask === 'number';
+    pullPct !== null ||
+    motion !== null ||
+    channelFlags !== null ||
+    typeof data.inserted_mask === 'number' ||
+    typeof data.online_mask === 'number';
 
   const tiles = [
     ...Object.entries(data).filter(([k]) => !CHANNEL_KEYS.has(k)),
@@ -388,6 +437,18 @@ function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums |
                       {typeof motion[i] === 'number'
                         ? renderStatusValue(enums, 'motion', motion[i])
                         : '—'}
+                    </td>
+                  ))}
+                </tr>
+              )}
+              {channelFlags && (
+                <tr>
+                  <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
+                    {t('settings.bmcuLink.statusLatch')}
+                  </td>
+                  {channels.map((i) => (
+                    <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary">
+                      <LatchBadges flags={channelFlags[i]} />
                     </td>
                   ))}
                 </tr>
