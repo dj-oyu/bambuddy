@@ -38,6 +38,7 @@
         "pullPercent": 42,
         "pressure": 17,
         "faultCount": 0,
+        "statusAgeS": 2.5,
         "lastSeenAt": "2026-07-31T10:00:00Z"
       }
     ]

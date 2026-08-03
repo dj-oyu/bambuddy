@@ -1,7 +1,7 @@
 """Read/control API for authenticated binary BMCU Monitors."""
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
@@ -100,13 +100,14 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
     )
     persistence = binary_transport_server.persistence
     links = []
+    now = datetime.now(UTC).replace(tzinfo=None)
     for stored in stored_links:
         key = (device_id, stored.link_index)
         value = persistence.current_state.get(key)
         if not isinstance(value, BMCUStatus):
             value = None
         if value is None:
-            snapshot, state, faults = None, "stale", 0
+            snapshot, state, faults, age_s = None, "stale", 0, None
         else:
             age_s = time.monotonic() - persistence.current_state_seen.get(key, time.monotonic())
             snapshot = status_snapshot(value, age_s)
@@ -125,7 +126,13 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
                 pullPercent=snapshot["pull_pct"] if snapshot else None,
                 pressure=snapshot["pressure"] if snapshot else None,
                 faultCount=faults,
-                lastSeenAt=row.last_seen_at,
+                # How old the values above are. The device row's last_seen_at
+                # reports the transport, which keeps advancing on EVENT and
+                # diagnostic traffic while STATUS is starved, so it cannot say
+                # whether this loader view is current. Without the age the page
+                # painted a snapshot from the previous day as the live slot.
+                statusAgeS=None if age_s is None else round(age_s, 1),
+                lastSeenAt=None if age_s is None else now - timedelta(seconds=age_s),
             )
         )
     return MonitorDetail(**_summary(row, len(stored_links)).model_dump(), firstSeenAt=row.first_seen_at, links=links)

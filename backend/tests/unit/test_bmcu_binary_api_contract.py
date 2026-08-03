@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -150,6 +150,28 @@ async def test_link_snapshot_reports_stale_when_no_status_seen(bmcu_db) -> None:
     assert link.motion is None
     assert link.state == "stale"
     assert (link.currentSlot, link.pullPercent, link.pressure, link.activeMask) == (None, None, None, 0)
+
+
+@pytest.mark.asyncio
+async def test_link_snapshot_dates_the_loader_view_by_the_status_itself(bmcu_db) -> None:
+    """The device row's last_seen_at tracks the transport, which keeps moving on
+    EVENT traffic while STATUS is starved, so it cannot date the loader view."""
+    persistence = binary_transport_server.persistence
+    persistence.current_state[("pico-bmcu-bridge", 0)] = _status()
+    persistence.current_state_seen[("pico-bmcu-bridge", 0)] = time.monotonic() - 7200
+    link = (await bmcu_monitors.detail("pico-bmcu-bridge", db=bmcu_db, _=None)).links[0]
+    assert link.state == "stale"
+    assert 7195 <= link.statusAgeS <= 7205
+    assert link.lastSeenAt < datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=110)
+    # The values are still returned; the age is what tells a caller not to read
+    # them as the live slot.
+    assert link.currentSlot is not None
+
+
+@pytest.mark.asyncio
+async def test_link_snapshot_has_no_age_when_no_status_was_ever_decoded(bmcu_db) -> None:
+    link = (await bmcu_monitors.detail("pico-bmcu-bridge", db=bmcu_db, _=None)).links[0]
+    assert (link.statusAgeS, link.lastSeenAt, link.state) == (None, None, "stale")
 
 
 @pytest.mark.asyncio

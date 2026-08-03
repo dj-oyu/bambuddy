@@ -29,6 +29,8 @@ export interface BMCULinkSnapshot {
   pullPercent: number | null;
   pressure: number | null;
   faultCount: number;
+  /** Age of the loader values above; null when no STATUS was ever decoded. */
+  statusAgeS: number | null;
   lastSeenAt: string | null;
 }
 

@@ -27,6 +27,9 @@ class LinkSnapshot(BaseModel):
     pullPercent: int | None
     pressure: int | None
     faultCount: int
+    # Age of the values above, and the wall-clock time they were observed.
+    # Null when no STATUS has ever been decoded for this link.
+    statusAgeS: float | None = None
     lastSeenAt: datetime | None
 
 
