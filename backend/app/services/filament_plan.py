@@ -165,10 +165,14 @@ async def build_filament_plan(db: AsyncSession, printer_id: int) -> dict[str, An
     items: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
 
-    # The running job's swap already happened; it is on the plan only so the
-    # Gantt can draw the filament it is currently consuming.
+    # The running job is on the plan so the Gantt can draw the filament it is
+    # consuming. Its *start* swap already happened and is no longer knowable
+    # from here, but its tail is not: the 3MF was injected at dispatch, so
+    # whether it pulls the filament back is already decided and the lane needs
+    # it — without it the run would be drawn straight through the next job.
     for item in active:
         trays = _normalize(item.ams_mapping)
+        mode = resolve_unload_mode(item.unload_edit, item.defer_unload, bool(item.gcode_injection))
         items.append(
             {
                 "item_id": item.id,
@@ -178,10 +182,10 @@ async def build_filament_plan(db: AsyncSession, printer_id: int) -> dict[str, An
                 "trays_source": "stored" if trays else "unknown",
                 "filaments": describe(trays),
                 "unload_edit": item.unload_edit,
-                "effective_mode": resolve_unload_mode(item.unload_edit, item.defer_unload, bool(item.gcode_injection)),
+                "effective_mode": mode,
                 "editable": False,
                 "unload_at_start": None,
-                "unload_at_end": None,
+                "unload_at_end": not tail_is_deferred(mode, bool(item.gcode_injection)),
                 "swap_from": None,
                 "swap_from_filaments": [],
             }

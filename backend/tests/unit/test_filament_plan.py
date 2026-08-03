@@ -235,9 +235,24 @@ class TestChain:
 
         items = _by_id(await harness.run())
         assert items[200]["editable"] is False
-        assert items[200]["unload_at_start"] is None
+        assert items[200]["unload_at_start"] is None  # already happened
         assert items[200]["trays"] == [4]
         assert items[201]["editable"] is True
+
+    async def test_running_job_still_reports_its_tail(self, harness):
+        """Its 3MF was injected at dispatch, so the tail decision is already
+        made. Reporting it as unknown drew the running filament straight
+        through the next job on the hotend lane."""
+        await harness.add(item_id=200, status="printing", position=1, ams_mapping=[4], unload_edit="end")
+        items = _by_id(await harness.run())
+        assert items[200]["unload_at_end"] is True
+
+        await harness.db.execute(
+            PrintQueueItem.__table__.update().where(PrintQueueItem.id == 200).values(unload_edit="auto")
+        )
+        await harness.db.commit()
+        items = _by_id(await harness.run())
+        assert items[200]["unload_at_end"] is False
 
 
 class TestWarnings:
