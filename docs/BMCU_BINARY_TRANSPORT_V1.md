@@ -593,7 +593,9 @@ The local endpoints are:
 - `GET /api/events.bin?after=<sequence>&limit=<n>`;
 - `GET /api/history/status.bin`;
 - `GET /api/diagnostics.bin`;
-- `GET /api/logs.bin?after=<sequence>&limit=<n>`.
+- `GET /api/logs.bin?after=<sequence>&limit=<n>`;
+- `GET /api/snapshot.bin`;
+- `GET /api/capture.bin`.
 
 Responses use `Content-Type: application/vnd.bmcu-monitor.v1` and consist of
 one or more complete BMB1 messages. Because every message carries a fixed
@@ -605,6 +607,21 @@ or a separate response envelope.
 from the byte ring or journal. `/api/history/status.bin` returns bounded,
 sampled STATUS records. No endpoint may reconstruct the former Python
 dictionary envelope.
+
+`/api/snapshot.bin` and `/api/capture.bin` are local diagnostic surfaces and
+are the two exceptions to the BMB1-framed rule above: they use the record
+formats `BSNP` and `BCAP` documented in `bmcu_wire_layout.json`, and neither is
+delivered to Bambuddy. `/api/snapshot.bin` returns the per-link FULL_STATUS
+record set plus the synthetic link record (type 240) and retained EVENT records
+(type 241), which is the channel, printer-bus, and AMS-registration state a
+link reported for its current session. `/api/capture.bin` returns a bounded
+ring of the UART bytes the decoder rejected, tagged with the local reject
+reason, so a CRC or length failure can be inspected as bytes rather than only
+counted. Both are byte-oriented for the same reason as the rest of this
+section: the Pico builds no object tree to answer them.
+
+Byte offsets for every structure named here live in `bmcu_wire_layout.json`,
+which this repository and the BMCU repository carry identically.
 
 `PICO_DIAGNOSTIC` is a compact TLV payload for values that do not originate in
 a BMCU frame:

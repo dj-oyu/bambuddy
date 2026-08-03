@@ -172,6 +172,13 @@
       "decode": ["bmb1_envelope", "bmcu_frame_prefix", "link_wire", "status_payload"]
     },
     {
+      "path": "/api/history/status.bin",
+      "answers": "What did the loaders do over the retained window?",
+      "cadence": "bounded sampled STATUS history; poll on demand",
+      "body": "concatenated bmb1_envelope messages, message_type BMCU_FRAME, each carrying a kind 2 STATUS frame, sampled per the journal STATUS policy",
+      "decode": ["bmb1_envelope", "bmcu_frame_prefix", "link_wire", "status_payload"]
+    },
+    {
       "path": "/api/diagnostics.bin",
       "answers": "How healthy is the bridge itself?",
       "cadence": "recomputed every 15 s",

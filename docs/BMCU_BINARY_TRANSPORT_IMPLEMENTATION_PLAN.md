@@ -280,6 +280,17 @@ Add bounded `from`, `to`, `resolution`, `severity`, `component`, `link`, and
 slot filters as appropriate. Apply the existing settings/BMCU permissions
 until a dedicated permission is introduced.
 
+The surface above is the plan, not the outcome. What shipped is documented in
+`bambuddy_bmcu_rest_api.md`, generated from the running service's OpenAPI: no
+`/diagnostics` or `/history` route exists, `POST /control` was added, and the
+`resolution`, `link`, and slot filters were never implemented. That file covers
+both Bambuddy-served routers — `/api/v1/bmcu-monitors` and the older
+`/api/v1/bmcu-link` settings surface — and keeps them separate from the Pico's
+local `.bin` API, which Bambuddy does not call. It also records which of the
+exit conditions below are still unmet: `resolution` and `link` are still
+ignored, so a bounded range is thinned by row stride rather than to a requested
+interval.
+
 Keep provisioning and sensitive device-key actions in Settings. Never return a
 device key after creation.
 
