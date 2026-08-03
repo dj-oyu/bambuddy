@@ -1,3 +1,11 @@
 # Force CRLF line endings for Windows batch files so cmd.exe can parse them
 # regardless of the user's core.autocrlf setting.
 *.bat text eol=crlf
+
+# These four files are mirrored byte-for-byte with the BMCU repository, which
+# stores all text as LF. Pinning only them keeps the comparison meaningful
+# without renormalizing the rest of this fork away from upstream.
+docs/BMCU_BINARY_TRANSPORT_V1.md text eol=lf
+docs/BMCU_LINK_PROTOCOL_ALPHA3.md text eol=lf
+docs/bmcu_link_enum_registry.json text eol=lf
+docs/bmcu_wire_layout.json text eol=lf
