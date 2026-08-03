@@ -27,7 +27,6 @@ COPY pyproject.toml ./
 # the backend test image stays small while still validating the shared wire/API
 # contracts against their canonical frontend and documentation artifacts.
 COPY docs/bmcu_binary_registry.json ./docs/bmcu_binary_registry.json
-COPY docs/bmcu_wire_layout.json ./docs/bmcu_wire_layout.json
 COPY frontend/src/__tests__/fixtures/bmcuMonitorApi.json ./frontend/src/__tests__/fixtures/bmcuMonitorApi.json
 
 # Embedded GCode viewer assets — required so the @app.get("/gcode-viewer/...")

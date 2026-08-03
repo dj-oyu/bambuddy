@@ -6,6 +6,8 @@ the projection here stops the two representations from drifting apart.
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from .bmcu_decoder import BMCUStatus
 
 NO_SLOT = 0xFF
@@ -27,6 +29,18 @@ def pull_percent(status: BMCUStatus) -> int | None:
     return status.pull_pct[slot]
 
 
+def channel_flags(status: BMCUStatus) -> list[dict] | None:
+    """Per-channel latches and switch reading, or None if unreported.
+
+    Null rather than four zeroed channels: a frame that predates the flags byte
+    says nothing about the latches, and rendering "no fault" for a channel that
+    was never asked is the more expensive of the two mistakes.
+    """
+    if status.channel_flags is None:
+        return None
+    return [asdict(channel) for channel in status.channels]
+
+
 def status_snapshot(status: BMCUStatus, age_s: float | None = None) -> dict:
     """Flat dict of the realtime values, shared by both API surfaces."""
     return {
@@ -37,5 +51,6 @@ def status_snapshot(status: BMCUStatus, age_s: float | None = None) -> dict:
         "pull_pct": pull_percent(status),
         "pressure": status.pressure,
         "control_error": status.control_error,
+        "channel_flags": channel_flags(status),
         "age_s": age_s,
     }

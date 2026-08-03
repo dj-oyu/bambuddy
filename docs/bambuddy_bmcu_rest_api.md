@@ -10,7 +10,7 @@ documents only the first two.
 |---|---|---|---|---|
 | `/api/v1/bmcu-monitors/*` | Bambuddy | Bambuddy frontend (`BMCULinkPage`) | JSON | this file, §1 |
 | `/api/v1/bmcu-link/*` | Bambuddy | Bambuddy frontend (Settings, `BMCULinkSettings`) | JSON | this file, §2 |
-| `/api/*.bin` | the Pico bridge itself | the Pico's own browser UI | BMB1 / BSNP / BCAP binary | `BMCU_BINARY_TRANSPORT_V1.md` §12, `bmcu_wire_layout.json` |
+| `/api/*.bin` | the Pico bridge itself | the Pico's own browser UI | BMB1 / BSNP / BCAP binary | `BMCU_BINARY_TRANSPORT_V1.md` §12, and the bridge's own `/api/schema.json` |
 
 Bambuddy never calls the Pico's local `.bin` endpoints. Everything Bambuddy
 knows about a bridge arrives over the persistent BMB1 TCP session
@@ -156,7 +156,8 @@ exposes only `activeMask`.
 - `activeMask` (§1) is `online_mask`, i.e. **filament** detection. The hardware
   channel mask (`inserted_mask`) is not exposed by the monitors router at all.
   See `BMCUStatus` in `backend/app/services/bmcu_binary/bmcu_decoder.py` and the
-  reading notes in `bmcu_wire_layout.json`.
+  reading notes the bridge serves at `/api/schema.json`, captured for the tests
+  in `backend/tests/fixtures/bmcu_binary/monitor_schema.json`.
 
 ## Known gaps
 

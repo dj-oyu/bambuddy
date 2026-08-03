@@ -54,7 +54,6 @@ docs/
 !docs/
 docs/*
 !docs/bmcu_binary_registry.json
-!docs/bmcu_wire_layout.json
 *.md
 !requirements.txt
 
