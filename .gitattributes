@@ -1,3 +1,10 @@
 # Force CRLF line endings for Windows batch files so cmd.exe can parse them
 # regardless of the user's core.autocrlf setting.
 *.bat text eol=crlf
+
+# Markdown checks out LF everywhere, whatever core.autocrlf says. Documents in
+# docs/ are mirrored byte-for-byte against the BMCU-Link repository, which is
+# LF-only; with autocrlf on, markdown fell through to CRLF here and a plain
+# diff between the two copies reported every line as changed. The mirroring
+# rule is only enforceable if the copies can be compared.
+*.md text eol=lf
