@@ -1434,6 +1434,8 @@ export default {
       editSwap: 'Edit where the swap happens',
       unknownSwap: "This job's AMS slot can't be resolved, so the swap can't be predicted.",
       notEditable: 'This swap belongs to a job that already started.',
+      lockedByRunningJob: 'The job that would change has already started.',
+      inEffectLocked: '(in effect)',
       editFailed: 'Could not update the unload setting',
       legend: {
         printing: 'Printing with it',

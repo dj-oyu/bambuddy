@@ -215,7 +215,7 @@ describe('unloadOptionsFor', () => {
     expect(options.find((o) => o.id === 'carry')!.writes).toEqual([{ itemId: 201, mode: 'auto' }]);
   });
 
-  it('drops placements that would need a job already running', () => {
+  it('locks placements that would need a job already running, but still shows them', () => {
     const options = unloadOptionsFor(
       marker,
       planMap([
@@ -223,8 +223,27 @@ describe('unloadOptionsFor', () => {
         planItem({ item_id: 202 }),
       ])
     );
+    expect(options.map((o) => o.id)).toEqual(['carry', 'force-start', 'tail', 'raw']);
     // 201 has already started, so nothing can be written to its tail.
-    expect(options.map((o) => o.id)).toEqual(['carry', 'force-start']);
+    expect(options.find((o) => o.id === 'tail')!.disabled).toBe(true);
+    expect(options.find((o) => o.id === 'tail')!.writes).toEqual([]);
+    expect(options.find((o) => o.id === 'force-start')!.disabled).toBe(false);
+  });
+
+  it('reads the running job\'s own mode as the selected placement', () => {
+    // The regression: deriving the selection from editable rows only made a
+    // running job set to 'end' read as 'carry', contradicting its row badge.
+    const options = unloadOptionsFor(
+      marker,
+      planMap([
+        planItem({ item_id: 201, status: 'printing', editable: false, effective_mode: 'end', unload_edit: 'end' }),
+        planItem({ item_id: 202 }),
+      ])
+    );
+    expect(options.find((o) => o.id === 'tail')!.selected).toBe(true);
+    expect(options.find((o) => o.id === 'carry')!.selected).toBe(false);
+    // Switching away from it would have to rewrite the running job — blocked.
+    expect(options.find((o) => o.id === 'carry')!.disabled).toBe(true);
   });
 
   it('offers only tail-side placements for the last job in the queue', () => {

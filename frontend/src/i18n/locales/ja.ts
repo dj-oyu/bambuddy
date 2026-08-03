@@ -1413,6 +1413,8 @@ export default {
       editSwap: '交換位置を編集',
       unknownSwap: 'このジョブのAMSスロットが解決できないため、交換を予測できません。',
       notEditable: 'この交換はすでに開始したジョブのものです。',
+      lockedByRunningJob: '変更が必要なジョブはすでに開始しています。',
+      inEffectLocked: '(適用中)',
       editFailed: 'アンロード設定を更新できませんでした',
       legend: {
         printing: 'このフィラメントで印刷中',

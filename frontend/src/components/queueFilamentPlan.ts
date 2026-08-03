@@ -186,9 +186,24 @@ export type UnloadOptionId = 'carry' | 'force-start' | 'tail' | 'raw';
 
 export interface UnloadOption {
   id: UnloadOptionId;
+  /** The placement currently in effect — read from the real modes on both
+   *  sides, whether or not those rows can still be edited. */
   selected: boolean;
+  /** A row this option would have to change has already started. */
+  disabled: boolean;
   /** Rows to PATCH, in order. Empty when the option is already in effect. */
   writes: Array<{ itemId: number; mode: UnloadEditMode }>;
+}
+
+/** Where this boundary's unload currently happens, from both sides' modes. */
+function currentPlacement(
+  prev: FilamentPlanItem | undefined,
+  next: FilamentPlanItem | undefined
+): UnloadOptionId {
+  if (next?.effective_mode === 'start') return 'force-start';
+  if (prev?.effective_mode === 'none') return 'raw';
+  if (prev?.effective_mode === 'end') return 'tail';
+  return 'carry';
 }
 
 /** Which placements this marker can offer, and what each one writes.
@@ -196,57 +211,45 @@ export interface UnloadOption {
  *  A swap is a property of *two* rows — the job that could pull the filament
  *  back at its end, and the job that could force a pull-back at its start — so
  *  each option normalizes both sides, but only writes the rows that actually
- *  need to change. */
+ *  need to change.
+ *
+ *  Editability gates *writing*, never *reading*. A running job set to "unload
+ *  at end" must still show as the selected placement; deriving the selection
+ *  from editable rows only made it read as "automatic", contradicting the row
+ *  badge and the lane. */
 export function unloadOptionsFor(
   marker: UnloadMarker,
   planItems: Map<number, FilamentPlanItem>
 ): UnloadOption[] {
   const prev = marker.prevItemId != null ? planItems.get(marker.prevItemId) : undefined;
   const next = marker.nextItemId != null ? planItems.get(marker.nextItemId) : undefined;
-  const editablePrev = prev?.editable ? prev : undefined;
-  const editableNext = next?.editable ? next : undefined;
+  const current = currentPlacement(prev, next);
 
   const options: UnloadOption[] = [];
+  const add = (id: UnloadOptionId, writes: UnloadOption['writes']) => {
+    const blocked = writes.some((w) => !planItems.get(w.itemId)?.editable);
+    options.push({ id, selected: current === id, disabled: blocked, writes: blocked ? [] : writes });
+  };
 
   const carryWrites: UnloadOption['writes'] = [];
-  if (editablePrev && editablePrev.effective_mode !== 'auto') {
-    carryWrites.push({ itemId: editablePrev.item_id, mode: 'auto' });
-  }
-  if (editableNext && editableNext.effective_mode === 'start') {
-    carryWrites.push({ itemId: editableNext.item_id, mode: 'auto' });
-  }
-  options.push({
-    id: 'carry',
-    selected: carryWrites.length === 0 && (!!editablePrev || !!editableNext),
-    writes: carryWrites,
-  });
+  if (prev && prev.effective_mode !== 'auto') carryWrites.push({ itemId: prev.item_id, mode: 'auto' });
+  if (next && next.effective_mode === 'start') carryWrites.push({ itemId: next.item_id, mode: 'auto' });
+  add('carry', carryWrites);
 
-  if (editableNext) {
+  if (next) {
     const writes: UnloadOption['writes'] = [];
-    if (editableNext.effective_mode !== 'start') writes.push({ itemId: editableNext.item_id, mode: 'start' });
-    if (editablePrev && editablePrev.effective_mode === 'end') {
-      writes.push({ itemId: editablePrev.item_id, mode: 'auto' });
-    }
-    options.push({
-      id: 'force-start',
-      selected: editableNext.effective_mode === 'start',
-      writes,
-    });
+    if (next.effective_mode !== 'start') writes.push({ itemId: next.item_id, mode: 'start' });
+    if (prev && prev.effective_mode === 'end') writes.push({ itemId: prev.item_id, mode: 'auto' });
+    add('force-start', writes);
   }
 
-  if (editablePrev) {
+  if (prev) {
     const tailWrites: UnloadOption['writes'] = [];
-    if (editablePrev.effective_mode !== 'end') tailWrites.push({ itemId: editablePrev.item_id, mode: 'end' });
-    if (editableNext && editableNext.effective_mode === 'start') {
-      tailWrites.push({ itemId: editableNext.item_id, mode: 'auto' });
-    }
-    options.push({ id: 'tail', selected: editablePrev.effective_mode === 'end', writes: tailWrites });
+    if (prev.effective_mode !== 'end') tailWrites.push({ itemId: prev.item_id, mode: 'end' });
+    if (next && next.effective_mode === 'start') tailWrites.push({ itemId: next.item_id, mode: 'auto' });
+    add('tail', tailWrites);
 
-    options.push({
-      id: 'raw',
-      selected: editablePrev.effective_mode === 'none',
-      writes: editablePrev.effective_mode === 'none' ? [] : [{ itemId: editablePrev.item_id, mode: 'none' }],
-    });
+    add('raw', prev.effective_mode === 'none' ? [] : [{ itemId: prev.item_id, mode: 'none' }]);
   }
 
   return options;

@@ -710,9 +710,11 @@ function SortableQueueItem({
                 unload actually happen for this job? */}
             {unloadTiming && (
               <>
-                {/* null = "we can't resolve this item's AMS slot". It gets its
-                    own badge: rendering unknown as "no unload" is how the old
-                    client-side chain lied about every row past the first. */}
+                {/* The start swap is only forecastable while the job is still
+                    pending; once it has started, that moment is history and no
+                    badge can honestly describe it. The tail badge stays — it is
+                    still ahead of the job. */}
+                {isPending && (
                 <span
                   className={
                     unloadTiming.start === null
@@ -728,6 +730,8 @@ function SortableQueueItem({
                       ? t('queue.badges.unloadAtStart')
                       : t('queue.badges.noUnloadAtStart')}
                 </span>
+                )}
+                {unloadTiming.end !== null && (
                 <span
                   className={
                     unloadTiming.end
@@ -737,6 +741,7 @@ function SortableQueueItem({
                 >
                   {unloadTiming.end ? t('queue.badges.unloadAtEnd') : t('queue.badges.unloadCarriedOver')}
                 </span>
+                )}
               </>
             )}
           </div>
@@ -1999,10 +2004,13 @@ export function QueuePage() {
   });
 
   const unloadTimingMap = useMemo(() => {
+    // Includes the running job: whether it unloads at its end is settled (the
+    // 3MF was injected at dispatch) and is exactly what a user who set
+    // "unload at end" expects to see confirmed on the row. Editability is a
+    // separate axis and is not a reason to hide the state.
     const map = new Map<number, UnloadTiming>();
     filamentPlanQueries.forEach(query => {
       for (const planItem of query.data?.items ?? []) {
-        if (!planItem.editable) continue;
         map.set(planItem.item_id, { start: planItem.unload_at_start, end: planItem.unload_at_end });
       }
     });

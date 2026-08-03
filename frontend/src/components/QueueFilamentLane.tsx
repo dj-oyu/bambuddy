@@ -258,9 +258,12 @@ export function UnloadModePopover({
             <button
               key={opt.id}
               type="button"
-              disabled={busy}
+              disabled={busy || opt.disabled}
               onClick={() => onPick(opt)}
-              className="w-full text-left px-3 py-2 flex gap-2.5 items-start hover:bg-bambu-dark disabled:opacity-50 disabled:cursor-wait transition-colors"
+              title={opt.disabled ? t('queue.filament.lockedByRunningJob') : undefined}
+              className={`w-full text-left px-3 py-2 flex gap-2.5 items-start transition-colors ${
+                opt.disabled ? 'opacity-45 cursor-not-allowed' : 'hover:bg-bambu-dark disabled:cursor-wait'
+              }`}
             >
               <span
                 className={`mt-0.5 w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
@@ -270,7 +273,14 @@ export function UnloadModePopover({
                 {opt.selected && <Check className="w-2.5 h-2.5 text-bambu-green" />}
               </span>
               <span className="min-w-0">
-                <span className="block text-xs text-white leading-tight">{t(OPTION_LABELS[opt.id].label)}</span>
+                <span className="block text-xs text-white leading-tight">
+                  {t(OPTION_LABELS[opt.id].label)}
+                  {opt.selected && opt.disabled && (
+                    <span className="ml-1.5 text-[10px] text-bambu-gray">
+                      {t('queue.filament.inEffectLocked')}
+                    </span>
+                  )}
+                </span>
                 <span className="block text-[11px] text-bambu-gray leading-snug mt-0.5">
                   {t(OPTION_LABELS[opt.id].desc)}
                 </span>
