@@ -35,6 +35,7 @@ from backend.app.services.bambu_ftp import (
 )
 from backend.app.services.bambu_mqtt import HMS_MQTT_VERIFY_FAILED
 from backend.app.services.filament_deficit import compute_deficit_for_queue_item
+from backend.app.services.filament_plan import resolve_unload_mode, tail_is_deferred
 from backend.app.services.notification_service import notification_service
 from backend.app.services.printer_manager import (
     printer_manager,
@@ -3694,27 +3695,11 @@ class PrintScheduler:
         #   end   -> keep the sliced tail unload
         #   none  -> touch nothing at all (skips snippets too)
         # Legacy defer_unload is consulted only when unload_edit is NULL.
-        mode = item.unload_edit
-        if mode is None:
-            if item.defer_unload is True:
-                mode = "auto" if item.gcode_injection else "start-less-defer"  # legacy True: tail strip only
-            elif item.defer_unload is False:
-                mode = "end"
-            else:
-                mode = "auto"
-        env_ok = os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"
-        if mode == "none" or mode == "end":
-            defer_unload = False
-            force_start_unload = False
-        elif mode == "start":
-            defer_unload = bool(item.gcode_injection) and env_ok
-            force_start_unload = True
-        elif mode == "start-less-defer":  # legacy defer_unload=True without injection
-            defer_unload = env_ok
-            force_start_unload = False
-        else:  # auto
-            defer_unload = bool(item.gcode_injection) and env_ok
-            force_start_unload = False
+        # Shared with the queue Gantt's plan endpoint (filament_plan), so what
+        # the UI predicts and what gets written into the 3MF can't drift apart.
+        mode = resolve_unload_mode(item.unload_edit, item.defer_unload, bool(item.gcode_injection))
+        defer_unload = tail_is_deferred(mode, bool(item.gcode_injection))
+        force_start_unload = mode == "start"
         if mode != "none" and (item.gcode_injection or defer_unload or force_start_unload):
             try:
                 snippets_raw = await self._get_setting(db, "gcode_snippets")

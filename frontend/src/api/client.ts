@@ -2223,6 +2223,55 @@ export interface DiscoveredTasmotaDevice {
   discovered_at: string | null;
 }
 
+// Filament load/unload plan (private fork). Resolved server-side because the
+// chain depends on tray mappings that pending rows don't carry yet.
+export type UnloadEditMode = 'auto' | 'start' | 'end' | 'none';
+
+export interface PlannedFilament {
+  tray: number;
+  ams_id: number | null;
+  tray_id: number | null;
+  type: string | null;
+  color: string | null;
+  /** Machine-side slot designator, e.g. `AMS0-B`. Not translated. */
+  label: string;
+}
+
+export interface FilamentPlanItem {
+  item_id: number;
+  status: string;
+  position: number;
+  trays: number[] | null;
+  trays_source: 'stored' | 'planned' | 'unknown';
+  filaments: PlannedFilament[];
+  unload_edit: UnloadEditMode | null;
+  effective_mode: string;
+  editable: boolean;
+  /** null = unknown (mapping unresolved), never conflate with false. */
+  unload_at_start: boolean | null;
+  unload_at_end: boolean | null;
+  swap_from: number[] | null;
+  swap_from_filaments: PlannedFilament[];
+}
+
+export interface FilamentPlanWarning {
+  item_id: number;
+  code: 'mapping_unresolved' | 'material_change_at_start' | 'filament_left_loaded';
+  detail: string;
+}
+
+export interface FilamentPlan {
+  printer_id: number;
+  withheld: {
+    active: boolean;
+    item_id: number | null;
+    trays: number[] | null;
+    filaments: PlannedFilament[];
+  };
+  items: FilamentPlanItem[];
+  warnings: FilamentPlanWarning[];
+}
+
 // Print Queue types
 export interface PrintQueueItem {
   id: number;
@@ -5185,6 +5234,11 @@ export const api = {
     request<{ withheld: boolean; item_id: number | null; trays: number[] | null }>(
       `/queue/printer/${printerId}/deferred-unload-state`
     ),
+  // Resolved load/unload chain for a printer's queue. Pending rows carry no
+  // ams_mapping (the scheduler computes it at dispatch), so the server plans
+  // it and walks the chain — the queue Gantt and the row badges both read it.
+  getFilamentPlan: (printerId: number) =>
+    request<FilamentPlan>(`/queue/printer/${printerId}/filament-plan`),
   addToQueue: (data: PrintQueueItemCreate) =>
     request<PrintQueueItem>('/queue/', {
       method: 'POST',

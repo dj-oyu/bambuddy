@@ -1,9 +1,20 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Layers, Printer as PrinterIcon } from 'lucide-react';
+import { Fragment, useState, useMemo, useEffect, useRef } from 'react';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, Clock, Droplet, Layers, Printer as PrinterIcon } from 'lucide-react';
 import { formatDuration, parseUTCDate } from '../utils/date';
-import type { PrintQueueItem, Printer } from '../api/client';
+import type { FilamentPlanItem, FilamentPlanWarning, PrintQueueItem, Printer } from '../api/client';
 import { api } from '../api/client';
 import { Button } from './Button';
+import { HotendLane, UnloadModePopover } from './QueueFilamentLane';
+import {
+  buildHotendSegments,
+  buildUnloadMarkers,
+  unloadOptionsFor,
+  type HotendSegment,
+  type PlannedJob,
+  type UnloadMarker,
+  type UnloadOption,
+} from './queueFilamentPlan';
 
 /** Gantt-style 24h-rolling timeline. One horizontal swimlane per printer
  *  (plus one per active target_model and one for unassigned items). Each
@@ -19,6 +30,9 @@ const RANGE_MS = RANGE_HOURS * HOUR_MS;
 const MIN_BAR_PX = 32;
 // Lane height for the bar row + label.
 const LANE_BAR_HEIGHT_PX = 40;
+// Filament lane sits under its printer lane and is deliberately shorter — it
+// is context for the job bars, not a peer of them.
+const FILAMENT_LANE_HEIGHT_PX = 30;
 
 interface ScheduleEvent {
   item: PrintQueueItem;
@@ -250,6 +264,115 @@ export function QueueTimelineView({
 
   const trackRef = useRef<HTMLDivElement | null>(null);
 
+  /* ---- Filament plan (private fork) ------------------------------------
+     The load/unload chain can't be derived client-side: pending rows carry no
+     ams_mapping until dispatch. The server resolves it per printer; here we
+     only join it against the bars we already placed. */
+  const queryClient = useQueryClient();
+  const [showFilament, setShowFilament] = useState(() => {
+    return localStorage.getItem('queueTimelineFilamentLane') !== 'off';
+  });
+  useEffect(() => {
+    localStorage.setItem('queueTimelineFilamentLane', showFilament ? 'on' : 'off');
+  }, [showFilament]);
+
+  const [editing, setEditing] = useState<{
+    printerId: number;
+    marker: UnloadMarker;
+    anchor: DOMRect;
+  } | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const planPrinterIds = useMemo(
+    () => lanes.map((l) => l.printerId).filter((id): id is number => id != null),
+    [lanes]
+  );
+
+  const planQueries = useQueries({
+    queries: planPrinterIds.map((printerId) => ({
+      queryKey: ['filamentPlan', printerId],
+      queryFn: () => api.getFilamentPlan(printerId),
+      refetchInterval: 20000,
+      enabled: showFilament,
+    })),
+  });
+
+  const filamentLanes = useMemo(() => {
+    const out: Record<
+      number,
+      {
+        segments: HotendSegment[];
+        markers: UnloadMarker[];
+        planItems: Map<number, FilamentPlanItem>;
+        warnings: FilamentPlanWarning[];
+        warningItemIds: Set<number>;
+      }
+    > = {};
+    planPrinterIds.forEach((printerId, index) => {
+      const plan = planQueries[index]?.data;
+      if (!plan) return;
+      const laneEvents = [...(eventsByLane.get(`printer:${printerId}`) ?? [])].sort(
+        (a, b) => a.estimatedStart.getTime() - b.estimatedStart.getTime()
+      );
+      const jobs: PlannedJob[] = laneEvents.map((ev) => ({
+        itemId: ev.item.id,
+        startMs: ev.estimatedStart.getTime(),
+        endMs: ev.estimatedEnd.getTime(),
+      }));
+      const planItems = new Map(plan.items.map((i) => [i.item_id, i]));
+      out[printerId] = {
+        segments: buildHotendSegments(jobs, planItems),
+        markers: buildUnloadMarkers(jobs, planItems),
+        planItems,
+        warnings: plan.warnings,
+        warningItemIds: new Set(plan.warnings.map((w) => w.item_id)),
+      };
+    });
+    return out;
+  }, [planPrinterIds, planQueries, eventsByLane]);
+
+  const applyUnloadOption = async (option: UnloadOption) => {
+    if (!editing) return;
+    if (option.writes.length === 0) {
+      setEditing(null);
+      return;
+    }
+    setApplying(true);
+    setEditError(null);
+    try {
+      // Sequential: a swap normalizes both sides of the boundary, and the
+      // second write is only correct once the first landed.
+      for (const write of option.writes) {
+        await api.updateQueueItem(write.itemId, { unload_edit: write.mode });
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['filamentPlan', editing.printerId] }),
+        queryClient.invalidateQueries({ queryKey: ['queue'] }),
+        queryClient.invalidateQueries({ queryKey: ['deferredUnloadState'] }),
+      ]);
+      setEditing(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : t('queue.filament.editFailed'));
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const editingLane = editing ? filamentLanes[editing.printerId] : undefined;
+  const editingOptions = useMemo(() => {
+    if (!editing || !editingLane) return [];
+    return unloadOptionsFor(editing.marker, editingLane.planItems);
+  }, [editing, editingLane]);
+  const editingWarnings = useMemo(() => {
+    if (!editing || !editingLane) return [];
+    const ids = new Set([editing.marker.prevItemId, editing.marker.nextItemId].filter((v): v is number => v != null));
+    const messages = editingLane.warnings
+      .filter((w) => ids.has(w.item_id))
+      .map((w) => t(`queue.filament.warning.${w.code}`));
+    return editError ? [...messages, editError] : messages;
+  }, [editing, editingLane, editError, t]);
+
   return (
     <div>
       {/* Window controls */}
@@ -295,19 +418,57 @@ export function QueueTimelineView({
             </Button>
           )}
         </div>
-        {allDoneBy && (
-          <span className="text-xs text-bambu-gray flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            {t('queue.timeline.allDoneBy', {
-              time: allDoneBy.toLocaleString(undefined, {
-                weekday: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-            })}
-          </span>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFilament((v) => !v)}
+            aria-pressed={showFilament}
+            className={`text-xs flex items-center gap-1.5 ${showFilament ? 'text-cyan-600 dark:text-cyan-400' : 'text-bambu-gray'}`}
+            title={t('queue.filament.toggleHint')}
+          >
+            <Droplet className="w-3.5 h-3.5" />
+            {t('queue.filament.toggle')}
+          </Button>
+          {allDoneBy && (
+            <span className="text-xs text-bambu-gray flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              {t('queue.timeline.allDoneBy', {
+                time: allDoneBy.toLocaleString(undefined, {
+                  weekday: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+              })}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Filament lane legend — the hatched/solid distinction carries the whole
+          deferred-unload story, so it needs naming rather than guessing. */}
+      {showFilament && Object.keys(filamentLanes).length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3 text-[11px] text-bambu-gray">
+          <span className="flex items-center gap-1.5">
+            <span className="w-6 h-3 rounded-sm border border-white/25 bg-cyan-400/70" />
+            {t('queue.filament.legend.printing')}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-6 h-3 rounded-sm border-y border-white/20"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(135deg, rgb(34 211 238 / 0.7) 0 4px, transparent 4px 9px)',
+              }}
+            />
+            {t('queue.filament.legend.carried')}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rotate-45 rounded-[2px] border border-cyan-400/70 bg-cyan-500/20" />
+            {t('queue.filament.legend.marker')}
+          </span>
+        </div>
+      )}
 
       {/* Empty-state notice when the fleet is idle and no queued item is
           committed (no scheduled_time / no active print to chain off).
@@ -348,8 +509,11 @@ export function QueueTimelineView({
           <div ref={trackRef} className="relative">
             {lanes.map((lane) => {
               const laneEvents = eventsByLane.get(lane.key) ?? [];
+              const filament = lane.printerId != null ? filamentLanes[lane.printerId] : undefined;
+              const showFilamentRow = showFilament && filament != null && filament.segments.length > 0;
               return (
-                <div key={lane.key} className="flex border-b border-bambu-dark-tertiary/40 last:border-b-0">
+                <Fragment key={lane.key}>
+                <div className="flex border-b border-bambu-dark-tertiary/40 last:border-b-0">
                   <div className="w-32 sm:w-40 shrink-0 px-3 py-3 border-r border-bambu-dark-tertiary flex items-center gap-2">
                     <PrinterIcon className={`w-3.5 h-3.5 shrink-0 ${
                       lane.printerId == null && lane.targetModel == null
@@ -456,6 +620,43 @@ export function QueueTimelineView({
                     })}
                   </div>
                 </div>
+
+                {/* Filament lane: what is physically in the hotend over time.
+                    The deferred-unload patch lets a spool outlive the job that
+                    loaded it, so this is the only place that boundary shows. */}
+                {showFilamentRow && (
+                  <div className="flex border-b border-bambu-dark-tertiary/40 last:border-b-0 bg-bambu-dark/30">
+                    <div className="w-32 sm:w-40 shrink-0 px-3 py-2 border-r border-bambu-dark-tertiary flex items-center gap-2">
+                      <Droplet className="w-3.5 h-3.5 shrink-0 text-cyan-600 dark:text-cyan-400" />
+                      <span className="text-[11px] text-bambu-gray truncate">
+                        {t('queue.filament.laneLabel')}
+                      </span>
+                    </div>
+                    <div className="relative flex-1">
+                      {hourTicks.map((tick) => (
+                        <div
+                          key={tick.ms}
+                          className="absolute top-0 bottom-0 border-l border-bambu-dark-tertiary/30"
+                          style={{ left: `${tick.pct}%` }}
+                        />
+                      ))}
+                      <HotendLane
+                        segments={filament.segments}
+                        markers={filament.markers}
+                        rangeStartMs={rangeStartMs}
+                        rangeMs={RANGE_MS}
+                        height={FILAMENT_LANE_HEIGHT_PX}
+                        warningItemIds={filament.warningItemIds}
+                        onMarkerClick={(marker, anchor) => {
+                          setEditError(null);
+                          setEditing({ printerId: lane.printerId as number, marker, anchor });
+                        }}
+                        t={t}
+                      />
+                    </div>
+                  </div>
+                )}
+                </Fragment>
               );
             })}
 
@@ -477,6 +678,23 @@ export function QueueTimelineView({
             )}
           </div>
         </div>
+      )}
+
+      {editing && editingLane && (
+        <UnloadModePopover
+          marker={editing.marker}
+          anchor={editing.anchor}
+          options={editingOptions}
+          busy={applying}
+          canEdit={editingOptions.length > 0}
+          warnings={editingWarnings}
+          onPick={applyUnloadOption}
+          onClose={() => {
+            setEditing(null);
+            setEditError(null);
+          }}
+          t={t}
+        />
       )}
     </div>
   );

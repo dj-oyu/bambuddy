@@ -1325,6 +1325,7 @@ export default {
       gcodeInjection: 'G-code',
       unloadAtStart: 'Unloads at start (swap)',
       noUnloadAtStart: 'No unload at start',
+      unloadStartUnknown: 'Start unload unknown',
       unloadAtEnd: 'Unloads at end',
       unloadCarriedOver: 'No end unload (carried to next)',
     },
@@ -1421,6 +1422,40 @@ export default {
       confirmMessage: 'Restore {{count}} skipped job(s) on {{printer}} to pending and clear the previous-print gate. Make sure the printer is ready before continuing.',
     },
     // Timeline view
+    // Filament lane on the timeline Gantt (private fork). Jobs share one
+    // hotend, and a spool can outlive the job that loaded it, so this lane
+    // shows the filament's own life and is where swaps get edited.
+    filament: {
+      laneLabel: 'In hotend',
+      toggle: 'Filament',
+      toggleHint: 'Show what is loaded in the hotend over time',
+      carriedOver: 'loaded, not printing',
+      stillLoaded: 'stays loaded after the queue ends',
+      editSwap: 'Edit where the swap happens',
+      unknownSwap: "This job's AMS slot can't be resolved, so the swap can't be predicted.",
+      notEditable: 'This swap belongs to a job that already started.',
+      editFailed: 'Could not update the unload setting',
+      legend: {
+        printing: 'Printing with it',
+        carried: 'Loaded, no job using it',
+        marker: 'Swap point — click to edit',
+      },
+      mode: {
+        carry: 'Automatic',
+        carryDesc: 'No unload at the end; the next job swaps it out in its own start G-code.',
+        forceStart: 'Force pull-back at next start',
+        forceStartDesc: 'Next job pulls the filament back before loading, even if the printer thinks the slot is already right.',
+        tail: 'Unload at this end',
+        tailDesc: 'Keep the sliced pull-back, so the filament returns to the AMS at its own printing temperature.',
+        raw: 'Leave the G-code alone',
+        rawDesc: 'No injection and no unload edits for this job.',
+      },
+      warning: {
+        mapping_unresolved: 'No loaded spool matches this job — its swap cannot be planned.',
+        material_change_at_start: 'A different material is pulled out at the incoming filament’s start temperature.',
+        filament_left_loaded: 'Last job in the queue: nothing follows to pull this filament back.',
+      },
+    },
     timeline: {
       listView: 'List',
       timelineView: 'Timeline',

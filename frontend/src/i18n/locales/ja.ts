@@ -1307,6 +1307,7 @@ export default {
       gcodeInjection: 'G-code',
       unloadAtStart: '冒頭でアンロード(交換)',
       noUnloadAtStart: '冒頭アンロードなし',
+      unloadStartUnknown: '冒頭アンロード不明',
       unloadAtEnd: '末尾でアンロード',
       unloadCarriedOver: '末尾アンロードなし(次へ持ち越し)',
     },
@@ -1401,6 +1402,38 @@ export default {
       button: '失敗後に再開',
       confirmTitle: '失敗後にキューを再開しますか？',
       confirmMessage: '{{printer}} のスキップされた {{count}} 件のジョブを保留状態に戻し、前回の印刷ブロックを解除します。続行する前にプリンターが準備完了していることを確認してください。',
+    },
+    // ガントチャートのフィラメントレーン(私家版)
+    filament: {
+      laneLabel: 'ホットエンド',
+      toggle: 'フィラメント',
+      toggleHint: 'ホットエンドに何が入っているかを時系列で表示',
+      carriedOver: '装填したまま印刷なし',
+      stillLoaded: 'キュー終了後も装填されたまま',
+      editSwap: '交換位置を編集',
+      unknownSwap: 'このジョブのAMSスロットが解決できないため、交換を予測できません。',
+      notEditable: 'この交換はすでに開始したジョブのものです。',
+      editFailed: 'アンロード設定を更新できませんでした',
+      legend: {
+        printing: 'このフィラメントで印刷中',
+        carried: '装填したまま使っていない',
+        marker: '交換ポイント — クリックで編集',
+      },
+      mode: {
+        carry: '自動',
+        carryDesc: '末尾ではアンロードせず、次のジョブの開始G-codeで交換します。',
+        forceStart: '次の開始時に強制引き戻し',
+        forceStartDesc: 'スロットが合っているとプリンタが判断していても、次のジョブが装填前に必ず引き戻します。',
+        tail: 'このジョブの末尾でアンロード',
+        tailDesc: 'スライサーの引き戻しを残し、そのフィラメント自身の印刷温度でAMSへ戻します。',
+        raw: 'G-codeを加工しない',
+        rawDesc: 'このジョブにはインジェクションもアンロード編集も行いません。',
+      },
+      warning: {
+        mapping_unresolved: '一致する装填済みスプールが無いため、交換を計画できません。',
+        material_change_at_start: '異なる素材が、次に入るフィラメントの開始温度で引き抜かれます。',
+        filament_left_loaded: 'キュー最後のジョブです。これを引き戻す後続ジョブがありません。',
+      },
     },
     // Timeline view
     timeline: {

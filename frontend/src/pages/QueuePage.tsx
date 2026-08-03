@@ -85,61 +85,15 @@ function formatWeight(g: number, useKg = false): string {
 // ---- Deferred-unload timing (private fork) --------------------------------
 // Answers, per pending item, "when does a filament unload actually happen?":
 //   start = this item's start G-code will unload the still-loaded filament
-//           (a previous job withheld its tail unload and the trays differ)
 //   end   = this item keeps its sliced tail unload (not deferred)
-type UnloadTiming = { start: boolean; end: boolean };
-
-function normalizeTrays(mapping: number[] | null | undefined): number[] | null {
-  if (!mapping) return null;
-  return Array.from(new Set(mapping.filter(v => v >= 0 && v < 255))).sort((a, b) => a - b);
-}
-
-function traysEqual(a: number[] | null, b: number[] | null): boolean {
-  if (!a || !b) return false;
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
-function tailDeferred(item: PrintQueueItem): boolean {
-  const m = item.unload_edit;
-  if (m === 'none' || m === 'end') return false;
-  // 'start' and 'auto' both keep the tail decision on auto rules
-  if (m == null && item.defer_unload != null) return item.defer_unload;
-  return !!item.gcode_injection;
-}
-
-function computeUnloadTiming(
-  pendingItems: PrintQueueItem[],
-  deferredStates: Record<number, { withheld: boolean; trays: number[] | null } | undefined>,
-): Map<number, UnloadTiming> {
-  const map = new Map<number, UnloadTiming>();
-  const byPrinter = new Map<number, PrintQueueItem[]>();
-  for (const item of pendingItems) {
-    if (item.printer_id == null || item.status !== 'pending') continue;
-    const list = byPrinter.get(item.printer_id) ?? [];
-    list.push(item);
-    byPrinter.set(item.printer_id, list);
-  }
-  for (const [printerId, list] of byPrinter.entries()) {
-    list.sort((a, b) => a.position - b.position);
-    // What will still be loaded when the first pending item starts: the
-    // withheld entry of the last dispatched job on this printer.
-    const state = deferredStates[printerId];
-    let carry: number[] | null = state?.withheld ? (state.trays ?? []) : null;
-    for (const item of list) {
-      const trays = normalizeTrays(item.ams_mapping);
-      const defer = tailDeferred(item);
-      // unload_edit='start' guarantees a pull-back at this job's start
-      // regardless of what the chain says is still loaded.
-      const forcedStart = item.unload_edit === 'start';
-      map.set(item.id, {
-        start: forcedStart || (carry !== null && !traysEqual(carry, trays)),
-        end: !defer,
-      });
-      carry = defer ? trays : null;
-    }
-  }
-  return map;
-}
+//   null  = unknown — the item's AMS slot can't be resolved
+//
+// Resolved by the server (`/queue/printer/{id}/filament-plan`), not here: the
+// chain hinges on each item's tray mapping, and pending rows carry none —
+// `ams_mapping` stays NULL until the scheduler computes it at dispatch. Walking
+// it client-side made the carry collapse after the first row, so every later
+// item silently claimed "no unload at start".
+type UnloadTiming = { start: boolean | null; end: boolean | null };
 
 function StatusBadge({ status, waitingReason, printerState, t }: { status: PrintQueueItem['status']; waitingReason?: string | null; printerState?: string | null; t: (key: string) => string }) {
   // Special case: pending with waiting_reason shows as "Waiting"
@@ -756,14 +710,23 @@ function SortableQueueItem({
                 unload actually happen for this job? */}
             {unloadTiming && (
               <>
+                {/* null = "we can't resolve this item's AMS slot". It gets its
+                    own badge: rendering unknown as "no unload" is how the old
+                    client-side chain lied about every row past the first. */}
                 <span
                   className={
-                    unloadTiming.start
-                      ? 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-500/20'
-                      : 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-bambu-dark text-bambu-gray rounded-full border border-bambu-dark-tertiary'
+                    unloadTiming.start === null
+                      ? 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full border border-orange-200 dark:border-orange-500/20'
+                      : unloadTiming.start
+                        ? 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-500/20'
+                        : 'text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-bambu-dark text-bambu-gray rounded-full border border-bambu-dark-tertiary'
                   }
                 >
-                  {unloadTiming.start ? t('queue.badges.unloadAtStart') : t('queue.badges.noUnloadAtStart')}
+                  {unloadTiming.start === null
+                    ? t('queue.badges.unloadStartUnknown')
+                    : unloadTiming.start
+                      ? t('queue.badges.unloadAtStart')
+                      : t('queue.badges.noUnloadAtStart')}
                 </span>
                 <span
                   className={
@@ -2027,21 +1990,24 @@ export function QueuePage() {
     return Array.from(ids);
   }, [pendingItems]);
 
-  const deferredStateQueries = useQueries({
+  const filamentPlanQueries = useQueries({
     queries: pendingPrinterIds.map(printerId => ({
-      queryKey: ['deferredUnloadState', printerId],
-      queryFn: () => api.getDeferredUnloadState(printerId),
-      refetchInterval: 15000,
+      queryKey: ['filamentPlan', printerId],
+      queryFn: () => api.getFilamentPlan(printerId),
+      refetchInterval: 20000,
     })),
   });
 
   const unloadTimingMap = useMemo(() => {
-    const states: Record<number, { withheld: boolean; trays: number[] | null } | undefined> = {};
-    pendingPrinterIds.forEach((printerId, index) => {
-      states[printerId] = deferredStateQueries[index]?.data;
+    const map = new Map<number, UnloadTiming>();
+    filamentPlanQueries.forEach(query => {
+      for (const planItem of query.data?.items ?? []) {
+        if (!planItem.editable) continue;
+        map.set(planItem.item_id, { start: planItem.unload_at_start, end: planItem.unload_at_end });
+      }
     });
-    return computeUnloadTiming(pendingItems, states);
-  }, [pendingItems, pendingPrinterIds, deferredStateQueries]);
+    return map;
+  }, [filamentPlanQueries]);
 
   // Build a map of printer_id -> full status for timeline view
   const printerStatusMap = useMemo(() => {

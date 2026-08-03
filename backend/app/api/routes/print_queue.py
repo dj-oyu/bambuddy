@@ -1492,6 +1492,30 @@ async def get_deferred_unload_state(
     }
 
 
+@router.get("/printer/{printer_id}/filament-plan")
+async def get_filament_plan(
+    printer_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User | None = RequirePermissionIfAuthEnabled(Permission.QUEUE_READ_ALL),
+):
+    """The resolved filament load/unload chain for this printer's queue
+    (private fork). Drives the queue Gantt's hotend lane and swap markers.
+
+    Pending rows carry no ``ams_mapping`` — the scheduler computes it at
+    dispatch — so the chain cannot be walked client-side. Here each pending
+    item gets the mapping the scheduler *would* compute (planned, never
+    persisted), and the withheld-unload state is carried forward item by item
+    to say where filament actually moves.
+    """
+    from backend.app.services.filament_plan import build_filament_plan
+
+    result = await db.execute(select(Printer).where(Printer.id == printer_id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(404, "Printer not found")
+
+    return await build_filament_plan(db, printer_id)
+
+
 @router.post("/{item_id}/cancel")
 async def cancel_queue_item(
     item_id: int,

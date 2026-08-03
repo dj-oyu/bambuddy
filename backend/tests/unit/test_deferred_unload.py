@@ -143,10 +143,13 @@ class TestDeferUnloadTriState:
     (follow gcode_injection), True=force strip, False=keep tail unload."""
 
     @staticmethod
-    def _decide(defer_unload, gcode_injection, env="1"):
-        # Mirrors the dispatch-time expression in print_scheduler.py.
-        requested = defer_unload if defer_unload is not None else bool(gcode_injection)
-        return requested and env != "0"
+    def _decide(defer_unload, gcode_injection):
+        # The real dispatch-time decision, not a mirror of it: the scheduler
+        # and the queue Gantt's plan endpoint both call these two helpers.
+        from backend.app.services.filament_plan import resolve_unload_mode, tail_is_deferred
+
+        mode = resolve_unload_mode(None, defer_unload, bool(gcode_injection))
+        return tail_is_deferred(mode, bool(gcode_injection))
 
     def test_auto_follows_gcode_injection(self):
         assert self._decide(None, True) is True
@@ -158,17 +161,26 @@ class TestDeferUnloadTriState:
     def test_explicit_false_wins_over_injection(self):
         assert self._decide(False, True) is False
 
-    def test_env_kill_switch_always_wins(self):
-        assert self._decide(True, True, env="0") is False
+    def test_env_kill_switch_always_wins(self, monkeypatch):
+        monkeypatch.setenv("BAMBUDDY_DEFER_TAIL_UNLOAD", "0")
+        assert self._decide(True, True) is False
 
     def test_scheduler_source_matches_contract(self):
+        """Fence against upstream merges quietly re-inlining the decision.
+
+        The tail-strip rule must stay in ``filament_plan`` so the plan the UI
+        draws and the G-code the scheduler writes cannot diverge.
+        """
         import inspect
 
-        from backend.app.services import print_scheduler
+        from backend.app.services import filament_plan, print_scheduler
 
-        src = inspect.getsource(print_scheduler)
-        assert "mode = item.unload_edit" in src
-        assert 'os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"' in src
+        sched_src = inspect.getsource(print_scheduler)
+        assert "mode = resolve_unload_mode(" in sched_src
+        assert "defer_unload = tail_is_deferred(" in sched_src
+        assert "BAMBUDDY_DEFER_TAIL_UNLOAD" not in sched_src, "kill switch must live in filament_plan only"
+
+        assert 'os.environ.get("BAMBUDDY_DEFER_TAIL_UNLOAD", "1") != "0"' in inspect.getsource(filament_plan)
 
 
 import pytest  # noqa: E402
