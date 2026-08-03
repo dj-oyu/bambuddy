@@ -1411,6 +1411,12 @@ export default {
       carriedOver: '装填したまま印刷なし',
       stillLoaded: 'キュー終了後も装填されたまま',
       editSwap: '交換位置を編集',
+      event: {
+        unload: 'アンロード',
+        load: 'ロード',
+        swap: '交換',
+        unknown: '解決できない交換',
+      },
       unknownSwap: 'このジョブのAMSスロットが解決できないため、交換を予測できません。',
       notEditable: 'この交換はすでに開始したジョブのものです。',
       lockedByRunningJob: '変更が必要なジョブはすでに開始しています。',
@@ -1419,7 +1425,9 @@ export default {
       legend: {
         printing: 'このフィラメントで印刷中',
         carried: '装填したまま使っていない',
-        marker: '交換ポイント — クリックで編集',
+        unload: '切って AMS へ引き戻す',
+        load: '送り込むだけ(切るものが無い)',
+        swap: '切って入れ替える(1操作)',
       },
       mode: {
         carry: '自動',

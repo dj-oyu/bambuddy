@@ -184,6 +184,8 @@ async def build_filament_plan(db: AsyncSession, printer_id: int) -> dict[str, An
                 "unload_edit": item.unload_edit,
                 "effective_mode": mode,
                 "editable": False,
+                "start_action": None,
+                "end_action": "none" if tail_is_deferred(mode, bool(item.gcode_injection)) else "unload",
                 "unload_at_start": None,
                 "unload_at_end": not tail_is_deferred(mode, bool(item.gcode_injection)),
                 "swap_from": None,
@@ -210,15 +212,27 @@ async def build_filament_plan(db: AsyncSession, printer_id: int) -> dict[str, An
         deferred = tail_is_deferred(mode, bool(item.gcode_injection))
         forced_start = mode == "start"
 
+        # What physically happens when this job starts. The distinction the
+        # booleans below can't carry: loading into an EMPTY hotend cuts
+        # nothing, because the previous job already pulled its filament back —
+        # whereas a swap cuts the resident filament first. The chart draws
+        # scissors for one and not the other, so the difference has to survive
+        # the API.
         carry_kind, carry_trays = carry
-        if forced_start:
-            at_start: bool | None = True
-        elif carry_kind == "empty":
-            at_start = False
+        if carry_kind == "empty":
+            start_action: str | None = "swap" if forced_start else "load"
+        elif forced_start:
+            start_action = "swap"
         elif carry_kind == "unknown" or trays is None:
-            at_start = None
+            start_action = None
+        elif carry_trays != trays:
+            start_action = "swap"
         else:
-            at_start = carry_trays != trays
+            start_action = "none"
+
+        end_action = "none" if deferred else "unload"
+        # Derived, so the badges and the chart can never disagree about it.
+        at_start = None if start_action is None else start_action == "swap"
 
         entry_out = {
             "item_id": item.id,
@@ -230,8 +244,10 @@ async def build_filament_plan(db: AsyncSession, printer_id: int) -> dict[str, An
             "unload_edit": item.unload_edit,
             "effective_mode": mode,
             "editable": True,
+            "start_action": start_action,
+            "end_action": end_action,
             "unload_at_start": at_start,
-            "unload_at_end": not deferred,
+            "unload_at_end": end_action == "unload",
             "swap_from": carry_trays if carry_kind == "known" else None,
             "swap_from_filaments": describe(carry_trays) if carry_kind == "known" else [],
         }

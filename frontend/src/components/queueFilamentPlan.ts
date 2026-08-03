@@ -29,7 +29,12 @@ export interface HotendSegment {
   unknown: boolean;
 }
 
-export type MarkerKind = 'swap' | 'unload' | 'unknown';
+/** What the marker depicts, which is also what its glyph shows:
+ *   unload  — filament is cut and pulled back; the thread it leaves is behind it
+ *   load    — filament is fed into an already-empty hotend; nothing is cut
+ *   swap    — one operation that cuts the resident filament and loads the next
+ *   unknown — the slot couldn't be resolved, so the operation isn't known */
+export type MarkerKind = 'swap' | 'unload' | 'load' | 'unknown';
 
 export interface UnloadMarker {
   key: string;
@@ -41,6 +46,11 @@ export interface UnloadMarker {
   nextItemId: number | null;
   fromFilaments: PlannedFilament[];
   toFilaments: PlannedFilament[];
+  /** Horizontal nudge, in px, applied when another marker shares this instant.
+   *  The forecast chains jobs with no gap, so an end-unload and the following
+   *  start-load land on the same pixel; each shifts toward the bar its thread
+   *  reaches into, which is the same bar that executes it. */
+  offsetPx: number;
 }
 
 const NEUTRAL = '#6b7280';
@@ -114,40 +124,25 @@ export function buildHotendSegments(
   return segments;
 }
 
-/** Markers at every moment filament actually moves. Two adjacent jobs share an
- *  instant (the chain has no gap), so a tail unload and the next job's forced
- *  pull-back merge into one marker rather than stacking on the same pixel. */
+/** How far a marker slides off an instant it has to share with another. Enough
+ *  to separate two 24px glyphs without either leaving the boundary it belongs
+ *  to. */
+const COINCIDENT_NUDGE_PX = 9;
+
+/** Markers at every moment filament actually moves.
+ *
+ *  One marker per (job, edge): a job's tail unload and the next job's start are
+ *  separate operations at separate moments, and under `unload_edit=end` they
+ *  genuinely are — the hotend sits empty between them. Merging them into one
+ *  glyph, as an earlier version did, erased exactly the distinction the chart
+ *  is meant to show. The forecast chains jobs with no gap, so the two land on
+ *  the same pixel; they are nudged apart instead, each toward the job that
+ *  executes it. */
 export function buildUnloadMarkers(
   jobs: PlannedJob[],
   planItems: Map<number, FilamentPlanItem>
 ): UnloadMarker[] {
-  const byMs = new Map<number, UnloadMarker>();
-
-  const put = (atMs: number, patch: Partial<UnloadMarker> & { kind: MarkerKind }) => {
-    const existing = byMs.get(atMs);
-    if (existing) {
-      byMs.set(atMs, {
-        ...existing,
-        ...patch,
-        prevItemId: patch.prevItemId ?? existing.prevItemId,
-        nextItemId: patch.nextItemId ?? existing.nextItemId,
-        fromFilaments: existing.fromFilaments.length ? existing.fromFilaments : patch.fromFilaments ?? [],
-        toFilaments: patch.toFilaments?.length ? patch.toFilaments : existing.toFilaments,
-        // An unknown swap outranks a plain unload: it needs the user's eye.
-        kind: existing.kind === 'unknown' || patch.kind === 'unknown' ? 'unknown' : patch.kind,
-      });
-      return;
-    }
-    byMs.set(atMs, {
-      key: `mk-${atMs}`,
-      atMs,
-      prevItemId: null,
-      nextItemId: null,
-      fromFilaments: [],
-      toFilaments: [],
-      ...patch,
-    });
-  };
+  const markers: UnloadMarker[] = [];
 
   jobs.forEach((job, i) => {
     const plan = planItems.get(job.itemId);
@@ -155,27 +150,51 @@ export function buildUnloadMarkers(
     const nextJob = jobs[i + 1];
     const prevJob = jobs[i - 1];
 
-    if (plan.unload_at_end === true) {
-      put(job.endMs, {
+    if (plan.end_action === 'unload') {
+      markers.push({
+        key: `mk-${job.itemId}-end`,
+        atMs: job.endMs,
         kind: 'unload',
         prevItemId: job.itemId,
         nextItemId: nextJob ? nextJob.itemId : null,
         fromFilaments: plan.filaments,
         toFilaments: nextJob ? planItems.get(nextJob.itemId)?.filaments ?? [] : [],
+        offsetPx: 0,
       });
     }
-    if (plan.unload_at_start !== false && plan.unload_at_start !== undefined) {
-      put(job.startMs, {
-        kind: plan.unload_at_start === null ? 'unknown' : 'swap',
+
+    // 'none' means the same filament simply carries on — nothing to draw.
+    if (plan.start_action !== 'none') {
+      markers.push({
+        key: `mk-${job.itemId}-start`,
+        atMs: job.startMs,
+        kind: plan.start_action === null ? 'unknown' : plan.start_action,
         prevItemId: prevJob ? prevJob.itemId : null,
         nextItemId: job.itemId,
         fromFilaments: plan.swap_from_filaments,
         toFilaments: plan.filaments,
+        offsetPx: 0,
       });
     }
   });
 
-  return Array.from(byMs.values()).sort((a, b) => a.atMs - b.atMs);
+  // Nudge markers that share an instant. An end-marker's thread reaches back
+  // into the job on its left, a start-marker's reaches forward into the job on
+  // its right, so each moves the way its own thread points.
+  const byMs = new Map<number, UnloadMarker[]>();
+  for (const marker of markers) {
+    const group = byMs.get(marker.atMs) ?? [];
+    group.push(marker);
+    byMs.set(marker.atMs, group);
+  }
+  for (const group of byMs.values()) {
+    if (group.length < 2) continue;
+    for (const marker of group) {
+      marker.offsetPx = marker.key.endsWith('-end') ? -COINCIDENT_NUDGE_PX : COINCIDENT_NUDGE_PX;
+    }
+  }
+
+  return markers.sort((a, b) => a.atMs - b.atMs || a.offsetPx - b.offsetPx);
 }
 
 /* ---------------------------------------------------------------------- */

@@ -2247,7 +2247,13 @@ export interface FilamentPlanItem {
   unload_edit: UnloadEditMode | null;
   effective_mode: string;
   editable: boolean;
-  /** null = unknown (mapping unresolved), never conflate with false. */
+  /** What physically happens at this job's start. `load` means the hotend was
+   *  already empty, so nothing is cut — `swap` cuts the resident filament
+   *  first. null = unknown. */
+  start_action: 'swap' | 'load' | 'none' | null;
+  /** `unload` = the sliced pull-back is kept and runs at this job's end. */
+  end_action: 'unload' | 'none';
+  /** Derived from the actions. null = unknown, never conflate with false. */
   unload_at_start: boolean | null;
   unload_at_end: boolean | null;
   swap_from: number[] | null;

@@ -303,3 +303,61 @@ class TestEndpoint:
         assert body["items"] == []
         assert body["warnings"] == []
         assert body["withheld"]["active"] is False
+
+
+class TestActions:
+    """The chart draws scissors only where filament is actually cut, so the
+    plan has to distinguish a swap (cuts the resident filament) from a load
+    into an already-empty hotend (nothing to cut)."""
+
+    async def test_load_into_empty_hotend_is_not_a_swap(self, harness):
+        await harness.withhold(200, [4])
+        await harness.add(item_id=201, position=2, plan=[4], unload_edit="end")
+        await harness.add(item_id=202, position=3, plan=[1])
+
+        items = _by_id(await harness.run())
+        assert items[201]["end_action"] == "unload"
+        assert items[202]["start_action"] == "load"
+        assert items[202]["unload_at_start"] is False
+
+    async def test_swap_cuts_the_resident_filament(self, harness):
+        await harness.withhold(200, [4])
+        await harness.add(item_id=201, position=2, plan=[1])
+
+        items = _by_id(await harness.run())
+        assert items[201]["start_action"] == "swap"
+        assert items[201]["unload_at_start"] is True
+
+    async def test_same_filament_means_no_event_at_all(self, harness):
+        await harness.withhold(200, [4])
+        await harness.add(item_id=201, position=2, plan=[4])
+
+        items = _by_id(await harness.run())
+        assert items[201]["start_action"] == "none"
+        assert items[201]["end_action"] == "none"
+
+    async def test_forced_start_is_a_swap_even_on_an_empty_hotend(self, harness):
+        # unload_edit='start' injects a pull-back regardless of what the
+        # printer thinks is loaded — that guard cuts, so it is a swap.
+        await harness.add(item_id=201, position=2, plan=[4], unload_edit="start")
+
+        items = _by_id(await harness.run())
+        assert items[201]["start_action"] == "swap"
+
+    async def test_unknown_mapping_leaves_the_action_unknown(self, harness):
+        await harness.withhold(200, [4])
+        await harness.add(item_id=201, position=2, plan=None)
+
+        items = _by_id(await harness.run())
+        assert items[201]["start_action"] is None
+        assert items[201]["unload_at_start"] is None
+
+    async def test_booleans_stay_derived_from_the_actions(self, harness):
+        await harness.withhold(200, [4])
+        await harness.add(item_id=201, position=2, plan=[1])
+        await harness.add(item_id=202, position=3, plan=[3], unload_edit="end")
+
+        for item in (await harness.run())["items"]:
+            expected_start = None if item["start_action"] is None else item["start_action"] == "swap"
+            assert item["unload_at_start"] == expected_start
+            assert item["unload_at_end"] == (item["end_action"] == "unload")

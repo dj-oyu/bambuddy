@@ -27,6 +27,8 @@ function planItem(over: Partial<FilamentPlanItem> & { item_id: number }): Filame
     unload_edit: null,
     effective_mode: 'auto',
     editable: true,
+    start_action: 'none',
+    end_action: 'none',
     unload_at_start: false,
     unload_at_end: false,
     swap_from: null,
@@ -69,7 +71,7 @@ describe('buildHotendSegments', () => {
       jobs(2),
       planMap([
         planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
-        planItem({ item_id: 202, trays: [1], filaments: [GRAY], unload_at_start: true }),
+        planItem({ item_id: 202, trays: [1], filaments: [GRAY], start_action: 'swap', unload_at_start: true }),
       ])
     );
     expect(segments).toHaveLength(2);
@@ -83,7 +85,7 @@ describe('buildHotendSegments', () => {
     const segments = buildHotendSegments(
       jobs(2),
       planMap([
-        planItem({ item_id: 201, trays: [1], filaments: [GRAY], unload_at_end: true }),
+        planItem({ item_id: 201, trays: [1], filaments: [GRAY], end_action: 'unload', unload_at_end: true }),
         planItem({ item_id: 202, trays: [3], filaments: [WHITE], unload_at_start: false }),
       ])
     );
@@ -105,7 +107,7 @@ describe('buildHotendSegments', () => {
       jobs(2),
       planMap([
         planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
-        planItem({ item_id: 202, trays: null, filaments: [], unload_at_start: null }),
+        planItem({ item_id: 202, trays: null, filaments: [], start_action: null, unload_at_start: null }),
       ])
     );
     expect(segments).toHaveLength(2);
@@ -119,7 +121,7 @@ describe('buildUnloadMarkers', () => {
       jobs(3),
       planMap([
         planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
-        planItem({ item_id: 202, trays: [1], filaments: [GRAY], unload_at_start: true, swap_from: [4], swap_from_filaments: [PURPLE] }),
+        planItem({ item_id: 202, trays: [1], filaments: [GRAY], start_action: 'swap', unload_at_start: true, swap_from: [4], swap_from_filaments: [PURPLE] }),
         planItem({ item_id: 203, trays: [1], filaments: [GRAY] }),
       ])
     );
@@ -132,25 +134,58 @@ describe('buildUnloadMarkers', () => {
     expect(markers[0].toFilaments).toEqual([GRAY]);
   });
 
-  it('merges a tail unload and the next job start into one marker', () => {
-    // The forecast chain has no gap, so both land on the same instant; two
-    // markers stacked on one pixel would be unclickable.
+  it('keeps a tail unload and the next job start as separate events', () => {
+    // They are two operations at two moments — under unload_edit=end the
+    // hotend sits empty between them. Merging them into one glyph erased the
+    // distinction the lane exists to show.
     const markers = buildUnloadMarkers(
       jobs(2),
       planMap([
-        planItem({ item_id: 201, trays: [1], filaments: [GRAY], unload_at_end: true }),
-        planItem({ item_id: 202, trays: [3], filaments: [WHITE], unload_at_start: true, swap_from_filaments: [GRAY] }),
+        planItem({ item_id: 201, trays: [1], filaments: [GRAY], end_action: 'unload', unload_at_end: true }),
+        planItem({ item_id: 202, trays: [3], filaments: [WHITE], start_action: 'load', swap_from_filaments: [] }),
+      ])
+    );
+    expect(markers.map((m) => m.kind)).toEqual(['unload', 'load']);
+  });
+
+  it('nudges markers that share an instant toward the job that runs them', () => {
+    // The forecast chains jobs with no gap, so both land on the same pixel.
+    const markers = buildUnloadMarkers(
+      jobs(2),
+      planMap([
+        planItem({ item_id: 201, trays: [1], filaments: [GRAY], end_action: 'unload', unload_at_end: true }),
+        planItem({ item_id: 202, trays: [3], filaments: [WHITE], start_action: 'load' }),
+      ])
+    );
+    expect(markers[0].atMs).toBe(markers[1].atMs);
+    expect(markers[0].offsetPx).toBeLessThan(0); // tail unload leans back into 201
+    expect(markers[1].offsetPx).toBeGreaterThan(0); // load leans into 202
+  });
+
+  it('leaves a lone marker centred on its instant', () => {
+    const markers = buildUnloadMarkers(
+      jobs(2),
+      planMap([
+        planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
+        planItem({ item_id: 202, trays: [1], filaments: [GRAY], start_action: 'swap', unload_at_start: true }),
       ])
     );
     expect(markers).toHaveLength(1);
-    expect(markers[0].prevItemId).toBe(201);
-    expect(markers[0].nextItemId).toBe(202);
+    expect(markers[0].offsetPx).toBe(0);
+  });
+
+  it('draws a load with no scissors when the hotend is already empty', () => {
+    const markers = buildUnloadMarkers(
+      jobs(1),
+      planMap([planItem({ item_id: 201, trays: [3], filaments: [WHITE], start_action: 'load' })])
+    );
+    expect(markers.map((m) => m.kind)).toEqual(['load']);
   });
 
   it('flags an unresolved swap as unknown', () => {
     const markers = buildUnloadMarkers(
       jobs(1),
-      planMap([planItem({ item_id: 201, trays: null, filaments: [], unload_at_start: null })])
+      planMap([planItem({ item_id: 201, trays: null, filaments: [], start_action: null, unload_at_start: null })])
     );
     expect(markers[0].kind).toBe('unknown');
   });

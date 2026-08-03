@@ -1432,6 +1432,12 @@ export default {
       carriedOver: 'loaded, not printing',
       stillLoaded: 'stays loaded after the queue ends',
       editSwap: 'Edit where the swap happens',
+      event: {
+        unload: 'Unload',
+        load: 'Load',
+        swap: 'Swap',
+        unknown: 'Unresolved swap',
+      },
       unknownSwap: "This job's AMS slot can't be resolved, so the swap can't be predicted.",
       notEditable: 'This swap belongs to a job that already started.',
       lockedByRunningJob: 'The job that would change has already started.',
@@ -1440,7 +1446,9 @@ export default {
       legend: {
         printing: 'Printing with it',
         carried: 'Loaded, no job using it',
-        marker: 'Swap point — click to edit',
+        unload: 'Cut and pulled back to the AMS',
+        load: 'Fed in — nothing to cut',
+        swap: 'Cut and swapped in one operation',
       },
       mode: {
         carry: 'Automatic',
