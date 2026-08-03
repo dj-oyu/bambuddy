@@ -51,6 +51,9 @@ class BMCUStatus:
     crc_error: int
     frame_error: int
     current_slot: int
+    # Per docs/bmcu_wire_layout.json: inserted_mask is channel HARDWARE presence,
+    # latched at boot from the PULL potentiometer; online_mask is filament
+    # detection (the microswitch), gated by inserted_mask. Not interchangeable.
     inserted_mask: int
     online_mask: int
     motion: tuple[int, int, int, int]

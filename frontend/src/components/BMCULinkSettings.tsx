@@ -333,7 +333,7 @@ function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums |
             <tbody>
               <tr>
                 <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
-                  {t('settings.bmcuLink.statusInserted')}
+                  {t('settings.bmcuLink.statusHardware')}
                 </td>
                 {channels.map((i) => (
                   <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary">
@@ -343,7 +343,7 @@ function StatusGrid({ status, enums }: { status: unknown; enums: BMCULinkEnums |
               </tr>
               <tr>
                 <td className="py-1 px-2 text-bambu-gray border border-bambu-dark-tertiary whitespace-nowrap">
-                  {t('settings.bmcuLink.statusOnline')}
+                  {t('settings.bmcuLink.statusFilament')}
                 </td>
                 {channels.map((i) => (
                   <td key={i} className="py-1 px-3 text-center border border-bambu-dark-tertiary">
@@ -557,15 +557,16 @@ function EventDataCell({
               slot {d.current_slot === 255 ? '—' : d.current_slot + 1}
             </Chip>
           )}
+          {/* inserted_mask is loader hardware presence, online_mask is filament detection. */}
           {typeof d.inserted_mask === 'number' && (
             <Chip>
-              ins&nbsp;
+              hw&nbsp;
               <MaskDots mask={d.inserted_mask} />
             </Chip>
           )}
           {typeof d.online_mask === 'number' && (
             <Chip>
-              on&nbsp;
+              fil&nbsp;
               <MaskDots mask={d.online_mask} />
             </Chip>
           )}

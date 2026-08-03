@@ -111,6 +111,8 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
                 linkId=stored.link_id or f"bmcu-{stored.link_index}",
                 state=state,
                 currentSlot=snapshot["current_slot"] if snapshot else None,
+                # activeMask is filament presence (online_mask), not the
+                # hardware channel mask; see BMCUStatus for the distinction.
                 activeMask=snapshot["online_mask"] if snapshot else 0,
                 motion=snapshot["motion"] if snapshot else None,
                 pullPercent=snapshot["pull_pct"] if snapshot else None,
