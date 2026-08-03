@@ -4,8 +4,9 @@ import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from backend.app.core.auth import RequirePermissionIfAuthEnabled
 from backend.app.core.database import get_db
@@ -26,9 +27,15 @@ from backend.app.schemas.bmcu_binary import (
     MonitorSummary,
     TimelineResponse,
 )
-from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus, decode_semantic, decode_wire_frame
+from backend.app.services.bmcu_binary.bmcu_decoder import (
+    SEMANTIC_KINDS,
+    BMCUStatus,
+    decode_semantic,
+    decode_wire_frame,
+)
 from backend.app.services.bmcu_binary.constants import MessageType
 from backend.app.services.bmcu_binary.messages import decode_tlvs, typed_tlv_value
+from backend.app.services.bmcu_binary.sampling import sample_strides
 from backend.app.services.bmcu_binary.server import binary_transport_server
 from backend.app.services.bmcu_binary.state_view import status_snapshot
 from backend.app.services.bmcu_binary.storage_keys import u64_decimal
@@ -124,6 +131,63 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
     return MonitorDetail(**_summary(row, len(stored_links)).model_dump(), firstSeenAt=row.first_seen_at, links=links)
 
 
+async def _sampled_window(db, conditions, limit):
+    """Rows spanning the whole window, at most ``limit`` of them.
+
+    Sampling is per BMCU kind (see ``sampling.sample_strides``) and anchored at
+    the newest row of each kind, so the present is always represented even when
+    the stride does not divide the window evenly.
+    """
+    counts = dict(
+        (
+            await db.execute(
+                select(BMCUBinaryRecord.bmcu_kind, func.count())
+                .where(*conditions)
+                .group_by(BMCUBinaryRecord.bmcu_kind)
+            )
+        ).all()
+    )
+    ascending = (BMCUBinaryRecord.server_received_at, BMCUBinaryRecord.transport_sequence)
+    total = sum(counts.values())
+    if total == 0:
+        return [], False
+    if total <= limit:
+        return (await db.execute(select(BMCUBinaryRecord).where(*conditions).order_by(*ascending))).scalars().all(), False
+    strides = sample_strides(counts, limit)
+    numbered = (
+        select(
+            BMCUBinaryRecord,
+            func.row_number()
+            .over(
+                partition_by=BMCUBinaryRecord.bmcu_kind,
+                order_by=(
+                    BMCUBinaryRecord.server_received_at.desc(),
+                    BMCUBinaryRecord.transport_sequence.desc(),
+                ),
+            )
+            .label("rn"),
+        )
+        .where(*conditions)
+        .subquery()
+    )
+    record = aliased(BMCUBinaryRecord, numbered)
+    known = [(numbered.c.bmcu_kind == kind, value) for kind, value in strides.items() if kind is not None]
+    stride = case(*known, else_=strides.get(None, 1)) if known else strides.get(None, 1)
+    # Fetch newest-first so the hard LIMIT can only ever drop the oldest end of
+    # the sample. Every kind is guaranteed at least one row, so the sample can
+    # exceed `limit` by up to one row per kind, and trimming that overshoot from
+    # the newest end would reintroduce the bug this function exists to fix.
+    rows = (
+        await db.execute(
+            select(record)
+            .where((numbered.c.rn - 1) % stride == 0)
+            .order_by(numbered.c.server_received_at.desc(), numbered.c.transport_sequence.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return list(reversed(rows)), True
+
+
 @router.get("/{device_id}/timeline", response_model=TimelineResponse)
 async def timeline(
     device_id: str,
@@ -134,29 +198,39 @@ async def timeline(
     _: User | None = ReadAccess,
 ):
     await _device(db, device_id)
-    query = select(BMCUBinaryRecord).where(
+    conditions = [
         BMCUBinaryRecord.device_id == device_id,
         BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
-    )
+        # Kinds this decoder does not model render nothing, and on the live
+        # bridge they are a third of the stored frames. Excluding them here
+        # keeps them from spending the row budget on invisible rows.
+        BMCUBinaryRecord.bmcu_kind.in_(SEMANTIC_KINDS),
+    ]
     if from_time:
-        query = query.where(BMCUBinaryRecord.server_received_at >= from_time)
+        conditions.append(BMCUBinaryRecord.server_received_at >= from_time)
     if to_time:
-        query = query.where(BMCUBinaryRecord.server_received_at <= to_time)
-    # Only a caller that asked for no window at all gets the newest-first fetch.
-    # A one-sided `from`/`to` keeps ascending "first rows after the bound"
-    # semantics, which is what such a caller is paginating with.
-    explicit_window = from_time is not None or to_time is not None
-    if explicit_window:
-        order = (BMCUBinaryRecord.server_received_at, BMCUBinaryRecord.transport_sequence)
+        conditions.append(BMCUBinaryRecord.server_received_at <= to_time)
+    if from_time is not None and to_time is not None:
+        # A bounded window is a chart request: thin the window out so the answer
+        # spans it and reaches the present. Truncating at `limit` instead
+        # returned the first minutes of the range, which is why every range
+        # button on the BMCU Link page rendered hours-old data.
+        rows, downsampled = await _sampled_window(db, conditions, limit)
     else:
-        # Without an explicit window the useful view is the most recent one; the
-        # ascending fetch returned the oldest rows ever stored.
-        order = (BMCUBinaryRecord.server_received_at.desc(), BMCUBinaryRecord.transport_sequence.desc())
-    rows = (await db.execute(query.order_by(*order).limit(limit + 1))).scalars().all()
-    downsampled = len(rows) > limit
-    rows = rows[:limit]
-    if not explicit_window:
-        rows = list(reversed(rows))
+        # A one-sided `from`/`to` keeps ascending "first rows after the bound"
+        # semantics, which is what such a caller is paginating with. Without any
+        # bound the useful view is the most recent one.
+        explicit_window = from_time is not None or to_time is not None
+        if explicit_window:
+            order = (BMCUBinaryRecord.server_received_at, BMCUBinaryRecord.transport_sequence)
+        else:
+            order = (BMCUBinaryRecord.server_received_at.desc(), BMCUBinaryRecord.transport_sequence.desc())
+        query = select(BMCUBinaryRecord).where(*conditions)
+        rows = (await db.execute(query.order_by(*order).limit(limit + 1))).scalars().all()
+        downsampled = len(rows) > limit
+        rows = rows[:limit]
+        if not explicit_window:
+            rows = list(reversed(rows))
     output = []
     for row in rows:
         if not row.raw_bmcu_frame or row.received_at_us is None:
@@ -204,22 +278,62 @@ async def timeline(
     return {"points": output, "from": start, "to": end, "downsampled": downsampled}
 
 
+async def _sampled_diagnostics(db, conditions, limit, sample):
+    """Newest-first diagnostics that still cover the requested window.
+
+    Diagnostics arrive about every 15 s, so a 24 h range holds far more samples
+    than a chart can carry; without thinning, `limit` alone answered every range
+    with the same newest two hours. Thinning applies only to a bounded window: a
+    caller that named no window is asking for the latest samples, not for a
+    sample of the whole retention.
+    """
+    newest_first = BMCUBinaryDiagnostic.recorded_at.desc()
+    if not sample:
+        return (
+            (await db.execute(select(BMCUBinaryDiagnostic).where(*conditions).order_by(newest_first).limit(limit)))
+            .scalars()
+            .all()
+        )
+    total = (await db.execute(select(func.count()).select_from(BMCUBinaryDiagnostic).where(*conditions))).scalar() or 0
+    if total <= limit:
+        return (await db.execute(select(BMCUBinaryDiagnostic).where(*conditions).order_by(newest_first))).scalars().all()
+    stride = max(1, -(-total // limit))
+    numbered = (
+        select(BMCUBinaryDiagnostic, func.row_number().over(order_by=newest_first).label("rn"))
+        .where(*conditions)
+        .subquery()
+    )
+    row = aliased(BMCUBinaryDiagnostic, numbered)
+    return (
+        (
+            await db.execute(
+                select(row)
+                .where((numbered.c.rn - 1) % stride == 0)
+                .order_by(numbered.c.recorded_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
 @router.get("/{device_id}/metrics", response_model=list[MetricPoint])
 async def metrics(
     device_id: str,
+    from_time: datetime | None = Query(None, alias="from"),
+    to_time: datetime | None = Query(None, alias="to"),
     limit: int = Query(500, ge=1, le=5000),
     db: AsyncSession = Depends(get_db),
     _: User | None = ReadAccess,
 ):
     await _device(db, device_id)
-    rows = (
-        await db.execute(
-            select(BMCUBinaryDiagnostic)
-            .where(BMCUBinaryDiagnostic.device_id == device_id)
-            .order_by(BMCUBinaryDiagnostic.recorded_at.desc())
-            .limit(limit)
-        )
-    ).scalars()
+    conditions = [BMCUBinaryDiagnostic.device_id == device_id]
+    if from_time:
+        conditions.append(BMCUBinaryDiagnostic.recorded_at >= from_time)
+    if to_time:
+        conditions.append(BMCUBinaryDiagnostic.recorded_at <= to_time)
+    rows = await _sampled_diagnostics(db, conditions, limit, from_time is not None and to_time is not None)
     tag_fields = {
         4: "heapFreeBytes",
         7: "temperatureC",

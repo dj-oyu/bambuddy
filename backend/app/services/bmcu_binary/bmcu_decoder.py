@@ -138,7 +138,16 @@ def decode_wire_frame(wire_bytes: bytes) -> BMCUEnvelope:
     )
 
 
+# The kinds decode_semantic can turn into a value. Callers that query stored
+# frames use it to skip kinds that would decode to None: the bridge also sends
+# kinds this decoder does not model (18 and 127 are the frequent ones), and they
+# are stored raw for later decoder correction, not for display.
+SEMANTIC_KINDS = frozenset((1, 2, 3, 115))
+
+
 def decode_semantic(frame: BMCUEnvelope):
+    if frame.kind not in SEMANTIC_KINDS:
+        return None
     p = frame.payload
     if frame.kind == 1 and len(p) == 9:
         protocol, capabilities, major, minor, tick_hz = struct.unpack("<BHBBI", p)

@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,6 +11,7 @@ from backend.app.api.routes import bmcu_link, bmcu_monitors
 from backend.app.core.database import Base
 from backend.app.models.bmcu_binary import (
     BMCUBinaryDevice,
+    BMCUBinaryDiagnostic,
     BMCUBinaryLink,
     BMCUBinaryLossRange,
     BMCUBinaryRecord,
@@ -220,6 +221,195 @@ async def test_timeline_one_sided_window_stays_oldest_first(bmcu_db) -> None:
     )
     times = sorted({point["at"] for point in result["points"]})
     assert times == [datetime(2026, 8, 1), datetime(2026, 8, 2)]
+
+
+async def _fill_window(db, *, minutes: int, kinds=(2,)):
+    """One BMCU_FRAME row per minute per kind, oldest first."""
+    wire = _status_wire()
+    sequence = 0
+    for minute in range(minutes):
+        for kind in kinds:
+            sequence += 1
+            db.add(
+                BMCUBinaryRecord(
+                    device_id="pico-bmcu-bridge",
+                    pico_boot_id="0000000000000001",
+                    transport_sequence=u64_decimal(sequence),
+                    link_index=0,
+                    flags=0,
+                    message_type=MessageType.BMCU_FRAME,
+                    received_at_us=u64_decimal(1000 + sequence),
+                    server_received_at=datetime(2026, 8, 3, 0, 0) + timedelta(minutes=minute),
+                    bmcu_kind=kind,
+                    raw_payload=b"\x00",
+                    raw_bmcu_frame=wire,
+                )
+            )
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_timeline_bounded_window_reaches_the_end_of_the_range(bmcu_db) -> None:
+    """The range buttons send both bounds. Truncating at `limit` answered with
+    the oldest minutes of the window, so the page never showed the present."""
+    await _fill_window(bmcu_db, minutes=600)
+    result = await bmcu_monitors.timeline(
+        "pico-bmcu-bridge",
+        from_time=datetime(2026, 8, 3, 0, 0),
+        to_time=datetime(2026, 8, 3, 10, 0),
+        limit=100,
+        db=bmcu_db,
+        _=None,
+    )
+    times = sorted({point["at"] for point in result["points"]})
+    assert times[-1] == datetime(2026, 8, 3, 9, 59)
+    assert times[0] <= datetime(2026, 8, 3, 0, 10)
+    assert len(times) <= 100
+    assert result["downsampled"] is True
+
+
+@pytest.mark.asyncio
+async def test_timeline_window_keeps_the_rare_kind_when_another_floods(bmcu_db) -> None:
+    """EVENT outnumbers STATUS by orders of magnitude on the live bridge; a
+    single stride across both would sample the loader state away."""
+    wire = _status_wire()
+    sequence = 0
+    for minute in range(200):
+        for kind, repeats in ((2, 1), (3, 20)):
+            for repeat in range(repeats):
+                sequence += 1
+                bmcu_db.add(
+                    BMCUBinaryRecord(
+                        device_id="pico-bmcu-bridge",
+                        pico_boot_id="0000000000000001",
+                        transport_sequence=u64_decimal(sequence),
+                        link_index=0,
+                        flags=0,
+                        message_type=MessageType.BMCU_FRAME,
+                        received_at_us=u64_decimal(1000 + sequence),
+                        server_received_at=datetime(2026, 8, 3) + timedelta(minutes=minute, seconds=repeat),
+                        bmcu_kind=kind,
+                        raw_payload=b"\x00",
+                        raw_bmcu_frame=wire,
+                    )
+                )
+    await bmcu_db.commit()
+    result = await bmcu_monitors.timeline(
+        "pico-bmcu-bridge",
+        from_time=datetime(2026, 8, 3),
+        to_time=datetime(2026, 8, 3, 4),
+        limit=100,
+        db=bmcu_db,
+        _=None,
+    )
+    # Every stored row decodes to the same STATUS fixture, so count rows, not
+    # kinds: the assertion is that the window is spanned, not truncated.
+    times = sorted({point["at"] for point in result["points"]})
+    # Rows stop at minute 199 (03:19); the window runs to 04:00.
+    assert times[-1] >= datetime(2026, 8, 3, 3, 19)
+    assert times[0] <= datetime(2026, 8, 3, 0, 30)
+
+
+@pytest.mark.asyncio
+async def test_timeline_small_window_is_returned_whole(bmcu_db) -> None:
+    await _fill_window(bmcu_db, minutes=5)
+    result = await bmcu_monitors.timeline(
+        "pico-bmcu-bridge",
+        from_time=datetime(2026, 8, 3, 0, 0),
+        to_time=datetime(2026, 8, 3, 1, 0),
+        limit=100,
+        db=bmcu_db,
+        _=None,
+    )
+    assert len({point["at"] for point in result["points"]}) == 5
+    assert result["downsampled"] is False
+
+
+@pytest.mark.asyncio
+async def test_metrics_honours_the_requested_window(bmcu_db) -> None:
+    """`from`/`to` used to be dropped silently, so every range button rendered
+    the same newest rows."""
+    for minute in range(400):
+        bmcu_db.add(
+            BMCUBinaryDiagnostic(
+                device_id="pico-bmcu-bridge",
+                pico_boot_id="0000000000000001",
+                transport_sequence=u64_decimal(minute + 1),
+                recorded_at=datetime(2026, 8, 3) + timedelta(minutes=minute),
+                payload=b"",
+            )
+        )
+    await bmcu_db.commit()
+    inside = await bmcu_monitors.metrics(
+        "pico-bmcu-bridge",
+        from_time=datetime(2026, 8, 3, 0, 0),
+        to_time=datetime(2026, 8, 3, 1, 0),
+        limit=500,
+        db=bmcu_db,
+        _=None,
+    )
+    assert [point["at"] for point in inside] == [
+        datetime(2026, 8, 3) + timedelta(minutes=minute) for minute in reversed(range(61))
+    ]
+    empty = await bmcu_monitors.metrics(
+        "pico-bmcu-bridge",
+        from_time=datetime(2026, 8, 4),
+        to_time=datetime(2026, 8, 5),
+        limit=500,
+        db=bmcu_db,
+        _=None,
+    )
+    assert empty == []
+
+
+@pytest.mark.asyncio
+async def test_metrics_without_a_window_still_returns_the_newest_rows(bmcu_db) -> None:
+    """An unbounded caller wants the latest samples, not a sample of the whole
+    retention, so thinning must stay scoped to a bounded window."""
+    for minute in range(300):
+        bmcu_db.add(
+            BMCUBinaryDiagnostic(
+                device_id="pico-bmcu-bridge",
+                pico_boot_id="0000000000000001",
+                transport_sequence=u64_decimal(minute + 1),
+                recorded_at=datetime(2026, 8, 3) + timedelta(minutes=minute),
+                payload=b"",
+            )
+        )
+    await bmcu_db.commit()
+    points = await bmcu_monitors.metrics(
+        "pico-bmcu-bridge", from_time=None, to_time=None, limit=3, db=bmcu_db, _=None
+    )
+    assert [point["at"] for point in points] == [
+        datetime(2026, 8, 3) + timedelta(minutes=minute) for minute in (299, 298, 297)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_metrics_window_is_sampled_not_truncated(bmcu_db) -> None:
+    for minute in range(1000):
+        bmcu_db.add(
+            BMCUBinaryDiagnostic(
+                device_id="pico-bmcu-bridge",
+                pico_boot_id="0000000000000001",
+                transport_sequence=u64_decimal(minute + 1),
+                recorded_at=datetime(2026, 8, 3) + timedelta(minutes=minute),
+                payload=b"",
+            )
+        )
+    await bmcu_db.commit()
+    points = await bmcu_monitors.metrics(
+        "pico-bmcu-bridge",
+        from_time=datetime(2026, 8, 3),
+        to_time=datetime(2026, 8, 3) + timedelta(minutes=999),
+        limit=100,
+        db=bmcu_db,
+        _=None,
+    )
+    assert len(points) <= 100
+    # Newest sample present (the summary tiles read it) and the window spanned.
+    assert points[0]["at"] == datetime(2026, 8, 3) + timedelta(minutes=999)
+    assert points[-1]["at"] <= datetime(2026, 8, 3) + timedelta(minutes=20)
 
 
 @pytest.mark.asyncio
