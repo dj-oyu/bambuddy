@@ -81,7 +81,7 @@ describe('buildHotendSegments', () => {
     expect(segments[1].filaments).toEqual([GRAY]);
   });
 
-  it('closes the run at a tail unload, leaving the hotend empty', () => {
+  it('carves the gap off the previous band when the tail unloads', () => {
     const segments = buildHotendSegments(
       jobs(2),
       planMap([
@@ -91,7 +91,36 @@ describe('buildHotendSegments', () => {
     );
     expect(segments[0].open).toBe(false);
     expect(segments[0].toMs).toBe(3_600_000);
+    expect(segments[0].trimEnd).toBe(true);
+    // The unload belongs to 201's G-code, so the empty hotend must not eat
+    // into 202's band.
+    expect(segments[1].trimStart).toBe(false);
     expect(segments[1].filaments).toEqual([WHITE]);
+  });
+
+  it('carves the gap off the next band when the swap happens at its start', () => {
+    const segments = buildHotendSegments(
+      jobs(2),
+      planMap([
+        planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
+        planItem({ item_id: 202, trays: [1], filaments: [GRAY], start_action: 'swap', unload_at_start: true }),
+      ])
+    );
+    expect(segments[0].trimEnd).toBe(false);
+    expect(segments[1].trimStart).toBe(true);
+  });
+
+  it('leaves both edges intact when the filament simply carries on', () => {
+    const segments = buildHotendSegments(
+      jobs(2),
+      planMap([
+        planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
+        planItem({ item_id: 202, trays: [4], filaments: [PURPLE] }),
+      ])
+    );
+    expect(segments).toHaveLength(1);
+    expect(segments[0].trimStart).toBe(false);
+    expect(segments[0].trimEnd).toBe(false);
   });
 
   it('marks the last run open when nothing pulls the filament back', () => {
@@ -134,10 +163,9 @@ describe('buildUnloadMarkers', () => {
     expect(markers[0].toFilaments).toEqual([GRAY]);
   });
 
-  it('keeps a tail unload and the next job start as separate events', () => {
-    // They are two operations at two moments — under unload_edit=end the
-    // hotend sits empty between them. Merging them into one glyph erased the
-    // distinction the lane exists to show.
+  it('leaves the load to the gap and marks only the unload', () => {
+    // The gap the lane opens already shows the hotend was empty and where it
+    // stopped being empty; a marker on top of that is one symbol too many.
     const markers = buildUnloadMarkers(
       jobs(2),
       planMap([
@@ -145,41 +173,24 @@ describe('buildUnloadMarkers', () => {
         planItem({ item_id: 202, trays: [3], filaments: [WHITE], start_action: 'load', swap_from_filaments: [] }),
       ])
     );
-    expect(markers.map((m) => m.kind)).toEqual(['unload', 'load']);
+    expect(markers.map((m) => m.kind)).toEqual(['unload']);
   });
 
-  it('nudges markers that share an instant toward the job that runs them', () => {
-    // The forecast chains jobs with no gap, so both land on the same pixel.
+  it('offsets each marker onto the gap it belongs to', () => {
     const markers = buildUnloadMarkers(
-      jobs(2),
+      jobs(3),
       planMap([
         planItem({ item_id: 201, trays: [1], filaments: [GRAY], end_action: 'unload', unload_at_end: true }),
         planItem({ item_id: 202, trays: [3], filaments: [WHITE], start_action: 'load' }),
+        planItem({ item_id: 203, trays: [4], filaments: [PURPLE], start_action: 'swap', unload_at_start: true }),
       ])
     );
-    expect(markers[0].atMs).toBe(markers[1].atMs);
-    expect(markers[0].offsetPx).toBeLessThan(0); // tail unload leans back into 201
-    expect(markers[1].offsetPx).toBeGreaterThan(0); // load leans into 202
-  });
-
-  it('leaves a lone marker centred on its instant', () => {
-    const markers = buildUnloadMarkers(
-      jobs(2),
-      planMap([
-        planItem({ item_id: 201, trays: [4], filaments: [PURPLE] }),
-        planItem({ item_id: 202, trays: [1], filaments: [GRAY], start_action: 'swap', unload_at_start: true }),
-      ])
-    );
-    expect(markers).toHaveLength(1);
-    expect(markers[0].offsetPx).toBe(0);
-  });
-
-  it('draws a load with no scissors when the hotend is already empty', () => {
-    const markers = buildUnloadMarkers(
-      jobs(1),
-      planMap([planItem({ item_id: 201, trays: [3], filaments: [WHITE], start_action: 'load' })])
-    );
-    expect(markers.map((m) => m.kind)).toEqual(['load']);
+    const unload = markers.find((m) => m.kind === 'unload')!;
+    const swap = markers.find((m) => m.kind === 'swap')!;
+    // A tail unload's gap is carved off the previous band, so it sits left of
+    // the instant; a swap's is carved off the next band's head, so it sits right.
+    expect(unload.offsetPx).toBeLessThan(0);
+    expect(swap.offsetPx).toBeGreaterThan(0);
   });
 
   it('flags an unresolved swap as unknown', () => {

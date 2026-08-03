@@ -5,7 +5,7 @@ import { formatDuration, parseUTCDate } from '../utils/date';
 import type { FilamentPlanItem, FilamentPlanWarning, PrintQueueItem, Printer } from '../api/client';
 import { api } from '../api/client';
 import { Button } from './Button';
-import { FilamentMarkerLegendIcon, HotendLane, UnloadModePopover } from './QueueFilamentLane';
+import { HotendLane, UnloadModePopover } from './QueueFilamentLane';
 import {
   buildHotendSegments,
   buildUnloadMarkers,
@@ -283,14 +283,6 @@ export function QueueTimelineView({
   } | null>(null);
   const [applying, setApplying] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  // Marker that was just edited: it snips once so the change is felt on the
-  // chart, not only in the popover that is about to close.
-  const [pulsingKey, setPulsingKey] = useState<string | null>(null);
-  useEffect(() => {
-    if (!pulsingKey) return;
-    const id = window.setTimeout(() => setPulsingKey(null), 900);
-    return () => window.clearTimeout(id);
-  }, [pulsingKey]);
 
   const planPrinterIds = useMemo(
     () => lanes.map((l) => l.printerId).filter((id): id is number => id != null),
@@ -359,7 +351,6 @@ export function QueueTimelineView({
         queryClient.invalidateQueries({ queryKey: ['queue'] }),
         queryClient.invalidateQueries({ queryKey: ['deferredUnloadState'] }),
       ]);
-      setPulsingKey(editing.marker.key);
       setEditing(null);
     } catch (err) {
       setEditError(err instanceof Error ? err.message : t('queue.filament.editFailed'));
@@ -472,14 +463,18 @@ export function QueueTimelineView({
             />
             {t('queue.filament.legend.carried')}
           </span>
-          {/* The glyphs are the vocabulary of the lane, so they are named
-              rather than lumped under one "marker" entry. */}
-          {(['unload', 'load', 'swap'] as const).map((kind) => (
-            <span key={kind} className="flex items-center gap-1.5">
-              <FilamentMarkerLegendIcon kind={kind} />
-              {t(`queue.filament.legend.${kind}`)}
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rotate-45 rounded-[2px] border border-cyan-400/70 bg-cyan-500/20" />
+            {t('queue.filament.legend.marker')}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-flex items-center" aria-hidden>
+              <span className="w-2.5 h-3 rounded-sm bg-cyan-400/70" />
+              <span className="w-[7px]" />
+              <span className="w-2.5 h-3 rounded-sm bg-cyan-400/70" />
             </span>
-          ))}
+            {t('queue.filament.legend.gap')}
+          </span>
         </div>
       )}
 
@@ -660,7 +655,6 @@ export function QueueTimelineView({
                         rangeMs={RANGE_MS}
                         height={FILAMENT_LANE_HEIGHT_PX}
                         warningItemIds={filament.warningItemIds}
-                        pulsingKey={pulsingKey}
                         onMarkerClick={(marker, anchor) => {
                           setEditError(null);
                           setEditing({ printerId: lane.printerId as number, marker, anchor });

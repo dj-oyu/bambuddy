@@ -27,14 +27,19 @@ export interface HotendSegment {
   /** Ranges where a job is actually printing with it. */
   solid: Array<[number, number]>;
   unknown: boolean;
+  /** This run begins with a swap, which happens inside the *next* job's start
+   *  G-code — so the gap is carved off this segment's head. */
+  trimStart: boolean;
+  /** This run ends with a tail pull-back, which happens inside the *previous*
+   *  job's end G-code — so the gap is carved off this segment's tail.
+   *
+   *  Which side the gap is carved from is the whole point: it puts the empty
+   *  hotend inside the time range of the job whose G-code actually performs the
+   *  unload, without needing a label to say so. */
+  trimEnd: boolean;
 }
 
-/** What the marker depicts, which is also what its glyph shows:
- *   unload  — filament is cut and pulled back; the thread it leaves is behind it
- *   load    — filament is fed into an already-empty hotend; nothing is cut
- *   swap    — one operation that cuts the resident filament and loads the next
- *   unknown — the slot couldn't be resolved, so the operation isn't known */
-export type MarkerKind = 'swap' | 'unload' | 'load' | 'unknown';
+export type MarkerKind = 'swap' | 'unload' | 'unknown';
 
 export interface UnloadMarker {
   key: string;
@@ -46,10 +51,9 @@ export interface UnloadMarker {
   nextItemId: number | null;
   fromFilaments: PlannedFilament[];
   toFilaments: PlannedFilament[];
-  /** Horizontal nudge, in px, applied when another marker shares this instant.
-   *  The forecast chains jobs with no gap, so an end-unload and the following
-   *  start-load land on the same pixel; each shifts toward the bar its thread
-   *  reaches into, which is the same bar that executes it. */
+  /** Horizontal nudge, in px, onto the middle of the gap this marker belongs
+   *  to — left for a tail unload (carved off the previous band), right for a
+   *  swap (carved off the next band's head). */
   offsetPx: number;
 }
 
@@ -99,7 +103,10 @@ export function buildHotendSegments(
       current = null;
       continue;
     }
-    if (current && plan.unload_at_start !== false) {
+    // true or unknown: either way the resident filament comes out here, inside
+    // this job's own start G-code.
+    const startsWithSwap = plan.unload_at_start !== false;
+    if (current && startsWithSwap) {
       close(current, job.startMs, false);
       current = null;
     }
@@ -112,10 +119,13 @@ export function buildHotendSegments(
         open: false,
         solid: [],
         unknown: plan.trays == null,
+        trimStart: startsWithSwap,
+        trimEnd: false,
       };
     }
     current.solid.push([job.startMs, job.endMs]);
     if (plan.unload_at_end === true) {
+      current.trimEnd = true;
       close(current, job.endMs, false);
       current = null;
     }
@@ -124,20 +134,20 @@ export function buildHotendSegments(
   return segments;
 }
 
-/** How far a marker slides off an instant it has to share with another. Enough
- *  to separate two 24px glyphs without either leaving the boundary it belongs
- *  to. */
-const COINCIDENT_NUDGE_PX = 9;
+/** Markers sit on the middle of the gap they belong to rather than on the raw
+ *  instant, so the diamond reads as part of that gap. `EMPTY_GAP_PX / 2` in
+ *  `QueueFilamentLane`. */
+const MARKER_GAP_CENTRE_PX = 4;
+/** Extra separation when two markers still land on the same instant. */
+const COINCIDENT_NUDGE_PX = 6;
 
 /** Markers at every moment filament actually moves.
  *
- *  One marker per (job, edge): a job's tail unload and the next job's start are
- *  separate operations at separate moments, and under `unload_edit=end` they
- *  genuinely are — the hotend sits empty between them. Merging them into one
- *  glyph, as an earlier version did, erased exactly the distinction the chart
- *  is meant to show. The forecast chains jobs with no gap, so the two land on
- *  the same pixel; they are nudged apart instead, each toward the job that
- *  executes it. */
+ *  Only where something is pulled out: a job's tail unload, and a start that
+ *  swaps the resident filament. A start that merely loads into an already-empty
+ *  hotend gets none — the gap the lane opens ahead of that segment already
+ *  shows both that the hotend was empty and where it stopped being empty, and a
+ *  marker on top of it would be one symbol too many. */
 export function buildUnloadMarkers(
   jobs: PlannedJob[],
   planItems: Map<number, FilamentPlanItem>
@@ -159,28 +169,31 @@ export function buildUnloadMarkers(
         nextItemId: nextJob ? nextJob.itemId : null,
         fromFilaments: plan.filaments,
         toFilaments: nextJob ? planItems.get(nextJob.itemId)?.filaments ?? [] : [],
-        offsetPx: 0,
+        // The gap for a tail unload is carved off the previous band's end, so
+        // it sits to the LEFT of this instant.
+        offsetPx: -MARKER_GAP_CENTRE_PX,
       });
     }
 
-    // 'none' means the same filament simply carries on — nothing to draw.
-    if (plan.start_action !== 'none') {
+    // 'none' carries the same filament on and 'load' is shown by the gap, so
+    // only a swap (or an unresolvable one) needs a marker here.
+    if (plan.start_action === 'swap' || plan.start_action === null) {
       markers.push({
         key: `mk-${job.itemId}-start`,
         atMs: job.startMs,
-        kind: plan.start_action === null ? 'unknown' : plan.start_action,
+        kind: plan.start_action === null ? 'unknown' : 'swap',
         prevItemId: prevJob ? prevJob.itemId : null,
         nextItemId: job.itemId,
         fromFilaments: plan.swap_from_filaments,
         toFilaments: plan.filaments,
-        offsetPx: 0,
+        // A swap's gap is carved off the next band's head — to the RIGHT.
+        offsetPx: MARKER_GAP_CENTRE_PX,
       });
     }
   });
 
-  // Nudge markers that share an instant. An end-marker's thread reaches back
-  // into the job on its left, a start-marker's reaches forward into the job on
-  // its right, so each moves the way its own thread points.
+  // Two markers can still land on one instant (a tail unload followed by a
+  // forced pull-back). Push them further apart, each staying on its own side.
   const byMs = new Map<number, UnloadMarker[]>();
   for (const marker of markers) {
     const group = byMs.get(marker.atMs) ?? [];
@@ -190,7 +203,7 @@ export function buildUnloadMarkers(
   for (const group of byMs.values()) {
     if (group.length < 2) continue;
     for (const marker of group) {
-      marker.offsetPx = marker.key.endsWith('-end') ? -COINCIDENT_NUDGE_PX : COINCIDENT_NUDGE_PX;
+      marker.offsetPx += marker.offsetPx < 0 ? -COINCIDENT_NUDGE_PX : COINCIDENT_NUDGE_PX;
     }
   }
 

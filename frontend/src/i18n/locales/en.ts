@@ -1433,9 +1433,8 @@ export default {
       stillLoaded: 'stays loaded after the queue ends',
       editSwap: 'Edit where the swap happens',
       event: {
-        unload: 'Unload',
-        load: 'Load',
-        swap: 'Swap',
+        unload: 'Unload at this job\u2019s end',
+        swap: 'Swap at the next job\u2019s start',
         unknown: 'Unresolved swap',
       },
       unknownSwap: "This job's AMS slot can't be resolved, so the swap can't be predicted.",
@@ -1446,9 +1445,8 @@ export default {
       legend: {
         printing: 'Printing with it',
         carried: 'Loaded, no job using it',
-        unload: 'Cut and pulled back to the AMS',
-        load: 'Fed in — nothing to cut',
-        swap: 'Cut and swapped in one operation',
+        marker: 'Filament moves here — click to edit',
+        gap: 'Hotend empty; the gap sits inside the job that empties it',
       },
       mode: {
         carry: 'Automatic',

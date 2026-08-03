@@ -37,87 +37,23 @@ function Swatch({ filaments }: { filaments: PlannedFilament[] }) {
   );
 }
 
-/** The marker's picture of the operation.
- *
- *  The A1 cuts before it retracts — the tail pull-back block drives the head to
- *  the cutter at X181, and the AMS change routine cuts the resident filament
- *  before loading the next one. So scissors are literal here, not decorative,
- *  and their absence is information too: loading into a hotend the previous job
- *  already emptied cuts nothing.
- *
- *  Which side the thread reaches into says which job runs the operation — the
- *  one whose G-code contains it. */
-function FilamentCutGlyph({ kind }: { kind: MarkerKind }) {
-  const cuts = kind !== 'load';
-  const threadOut = kind !== 'load';
-  const threadIn = kind === 'load' || kind === 'swap';
-  return (
-    <svg
-      viewBox="0 0 24 20"
-      className="w-6 h-5 overflow-visible"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      {threadOut && (
-        <line
-          x1="0"
-          y1="10"
-          x2="7.6"
-          y2="10"
-          strokeDasharray={kind === 'unknown' ? '2 2' : undefined}
-          className="filament-cut-thread filament-cut-thread-out"
-        />
-      )}
-      {threadIn && (
-        <line
-          x1="16.8"
-          y1="10"
-          x2="24"
-          y2="10"
-          className="filament-cut-thread filament-cut-thread-in"
-        />
-      )}
-      {cuts ? (
-        <>
-          <line x1="8.6" y1="6.6" x2="17" y2="13" className="filament-cut-blade filament-cut-blade-a" />
-          <line x1="8.6" y1="13.4" x2="17" y2="7" className="filament-cut-blade filament-cut-blade-b" />
-          <circle cx="7.5" cy="5.9" r="1.35" />
-          <circle cx="7.5" cy="14.1" r="1.35" />
-        </>
-      ) : (
-        <polyline points="9.5,6.4 14.8,10 9.5,13.6" />
-      )}
-    </svg>
-  );
-}
-
 const MARKER_TONE: Record<MarkerKind, string> = {
-  // Shape carries the meaning now, so colour only sets emphasis: a swap is the
-  // consequential one, a load into an empty hotend the most benign.
-  swap: 'bg-cyan-500/15 border-cyan-400/60 text-cyan-300',
-  unload: 'bg-emerald-500/15 border-emerald-400/60 text-emerald-300',
-  load: 'bg-bambu-dark border-bambu-dark-tertiary text-bambu-gray',
-  unknown: 'bg-orange-500/15 border-orange-400/70 text-orange-300',
+  swap: 'bg-cyan-500/20 border-cyan-400/70',
+  unload: 'bg-emerald-500/20 border-emerald-400/70',
+  unknown: 'bg-orange-500/20 border-orange-400/70',
 };
 
 const MARKER_LABEL: Record<MarkerKind, string> = {
   swap: 'queue.filament.event.swap',
   unload: 'queue.filament.event.unload',
-  load: 'queue.filament.event.load',
   unknown: 'queue.filament.event.unknown',
 };
 
-/** Same glyph at legend size, so the key and the chart can't drift apart. */
-export function FilamentMarkerLegendIcon({ kind }: { kind: MarkerKind }) {
-  return (
-    <span className={`grid place-items-center w-7 h-6 rounded border shrink-0 ${MARKER_TONE[kind]}`}>
-      <FilamentCutGlyph kind={kind} />
-    </span>
-  );
-}
+/** Width of the drawn gap where the hotend sits empty. The forecast chains jobs
+ *  with no idle time, so that period has no duration to scale — it is a fixed
+ *  few pixels carved off the head of the segment that follows, which puts the
+ *  gap's left edge exactly on the unload. */
+const EMPTY_GAP_PX = 7;
 
 interface HotendLaneProps {
   segments: HotendSegment[];
@@ -126,8 +62,6 @@ interface HotendLaneProps {
   rangeMs: number;
   height: number;
   warningItemIds: Set<number>;
-  /** Marker that was just edited — snips once so the change is felt. */
-  pulsingKey: string | null;
   onMarkerClick: (marker: UnloadMarker, anchor: DOMRect) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
@@ -139,7 +73,6 @@ export function HotendLane({
   rangeMs,
   height,
   warningItemIds,
-  pulsingKey,
   onMarkerClick,
   t,
 }: HotendLaneProps) {
@@ -154,14 +87,26 @@ export function HotendLane({
         if (endMs <= rangeStartMs || startMs >= rangeEndMs) return null;
         const color = filamentColor(seg.filaments[0]);
         const label = describeFilaments(seg.filaments);
+        // Only trim an edge that is actually in view — a clipped segment's
+        // visible edge is the window, not the event.
+        const headGap = seg.trimStart && seg.fromMs >= rangeStartMs ? EMPTY_GAP_PX : 0;
+        const tailGap = seg.trimEnd && !seg.open && seg.toMs <= rangeEndMs ? EMPTY_GAP_PX : 0;
+        /** Percentage span inset by the gaps that fall inside it. */
+        const band = (fromMs: number, toMs: number) => {
+          const head = fromMs <= startMs ? headGap : 0;
+          const tail = toMs >= endMs ? tailGap : 0;
+          return {
+            left: `calc(${pctOf(fromMs)}% + ${head}px)`,
+            width: `max(1px, calc(${((toMs - fromMs) / rangeMs) * 100}% - ${head + tail}px))`,
+          };
+        };
         return (
           <div key={seg.key}>
             {/* Carried-over body: loaded but no job consuming it. */}
             <div
               className="absolute rounded-sm border-y border-white/20"
               style={{
-                left: `${pctOf(startMs)}%`,
-                width: `${((endMs - startMs) / rangeMs) * 100}%`,
+                ...band(startMs, endMs),
                 top: 6,
                 height: height - 12,
                 backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 4px, transparent 4px 9px)`,
@@ -183,8 +128,7 @@ export function HotendLane({
                   key={`${seg.key}-solid-${i}`}
                   className="absolute rounded-sm border border-white/25 flex items-center px-1.5 overflow-hidden"
                   style={{
-                    left: `${pctOf(cs)}%`,
-                    width: `${((ce - cs) / rangeMs) * 100}%`,
+                    ...band(cs, ce),
                     top: 6,
                     height: height - 12,
                     background: color,
@@ -218,29 +162,16 @@ export function HotendLane({
         const tone = MARKER_TONE[flagged ? 'unknown' : mk.kind];
         const what = t(MARKER_LABEL[mk.kind]);
         return (
-          <div key={mk.key}>
-            {/* The glyph slides off the boundary when it has to share the
-                instant; this keeps the moment itself readable. */}
-            {mk.offsetPx !== 0 && (
-              <div
-                className="absolute top-1 bottom-1 border-l border-dashed border-white/15 pointer-events-none"
-                style={{ left: `${pctOf(mk.atMs)}%` }}
-                aria-hidden
-              />
-            )}
-            <button
-              type="button"
-              onClick={(e) => onMarkerClick(mk, e.currentTarget.getBoundingClientRect())}
-              title={`${what} · ${describeFilaments(mk.fromFilaments)} → ${describeFilaments(mk.toFilaments)} · ${t('queue.filament.editSwap')}`}
-              className={`filament-cut absolute z-10 grid place-items-center w-7 h-6 rounded border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${tone} ${
-                pulsingKey === mk.key ? 'filament-cut-snip' : ''
-              }`}
-              style={{ left: `${pctOf(mk.atMs)}%`, top: height / 2 - 12, marginLeft: -14 + mk.offsetPx }}
-            >
-              <FilamentCutGlyph kind={mk.kind} />
-              <span className="sr-only">{`${what} — ${t('queue.filament.editSwap')}`}</span>
-            </button>
-          </div>
+          <button
+            key={mk.key}
+            type="button"
+            onClick={(e) => onMarkerClick(mk, e.currentTarget.getBoundingClientRect())}
+            title={`${what} · ${describeFilaments(mk.fromFilaments)} → ${describeFilaments(mk.toFilaments)} · ${t('queue.filament.editSwap')}`}
+            className={`absolute z-10 w-4 h-4 rotate-45 rounded-[2px] border transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 ${tone}`}
+            style={{ left: `${pctOf(mk.atMs)}%`, top: height / 2 - 8, marginLeft: -8 + mk.offsetPx }}
+          >
+            <span className="sr-only">{`${what} — ${t('queue.filament.editSwap')}`}</span>
+          </button>
         );
       })}
     </div>

@@ -1412,9 +1412,8 @@ export default {
       stillLoaded: 'キュー終了後も装填されたまま',
       editSwap: '交換位置を編集',
       event: {
-        unload: 'アンロード',
-        load: 'ロード',
-        swap: '交換',
+        unload: 'このジョブの末尾でアンロード',
+        swap: '次のジョブの開始で交換',
         unknown: '解決できない交換',
       },
       unknownSwap: 'このジョブのAMSスロットが解決できないため、交換を予測できません。',
@@ -1425,9 +1424,8 @@ export default {
       legend: {
         printing: 'このフィラメントで印刷中',
         carried: '装填したまま使っていない',
-        unload: '切って AMS へ引き戻す',
-        load: '送り込むだけ(切るものが無い)',
-        swap: '切って入れ替える(1操作)',
+        marker: 'フィラメントが動く — クリックで編集',
+        gap: 'ホットエンドが空。隙間は空にするジョブの側に寄る',
       },
       mode: {
         carry: '自動',
