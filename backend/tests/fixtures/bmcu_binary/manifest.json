@@ -17,6 +17,14 @@
       "bytes": 77,
       "sha256": "8f39d74a72c0905bb4adde5a3706be77007acd25108347546aa4aa10d3787ffd"
     },
+    "bmcu_full_status_counters.bin": {
+      "bytes": 77,
+      "sha256": "ff576ecc46eeba9cbef26ad47b70d5aeabadfbc1ed4faee4ff690f0b93d9da85"
+    },
+    "bmcu_full_status_global.bin": {
+      "bytes": 77,
+      "sha256": "9a30679b9391fccd0d98e361d54d9ed7bf2e05aa9b6a2d7acc8f7542b3eb2902"
+    },
     "bmcu_status.bin": {
       "bytes": 78,
       "sha256": "598d5b0f44d9639d3038ef937ce26cf271588039f7adb3076bf9da3e0f7f6e8c"

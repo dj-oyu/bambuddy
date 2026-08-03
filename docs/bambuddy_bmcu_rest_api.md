@@ -104,6 +104,12 @@ Behavior worth knowing:
 - `severity` on timeline points is a string bucket derived from the numeric wire
   severity: `>=5` critical, `>=4` error, `>=3` warning, otherwise info.
   `anomaly` is true for warning and above.
+- `LinkSnapshot`'s loader values come from the newest of two sources: a STATUS
+  frame, or the GLOBAL record of a FULL_STATUS snapshot, which carries the same
+  fields (`BMCU_LINK_PROTOCOL_ALPHA3.md` §6.2 in the BMCU repository). A bridge
+  that emits no STATUS at all still snapshots, so the second source is what
+  keeps the view alive. `statusAgeS` dates whichever one was used;
+  `BAMBUDDY_BMCU_FULL_STATUS_STATE=0` disables the reconstruction.
 
 ## 2. `/api/v1/bmcu-link` — settings and provisioning
 

@@ -138,11 +138,50 @@ def decode_wire_frame(wire_bytes: bytes) -> BMCUEnvelope:
     )
 
 
-# The kinds decode_semantic can turn into a value. Callers that query stored
-# frames use it to skip kinds that would decode to None: the bridge also sends
-# kinds this decoder does not model (18 and 127 are the frequent ones), and they
-# are stored raw for later decoder correction, not for display.
+# The kinds decode_semantic can turn into a value: hello, status, event and
+# full_status_record. Callers that query stored frames use it to skip kinds that
+# carry no loader state — ping (18), pong (114), ack (127) and the request kinds
+# are on the wire in quantity and would only spend a row budget. The full kind
+# table is `kind` in the BMCU repository's docs/bmcu_link_enum_registry.json.
 SEMANTIC_KINDS = frozenset((1, 2, 3, 115))
+
+# full_status_record_type values this module reconstructs realtime state from.
+# GLOBAL carries the same fields as a STATUS frame; COUNTERS carries the error
+# totals STATUS reports inline. BMCU_LINK_PROTOCOL_ALPHA3.md section 6.2.
+FULL_STATUS_GLOBAL = 1
+FULL_STATUS_COUNTERS = 4
+
+
+def status_from_full_status(record: BMCUFullStatusRecord, counters: bytes | None = None) -> BMCUStatus | None:
+    """Rebuild a STATUS view from a FULL_STATUS GLOBAL record.
+
+    The bridge can go for days without emitting a single STATUS frame while its
+    periodic full snapshot keeps arriving. GLOBAL holds every field STATUS does
+    except the error counters, which live in the COUNTERS record of the same
+    snapshot, so the pair reconstructs the realtime view exactly rather than by
+    inference.
+    """
+    data = record.record_data
+    if record.record_type != FULL_STATUS_GLOBAL or len(data) < 16:
+        return None
+    tx_drop = rx_drop = crc_error = frame_error = 0
+    if counters is not None and len(counters) >= 16:
+        tx_drop, rx_drop, crc_error, frame_error = struct.unpack("<4I", counters[:16])
+    return BMCUStatus(
+        record.hw_tick32,
+        tx_drop,
+        rx_drop,
+        crc_error,
+        frame_error,
+        data[0],
+        data[1],
+        data[2],
+        tuple(data[4:8]),
+        tuple(data[8:12]),
+        int.from_bytes(data[12:14], "little"),
+        data[14],
+        data[3],
+    )
 
 
 def decode_semantic(frame: BMCUEnvelope):

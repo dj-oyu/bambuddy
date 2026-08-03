@@ -21,11 +21,15 @@ from backend.app.models.bmcu_binary import (
 )
 
 from .bmcu_decoder import (
+    FULL_STATUS_COUNTERS,
+    FULL_STATUS_GLOBAL,
     BMCUEvent,
+    BMCUFullStatusRecord,
     BMCUHello,
     BMCUStatus,
     decode_semantic,
     decode_wire_frame,
+    status_from_full_status,
     validate_alpha3_wire_frame,
 )
 from .constants import MessageType
@@ -39,6 +43,10 @@ from .storage_keys import advance_contiguous_with_losses, u64_decimal, u64_hex
 # status snapshot within milliseconds. Set to "0" to restore that last-frame-wins
 # behaviour if firmware ever carries realtime data in a non-STATUS kind.
 _STRICT_STATE = os.getenv("BAMBUDDY_BMCU_STRICT_STATUS_STATE", "1") != "0"
+# Rebuild the realtime view from FULL_STATUS GLOBAL/COUNTERS records when the
+# bridge sends no STATUS. Set to "0" to leave the view frozen at the last real
+# STATUS frame instead.
+_FULL_STATUS_STATE = os.getenv("BAMBUDDY_BMCU_FULL_STATUS_STATE", "1") != "0"
 _REHYDRATE_SCAN_LIMIT = 500
 # Contiguous drop reports are merged into one stored range; set to "0" to keep
 # one row per report.
@@ -54,6 +62,10 @@ class BinaryPersistence:
         self._session_factory = session_factory
         self.current_state = {}
         self.current_state_seen = {}
+        # Newest GLOBAL record and newest COUNTERS payload per link, paired by
+        # snapshot id to rebuild a STATUS view. See _absorb_full_status.
+        self.full_status_global = {}
+        self.full_status_counters = {}
         self.last_event = {}
         self.last_event_seen = {}
         self.last_hello = {}
@@ -343,6 +355,8 @@ class BinaryPersistence:
             if isinstance(semantic, BMCUStatus) or not _STRICT_STATE:
                 self.current_state[key] = semantic
                 self.current_state_seen[key] = now_m
+            elif isinstance(semantic, BMCUFullStatusRecord) and _FULL_STATUS_STATE:
+                self._absorb_full_status(key, semantic, now_m)
             if isinstance(semantic, BMCUEvent):
                 self.last_event[key] = semantic
                 self.last_event_seen[key] = now_m
@@ -376,7 +390,35 @@ class BinaryPersistence:
                 )
                 await db.commit()
 
-    async def _newest_semantic(self, db, device_id: str, link_index: int, kind: int):
+    def _absorb_full_status(self, key, record, now_m) -> None:
+        """Rebuild the realtime view from the periodic full snapshot.
+
+        A bridge can stop emitting STATUS entirely while its full snapshot keeps
+        arriving — observed here across 45 consecutive boot sessions — and the
+        loader view then ages indefinitely with no way to refresh it. GLOBAL
+        carries every STATUS field; COUNTERS arrives later in the same snapshot
+        and completes it.
+        """
+        if record.record_type == FULL_STATUS_COUNTERS:
+            # Counters are cumulative, so the newest known set is carried
+            # forward into snapshots that have not delivered theirs yet.
+            self.full_status_counters[key] = record.record_data
+            pending = self.full_status_global.get(key)
+            # Only complete the snapshot this record belongs to: re-dating an
+            # older GLOBAL would present a stale loader view as current.
+            if pending is None or pending.snapshot_id != record.snapshot_id:
+                return
+            record = pending
+        elif record.record_type == FULL_STATUS_GLOBAL:
+            self.full_status_global[key] = record
+        else:
+            return
+        status = status_from_full_status(record, self.full_status_counters.get(key))
+        if status is not None:
+            self.current_state[key] = status
+            self.current_state_seen[key] = now_m
+
+    async def _newest_semantic(self, db, device_id: str, link_index: int, kind: int, accept=None):
         """Newest decodable semantic of one BMCU kind for one link.
 
         Queried per link rather than with a single global scan: STATUS rates
@@ -402,7 +444,7 @@ class BinaryPersistence:
                 semantic = decode_semantic(decode_wire_frame(row.raw_bmcu_frame))
             except InvalidBMCUFrame:
                 continue
-            if semantic is not None:
+            if semantic is not None and (accept is None or accept(semantic)):
                 return semantic, row.server_received_at
         return None, None
 
@@ -423,6 +465,21 @@ class BinaryPersistence:
             for device_id, link_index in links:
                 key = (device_id, link_index)
                 status, received_at = await self._newest_semantic(db, device_id, link_index, 2)
+                if _FULL_STATUS_STATE:
+                    # A bridge that emits no STATUS still snapshots, and that
+                    # snapshot is usually far newer than the last STATUS frame.
+                    record, snapshot_at = await self._newest_semantic(
+                        db, device_id, link_index, 115, lambda item: item.record_type == FULL_STATUS_GLOBAL
+                    )
+                    if record is not None and (received_at is None or snapshot_at > received_at):
+                        counters, _ = await self._newest_semantic(
+                            db, device_id, link_index, 115, lambda item: item.record_type == FULL_STATUS_COUNTERS
+                        )
+                        rebuilt = status_from_full_status(
+                            record, counters.record_data if counters is not None else None
+                        )
+                        if rebuilt is not None:
+                            status, received_at = rebuilt, snapshot_at
                 if isinstance(status, BMCUStatus):
                     self.current_state[key] = status
                     # Age the restored snapshot by how old the record actually

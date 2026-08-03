@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import struct
 from pathlib import Path
 
 from backend.app.services.bmcu_binary.auth import control_mac, derive_session_key, hello_mac
@@ -54,6 +55,16 @@ def main() -> None:
     status_payload = bytes(range(27))
     event_payload = bytes(range(16))
     full_payload = bytes(range(26))
+    # FULL_STATUS GLOBAL and COUNTERS records, laid out per
+    # BMCU_LINK_PROTOCOL_ALPHA3.md section 6.2. The values are the ones a live
+    # A1 mini bridge reported: slot 0 on-use, four channels inserted, three
+    # loaded. Together they rebuild a STATUS view when the bridge sends none.
+    global_payload = struct.pack("<HBBBBI", 4096, 0, 15, 1, 0, 0x09ABCDEF) + bytes.fromhex(
+        "000f0b00020000003b2e3835142e0000"
+    )
+    counters_payload = struct.pack("<HBBBBI", 4096, 14, 15, 4, 0, 0x09ABCDEF) + struct.pack(
+        "<4I", 175, 0, 197, 777
+    )
     unknown_payload = b"\xde\xad"
     records = {
         "server_challenge.bin": encode_frame(FrameHeader(MessageType.SERVER_CHALLENGE), challenge),
@@ -127,6 +138,8 @@ def main() -> None:
         ("bmcu_status.bin", 2, 1, status_payload),
         ("bmcu_event.bin", 3, 2, event_payload),
         ("bmcu_full_status.bin", 115, 3, full_payload),
+        ("bmcu_full_status_global.bin", 115, 5, global_payload),
+        ("bmcu_full_status_counters.bin", 115, 6, counters_payload),
         ("bmcu_unknown.bin", 126, 4, unknown_payload),
     ):
         wire = bmcu(kind, seq, payload)

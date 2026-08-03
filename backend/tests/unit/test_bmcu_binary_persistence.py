@@ -3,6 +3,8 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dataclasses import replace
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -361,4 +363,72 @@ async def test_merge_toggle_keeps_one_row_per_report(tmp_path, monkeypatch) -> N
     await persistence.persist("monitor-nomerge", _drop_frame(boot, 10, 13, 4))
     await persistence.persist("monitor-nomerge", _drop_frame(boot, 14, 17, 4))
     assert len(await _loss_rows(factory)) == 2
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_full_status_global_refreshes_the_realtime_view(tmp_path) -> None:
+    """A bridge can stop sending STATUS while its periodic snapshot keeps
+    arriving; GLOBAL carries the same fields, so the view must follow it."""
+    engine, _factory, persistence, boot = await _persistence(tmp_path, "monitor-global")
+    await persistence.persist("monitor-global", _frame("bmcu_status.bin", 1, boot))
+    stale = persistence.current_state[("monitor-global", 0)]
+    await persistence.persist("monitor-global", _frame("bmcu_full_status_global.bin", 2, boot))
+    state = persistence.current_state[("monitor-global", 0)]
+    assert isinstance(state, BMCUStatus)
+    assert state is not stale
+    assert (state.current_slot, state.inserted_mask, state.online_mask) == (0, 15, 11)
+    assert state.motion == (2, 0, 0, 0)
+    assert state.pull_pct == (59, 46, 56, 53)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_counters_record_completes_the_snapshot_it_belongs_to(tmp_path) -> None:
+    engine, _factory, persistence, boot = await _persistence(tmp_path, "monitor-counters")
+    await persistence.persist("monitor-counters", _frame("bmcu_full_status_global.bin", 1, boot))
+    assert persistence.current_state[("monitor-counters", 0)].crc_error == 0
+    await persistence.persist("monitor-counters", _frame("bmcu_full_status_counters.bin", 2, boot))
+    state = persistence.current_state[("monitor-counters", 0)]
+    assert (state.tx_drop, state.rx_drop, state.crc_error, state.frame_error) == (175, 0, 197, 777)
+    # The loader values still come from GLOBAL; COUNTERS only fills the totals.
+    assert state.motion == (2, 0, 0, 0)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_counters_from_another_snapshot_does_not_redate_the_view(tmp_path) -> None:
+    """Re-dating an older GLOBAL would present a stale loader view as current,
+    which is the bug this whole path exists to avoid."""
+    engine, _factory, persistence, boot = await _persistence(tmp_path, "monitor-mismatch")
+    await persistence.persist("monitor-mismatch", _frame("bmcu_full_status_global.bin", 1, boot))
+    key = ("monitor-mismatch", 0)
+    seen = persistence.current_state_seen[key]
+    persistence.full_status_global[key] = replace(persistence.full_status_global[key], snapshot_id=4097)
+    await persistence.persist("monitor-mismatch", _frame("bmcu_full_status_counters.bin", 2, boot))
+    assert persistence.current_state_seen[key] == seen
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_full_status_state_toggle_leaves_the_status_view_frozen(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(persistence_module, "_FULL_STATUS_STATE", False)
+    engine, _factory, persistence, boot = await _persistence(tmp_path, "monitor-frozen")
+    await persistence.persist("monitor-frozen", _frame("bmcu_status.bin", 1, boot))
+    await persistence.persist("monitor-frozen", _frame("bmcu_full_status_global.bin", 2, boot))
+    assert persistence.current_state[("monitor-frozen", 0)].pull_pct == (19, 20, 21, 22)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_prefers_a_snapshot_newer_than_the_last_status(tmp_path) -> None:
+    engine, factory, persistence, boot = await _persistence(tmp_path, "monitor-rehydrate")
+    await persistence.persist("monitor-rehydrate", _frame("bmcu_status.bin", 1, boot))
+    await persistence.persist("monitor-rehydrate", _frame("bmcu_full_status_global.bin", 2, boot))
+    await persistence.persist("monitor-rehydrate", _frame("bmcu_full_status_counters.bin", 3, boot))
+    restored = BinaryPersistence(factory)
+    await restored.rehydrate_current_state()
+    state = restored.current_state[("monitor-rehydrate", 0)]
+    assert state.pull_pct == (59, 46, 56, 53)
+    assert state.crc_error == 197
     await engine.dispose()
