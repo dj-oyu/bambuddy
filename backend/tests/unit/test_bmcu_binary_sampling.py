@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.bmcu_binary.sampling import fair_shares, sample_strides
+from backend.app.services.bmcu_binary.sampling import fair_shares, sample_strides
 
 
 def test_a_kind_that_fits_its_share_is_kept_whole() -> None:
@@ -32,7 +32,7 @@ def test_unused_share_is_redistributed_not_wasted() -> None:
 
 
 def test_budget_below_the_kind_count_still_keeps_one_row_each() -> None:
-    counts = {kind: 100 for kind in range(10)}
+    counts = dict.fromkeys(range(10), 100)
     strides = sample_strides(counts, 3)
     assert all(stride == 100 for stride in strides.values())
 

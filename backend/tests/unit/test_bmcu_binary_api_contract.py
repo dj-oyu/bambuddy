@@ -399,9 +399,7 @@ async def test_metrics_without_a_window_still_returns_the_newest_rows(bmcu_db) -
             )
         )
     await bmcu_db.commit()
-    points = await bmcu_monitors.metrics(
-        "pico-bmcu-bridge", from_time=None, to_time=None, limit=3, db=bmcu_db, _=None
-    )
+    points = await bmcu_monitors.metrics("pico-bmcu-bridge", from_time=None, to_time=None, limit=3, db=bmcu_db, _=None)
     assert [point["at"] for point in points] == [
         datetime(2026, 8, 3) + timedelta(minutes=minute) for minute in (299, 298, 297)
     ]

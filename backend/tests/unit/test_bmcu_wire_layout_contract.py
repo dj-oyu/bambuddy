@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from app.services.bmcu_binary.bmcu_decoder import decode_semantic, decode_wire_frame
-from app.services.bmcu_binary.framing import decode_header
-from app.services.bmcu_binary.messages import decode_bmcu_frame
+from backend.app.services.bmcu_binary.bmcu_decoder import decode_semantic, decode_wire_frame
+from backend.app.services.bmcu_binary.framing import decode_header
+from backend.app.services.bmcu_binary.messages import decode_bmcu_frame
 
 LAYOUT = json.loads((Path(__file__).resolve().parents[3] / "docs" / "bmcu_wire_layout.json").read_text())
 STRUCTURES = LAYOUT["structures"]
@@ -47,7 +47,7 @@ def _marked(structure: dict, size: int) -> tuple[bytearray, dict[str, int]]:
 
 def _wire(kind: int, payload: bytes) -> bytes:
     """Wrap a payload in a BMCU link frame, per the link_wire structure."""
-    from app.services.bmcu_binary.bmcu_decoder import SYNC
+    from backend.app.services.bmcu_binary.bmcu_decoder import SYNC
 
     body = bytes((0x83, kind)) + (7).to_bytes(2, "little") + bytes((len(payload),)) + payload
     crc = 0xFFFF

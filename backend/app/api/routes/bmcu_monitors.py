@@ -148,9 +148,7 @@ async def _sampled_window(db, conditions, limit):
     counts = dict(
         (
             await db.execute(
-                select(BMCUBinaryRecord.bmcu_kind, func.count())
-                .where(*conditions)
-                .group_by(BMCUBinaryRecord.bmcu_kind)
+                select(BMCUBinaryRecord.bmcu_kind, func.count()).where(*conditions).group_by(BMCUBinaryRecord.bmcu_kind)
             )
         ).all()
     )
@@ -159,7 +157,9 @@ async def _sampled_window(db, conditions, limit):
     if total == 0:
         return [], False
     if total <= limit:
-        return (await db.execute(select(BMCUBinaryRecord).where(*conditions).order_by(*ascending))).scalars().all(), False
+        return (
+            await db.execute(select(BMCUBinaryRecord).where(*conditions).order_by(*ascending))
+        ).scalars().all(), False
     strides = sample_strides(counts, limit)
     numbered = (
         select(
@@ -185,13 +185,17 @@ async def _sampled_window(db, conditions, limit):
     # exceed `limit` by up to one row per kind, and trimming that overshoot from
     # the newest end would reintroduce the bug this function exists to fix.
     rows = (
-        await db.execute(
-            select(record)
-            .where((numbered.c.rn - 1) % stride == 0)
-            .order_by(numbered.c.server_received_at.desc(), numbered.c.transport_sequence.desc())
-            .limit(limit)
+        (
+            await db.execute(
+                select(record)
+                .where((numbered.c.rn - 1) % stride == 0)
+                .order_by(numbered.c.server_received_at.desc(), numbered.c.transport_sequence.desc())
+                .limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(reversed(rows)), True
 
 
@@ -303,7 +307,9 @@ async def _sampled_diagnostics(db, conditions, limit, sample):
         )
     total = (await db.execute(select(func.count()).select_from(BMCUBinaryDiagnostic).where(*conditions))).scalar() or 0
     if total <= limit:
-        return (await db.execute(select(BMCUBinaryDiagnostic).where(*conditions).order_by(newest_first))).scalars().all()
+        return (
+            (await db.execute(select(BMCUBinaryDiagnostic).where(*conditions).order_by(newest_first))).scalars().all()
+        )
     stride = max(1, -(-total // limit))
     numbered = (
         select(BMCUBinaryDiagnostic, func.row_number().over(order_by=newest_first).label("rn"))

@@ -62,9 +62,7 @@ def main() -> None:
     global_payload = struct.pack("<HBBBBI", 4096, 0, 15, 1, 0, 0x09ABCDEF) + bytes.fromhex(
         "000f0b00020000003b2e3835142e0000"
     )
-    counters_payload = struct.pack("<HBBBBI", 4096, 14, 15, 4, 0, 0x09ABCDEF) + struct.pack(
-        "<4I", 175, 0, 197, 777
-    )
+    counters_payload = struct.pack("<HBBBBI", 4096, 14, 15, 4, 0, 0x09ABCDEF) + struct.pack("<4I", 175, 0, 197, 777)
     unknown_payload = b"\xde\xad"
     records = {
         "server_challenge.bin": encode_frame(FrameHeader(MessageType.SERVER_CHALLENGE), challenge),

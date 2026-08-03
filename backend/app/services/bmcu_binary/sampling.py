@@ -33,7 +33,7 @@ def fair_shares(counts: Mapping[Hashable, int], budget: int) -> dict[Hashable, i
         share = max(1, budget // len(pending))
         satisfied = [key for key, value in pending.items() if value <= share]
         if not satisfied:
-            shares.update({key: share for key in pending})
+            shares.update(dict.fromkeys(pending, share))
             break
         for key in satisfied:
             shares[key] = pending.pop(key)

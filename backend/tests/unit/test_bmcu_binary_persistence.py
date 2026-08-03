@@ -1,9 +1,8 @@
 import struct
 import time
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
-
-from dataclasses import replace
 
 import pytest
 from sqlalchemy import select
