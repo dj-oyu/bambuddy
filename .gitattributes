@@ -8,3 +8,8 @@
 # diff between the two copies reported every line as changed. The mirroring
 # rule is only enforceable if the copies can be compared.
 *.md text eol=lf
+
+# The mirrored registries are JSON, so the rule above does not reach them, and
+# they are compared byte-for-byte for the same reason the documents are.
+docs/bmcu_binary_registry.json text eol=lf
+docs/bmcu_link_enum_registry.json text eol=lf
