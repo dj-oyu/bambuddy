@@ -435,12 +435,23 @@ const MISSING_KEY_FALLBACK_PREFIXES = {
     'printModal.unloadEdit',
     'queue.badges.unload',
     'queue.badges.noUnloadAtStart',
+    // The queue filament lane, en-only while translations roll out. Same
+    // arrangement as the unload strings above, which it grew out of.
+    'queue.filament.',
     'settings.bmcuLink.',
     'settings.tabs.bmcuLink',
   ],
   // Existing Russian translation debt predating the BMCU work.
   ru: [
     'gcodeMotion.',
+    'printers.filamentSpoof.',
+    'settings.gcodeTemplateInsert',
+    'settings.gcodeTemplateOverwriteConfirm',
+  ],
+  // Ukrainian carries the same debt as Russian, plus one navigation label.
+  uk: [
+    'gcodeMotion.',
+    'nav.bmcuLink',
     'printers.filamentSpoof.',
     'settings.gcodeTemplateInsert',
     'settings.gcodeTemplateOverwriteConfirm',
