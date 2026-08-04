@@ -54,6 +54,7 @@ docs/
 !docs/
 docs/*
 !docs/bmcu_binary_registry.json
+!docs/bmcu_link_enum_registry.json
 *.md
 !requirements.txt
 
