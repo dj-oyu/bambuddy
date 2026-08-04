@@ -11,7 +11,7 @@
       "onlineLinks": 1,
       "ackSequence": "00000000000000000008",
       "replayPending": 2,
-      "anomalyCount": 1
+      "anomalyCount": null
     }
   ],
   "detail": {
@@ -21,11 +21,11 @@
     "health": "online",
     "lastSeenAt": "2026-07-31T10:00:00Z",
     "bootId": "0000000000000001",
-    "linkCount": 1,
-    "onlineLinks": 1,
+    "linkCount": 2,
+    "onlineLinks": 2,
     "ackSequence": "00000000000000000008",
     "replayPending": 2,
-    "anomalyCount": 1,
+    "anomalyCount": null,
     "firstSeenAt": "2026-07-31T09:00:00Z",
     "links": [
       {
@@ -34,12 +34,30 @@
         "state": "online",
         "currentSlot": 1,
         "activeMask": 15,
-        "motion": "(0, 2, 0, 0)",
+        "motion": [
+          0,
+          2,
+          0,
+          0
+        ],
         "pullPercent": 42,
         "pressure": 17,
         "faultCount": 0,
         "statusAgeS": 2.5,
         "lastSeenAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "linkIndex": 1,
+        "linkId": "bmcu-1",
+        "state": "no_data",
+        "currentSlot": null,
+        "activeMask": null,
+        "motion": null,
+        "pullPercent": null,
+        "pressure": null,
+        "faultCount": null,
+        "statusAgeS": null,
+        "lastSeenAt": null
       }
     ]
   },
@@ -52,7 +70,7 @@
         "slot": 1,
         "pullPercent": null,
         "pressure": null,
-        "motion": "2",
+        "motion": 2,
         "kind": "state_change",
         "label": "state change",
         "severity": "info",

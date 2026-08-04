@@ -52,6 +52,7 @@ and the guarded soft reset.
 | Method | Path | Query | Response |
 |---|---|---|---|
 | GET | `/api/v1/bmcu-monitors` | — | `MonitorSummary[]` |
+| GET | `/api/v1/bmcu-monitors/guide` | — | `MonitorGuide` |
 | GET | `/api/v1/bmcu-monitors/{device_id}` | — | `MonitorDetail` |
 | GET | `/api/v1/bmcu-monitors/{device_id}/timeline` | `from`, `to` (ISO datetime), `limit` (1–5000, default 1000) | `TimelineResponse` |
 | GET | `/api/v1/bmcu-monitors/{device_id}/metrics` | `from`, `to` (ISO datetime), `limit` (1–5000, default 500) | `MetricPoint[]` |
@@ -68,6 +69,7 @@ MonitorSummary   deviceId, displayName, firmware, health, lastSeenAt, bootId,
 MonitorDetail    MonitorSummary + firstSeenAt, links[LinkSnapshot]
 LinkSnapshot     linkIndex, linkId, state, currentSlot, activeMask, motion,
                  pullPercent, pressure, faultCount, lastSeenAt
+MonitorGuide     readingNotes[GuideNote], thresholds[GuideThreshold]
 TimelineResponse points[TimelinePointResponse], from, to, downsampled
 TimelinePoint    id, at, linkIndex, slot, pullPercent, pressure, motion, kind,
                  label, severity, source, anomaly, missingData
@@ -104,6 +106,23 @@ Behavior worth knowing:
 - `severity` on timeline points is a string bucket derived from the numeric wire
   severity: `>=5` critical, `>=4` error, `>=3` warning, otherwise info.
   `anomaly` is true for warning and above.
+- **Null means "not known", never "known to be zero".** No field answers "no
+  data" with a value that is also a legitimate reading. `state` carries the
+  distinction: `no_data` means no STATUS was ever decoded for the link and every
+  loader field is null; `stale` means one was and the bridge has gone quiet
+  since, which is the case worth an alert. An `activeMask` of `0` is four empty
+  channels; an unreported one is `null`. `currentSlot` null under any state
+  other than `no_data` is the 0xFF "nothing selected" sentinel.
+- **`motion` is four numbers, not a string.** It was `str(tuple)` — the Python
+  repr `"(0, 2, 0, 0)"` — and then a comma-joined string; both made consumers
+  parse a number back out of prose. `TimelinePointResponse.motion` is likewise
+  an `int`, not `"2"`.
+- **`/guide` is static and needs no device.** It serves the reading notes and
+  thresholds that OpenAPI has no place for — which counters are only meaningful
+  as a delta, which field actually dates the loader view. It is declared before
+  `/{device_id}` so the literal path wins the match. The bridge serves the
+  equivalent two sections in its own `/api/schema.json` for its own endpoints;
+  these describe bambuddy's API only.
 - `LinkSnapshot`'s loader values come from the newest of two sources: a STATUS
   frame, or the GLOBAL record of a FULL_STATUS snapshot, which carries the same
   fields (`BMCU_LINK_PROTOCOL_ALPHA3.md` §6.2 in the BMCU repository). A bridge
@@ -179,14 +198,16 @@ is currently a placeholder.
   window; a 24 h timeline request takes about 2.4 s on this hardware, against
   0.9 s for 1 h. The page refetches every 10 s, so a wider default range would
   need a coarser refetch or a pre-aggregated table.
-- **`anomalyCount` is always 0** in `MonitorSummary` and `MonitorDetail`.
+- **`anomalyCount` is always `null`** in `MonitorSummary` and `MonitorDetail`.
+  It was `0`, which asserted that the device reports nothing wrong; it reports
+  plenty and nobody counts it. Null says that plainly.
 - **`health` is only `online` or `offline`**, derived from whether a session is
-  currently registered. The spec's warning/critical aggregation
-  (`BMCU_BINARY_TRANSPORT_V1.md` §12) is not computed. The frontend type also
-  allows `stale`, `incompatible`, `unknown`.
+  currently registered, and is typed as exactly those two so `/openapi.json`
+  enumerates them. The spec's warning/critical aggregation
+  (`BMCU_BINARY_TRANSPORT_V1.md` §12) is not computed.
 - **`onlineLinks` equals `linkCount` whenever the device is connected**; it is
   not a per-link liveness count. Per-link staleness is only in
-  `LinkSnapshot.state`, which goes stale after 15 s without a STATUS.
+  `LinkSnapshot.state`, which goes `stale` after 15 s without a STATUS.
 - **`/bmcu-link/enums` returns only `registry_version`.** The enum tables in
   `bmcu_binary_registry.json` are not served, so the Settings UI falls back to
   the label tables hardcoded in `BMCULinkSettings.tsx`.

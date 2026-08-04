@@ -13,16 +13,29 @@ from .bmcu_decoder import BMCUStatus
 NO_SLOT = 0xFF
 
 
-def motion_text(status: BMCUStatus) -> str:
-    """Render per-slot motion as a stable comma separated string."""
-    return ",".join(str(value) for value in status.motion)
+def motion_values(status: BMCUStatus) -> list[int]:
+    """Per-channel motion as numbers, in channel order.
+
+    This used to be rendered as text -- first ``str(tuple)``, which put the
+    Python repr ``"(0, 2, 0, 0)"`` on the wire, then a comma-joined string. Both
+    made a consumer parse a number back out of prose, and the settings panel's
+    per-channel motion row silently never rendered because it tested for an
+    array. Four numbers stay four numbers.
+    """
+    return [int(value) for value in status.motion]
 
 
 def current_slot(status: BMCUStatus) -> int | None:
+    """Selected channel, or None for the 0xFF "nothing selected" sentinel."""
     return None if status.current_slot == NO_SLOT else status.current_slot
 
 
 def pull_percent(status: BMCUStatus) -> int | None:
+    """Pull reading of the selected channel; None when none is selected.
+
+    None here means "no channel to report for", not "no data" -- the caller
+    distinguishes the two by the link state, which is `no_data` in that case.
+    """
     slot = current_slot(status)
     if slot is None or slot >= len(status.pull_pct):
         return None
@@ -47,7 +60,7 @@ def status_snapshot(status: BMCUStatus, age_s: float | None = None) -> dict:
         "current_slot": current_slot(status),
         "inserted_mask": status.inserted_mask,
         "online_mask": status.online_mask,
-        "motion": motion_text(status),
+        "motion": motion_values(status),
         "pull_pct": pull_percent(status),
         "pressure": status.pressure,
         "control_error": status.control_error,

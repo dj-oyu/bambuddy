@@ -1,7 +1,12 @@
 import { getAuthToken } from './client';
 
 const API_ROOT = '/api/v1/bmcu-monitors';
-export type MonitorHealth = 'online' | 'stale' | 'offline' | 'incompatible' | 'unknown';
+/** Device-level connectivity: a BMB1 session is open, or it is not. */
+export type MonitorHealth = 'online' | 'offline';
+/** How much is known about one link's loader view.
+ *  `no_data` — nothing was ever decoded, so every loader field below is null.
+ *  `stale`   — something was, and the bridge has said nothing since. */
+export type LinkState = 'online' | 'stale' | 'no_data';
 export type TimelineSeverity = 'info' | 'warning' | 'error' | 'critical';
 export type TimelineSource = 'bmcu' | 'bambuddy' | 'transport' | 'pico';
 
@@ -14,21 +19,31 @@ export interface BMCUMonitorSummary {
   bootId: string | null;
   linkCount: number;
   onlineLinks: number;
+  /** Zero-padded 20-digit decimal string. A u64 — never parse it into a number. */
   ackSequence: string;
   replayPending: number;
-  anomalyCount: number;
+  /** Always null: the aggregation is not implemented, and 0 would claim the
+   *  device reports nothing wrong. */
+  anomalyCount: number | null;
 }
 
 export interface BMCULinkSnapshot {
   linkIndex: number;
   linkId: string;
-  state: MonitorHealth | 'resyncing';
+  state: LinkState;
+  /** Zero-based selected channel; null means none selected (state !== 'no_data')
+   *  or unknown (state === 'no_data'). */
   currentSlot: number | null;
-  activeMask: number;
-  motion: string | null;
+  /** Filament-presence bitmask (the microswitch), not the hardware channel mask.
+   *  0 is four empty channels; null is no reading. */
+  activeMask: number | null;
+  /** Per-channel motion enum, four entries. Was a stringified tuple before #3. */
+  motion: number[] | null;
+  /** Pull of the selected channel, percent, 50 neutral; null when none selected. */
   pullPercent: number | null;
   pressure: number | null;
-  faultCount: number;
+  /** BMCU crc_error + frame_error, cumulative. Read it as a delta, not a total. */
+  faultCount: number | null;
   /** Age of the loader values above; null when no STATUS was ever decoded. */
   statusAgeS: number | null;
   lastSeenAt: string | null;
@@ -46,7 +61,7 @@ export interface BMCUTimelinePoint {
   slot: number | null;
   pullPercent: number | null;
   pressure: number | null;
-  motion: string | null;
+  motion: number | null;
   kind: string;
   label: string;
   severity: TimelineSeverity;

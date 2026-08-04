@@ -21,9 +21,12 @@ from backend.app.models.bmcu_binary import (
 from backend.app.models.user import User
 from backend.app.schemas.bmcu_binary import (
     ControlRequest,
+    GuideNote,
+    GuideThreshold,
     LinkSnapshot,
     MetricPoint,
     MonitorDetail,
+    MonitorGuide,
     MonitorSummary,
     TimelineResponse,
 )
@@ -34,6 +37,7 @@ from backend.app.services.bmcu_binary.bmcu_decoder import (
     decode_wire_frame,
 )
 from backend.app.services.bmcu_binary.constants import MessageType
+from backend.app.services.bmcu_binary.guide import READING_NOTES, THRESHOLDS
 from backend.app.services.bmcu_binary.messages import decode_tlvs, typed_tlv_value
 from backend.app.services.bmcu_binary.sampling import sample_strides
 from backend.app.services.bmcu_binary.server import binary_transport_server
@@ -69,11 +73,18 @@ def _summary(row, link_count=0):
         onlineLinks=link_count if connected else 0,
         ackSequence=row.last_ack_sequence,
         replayPending=max(0, int(row.newest_available_sequence) - int(row.last_ack_sequence)),
-        anomalyCount=0,
+        # Null, not 0: the warning/critical aggregation this field is meant to
+        # carry is not implemented, and 0 would state that the device reports
+        # nothing wrong. It reports plenty; nobody has counted it.
+        anomalyCount=None,
     )
 
 
-@router.get("", response_model=list[MonitorSummary])
+@router.get(
+    "",
+    response_model=list[MonitorSummary],
+    summary="Which bridges exist, and is each one connected right now?",
+)
 async def devices(db: AsyncSession = Depends(get_db), _: User | None = ReadAccess):
     rows = (await db.execute(select(BMCUBinaryDevice).order_by(BMCUBinaryDevice.device_id))).scalars()
     counts = dict(
@@ -86,7 +97,38 @@ async def devices(db: AsyncSession = Depends(get_db), _: User | None = ReadAcces
     return [_summary(row, counts.get(row.device_id, 0)) for row in rows]
 
 
-@router.get("/{device_id}", response_model=MonitorDetail)
+@router.get(
+    "/guide",
+    response_model=MonitorGuide,
+    summary="How should these numbers be read?",
+    description=(
+        "Reading notes and thresholds that OpenAPI has no place for -- which null means unknown, "
+        "which counters are only meaningful as a delta, which field actually says whether the loader "
+        "view is current. Static; no device is involved. Declared before /{device_id} so the literal "
+        "path wins the match."
+    ),
+)
+async def guide(_: User | None = ReadAccess):
+    return MonitorGuide(
+        readingNotes=[GuideNote(**note) for note in READING_NOTES],
+        thresholds=[
+            GuideThreshold(
+                metric=item["metric"],
+                warnAbove=item.get("warn_above"),
+                warnBelow=item.get("warn_below"),
+                unit=item.get("unit"),
+                note=item["note"],
+            )
+            for item in THRESHOLDS
+        ],
+    )
+
+
+@router.get(
+    "/{device_id}",
+    response_model=MonitorDetail,
+    summary="What is each loader on this bridge doing, and how old is that answer?",
+)
 async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | None = ReadAccess):
     row = await _device(db, device_id)
     stored_links = (
@@ -107,7 +149,11 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
         if not isinstance(value, BMCUStatus):
             value = None
         if value is None:
-            snapshot, state, faults, age_s = None, "stale", 0, None
+            # Nothing has ever been decoded for this link. Reporting `stale`
+            # here made that indistinguishable from a link that went quiet, and
+            # every loader field then had to carry a stand-in value -- 0 for the
+            # mask, 0 faults -- that reads exactly like a healthy empty loader.
+            snapshot, state, faults, age_s = None, "no_data", None, None
         else:
             age_s = time.monotonic() - persistence.current_state_seen.get(key, time.monotonic())
             snapshot = status_snapshot(value, age_s)
@@ -121,7 +167,7 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | N
                 currentSlot=snapshot["current_slot"] if snapshot else None,
                 # activeMask is filament presence (online_mask), not the
                 # hardware channel mask; see BMCUStatus for the distinction.
-                activeMask=snapshot["online_mask"] if snapshot else 0,
+                activeMask=snapshot["online_mask"] if snapshot else None,
                 motion=snapshot["motion"] if snapshot else None,
                 pullPercent=snapshot["pull_pct"] if snapshot else None,
                 pressure=snapshot["pressure"] if snapshot else None,
@@ -199,7 +245,17 @@ async def _sampled_window(db, conditions, limit):
     return list(reversed(rows)), True
 
 
-@router.get("/{device_id}/timeline", response_model=TimelineResponse)
+@router.get(
+    "/{device_id}/timeline",
+    response_model=TimelineResponse,
+    summary="What did the loaders do over a window?",
+    description=(
+        "Points are decoded from retained BMCU frames. A bounded window (both `from` and `to`) is "
+        "thinned so the answer spans the whole window and reaches the present; `downsampled` says "
+        "whether that happened. Thinning is by row stride per BMCU kind, not by a time interval, so "
+        "the gap between consecutive points is not a fixed resolution."
+    ),
+)
 async def timeline(
     device_id: str,
     from_time: datetime | None = Query(None, alias="from"),
@@ -275,7 +331,9 @@ async def timeline(
                     "slot": item.slot,
                     "pullPercent": value if category == "pull_pct" and isinstance(value, int) else None,
                     "pressure": value if category == "pressure" and isinstance(value, int) else None,
-                    "motion": str(value) if category in ("motion", "state_change") else None,
+                    # The motion enum as a number. `str(value)` here put "2" on
+                    # the wire and made every consumer parse it back.
+                    "motion": value if category in ("motion", "state_change") and isinstance(value, int) else None,
                     "kind": category,
                     "label": category.replace("_", " "),
                     "severity": severity,
@@ -331,7 +389,12 @@ async def _sampled_diagnostics(db, conditions, limit, sample):
     )
 
 
-@router.get("/{device_id}/metrics", response_model=list[MetricPoint])
+@router.get(
+    "/{device_id}/metrics",
+    response_model=list[MetricPoint],
+    summary="How healthy is the bridge itself over a window?",
+    description="Bridge-side diagnostics, not loader state. Absent counters are omitted rather than zeroed.",
+)
 async def metrics(
     device_id: str,
     from_time: datetime | None = Query(None, alias="from"),
@@ -384,7 +447,10 @@ async def metrics(
     return output
 
 
-@router.get("/{device_id}/logs")
+@router.get(
+    "/{device_id}/logs",
+    summary="What did the bridge log, newest first?",
+)
 async def logs(
     device_id: str,
     severity: int | None = Query(None, ge=0, le=5),
@@ -414,7 +480,10 @@ async def logs(
     ]
 
 
-@router.post("/{device_id}/control")
+@router.post(
+    "/{device_id}/control",
+    summary="Send one CONTROL command to a link.",
+)
 async def control(
     device_id: str,
     body: ControlRequest,

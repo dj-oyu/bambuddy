@@ -1,7 +1,9 @@
 import json
 import time
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import get_args
 
 import pytest
 import pytest_asyncio
@@ -18,8 +20,10 @@ from backend.app.models.bmcu_binary import (
 )
 from backend.app.schemas.bmcu_binary import (
     LinkSnapshot,
+    LinkState,
     MetricPoint,
     MonitorDetail,
+    MonitorHealth,
     MonitorSummary,
     TimelineResponse,
 )
@@ -141,15 +145,20 @@ def clean_state():
 
 
 @pytest.mark.asyncio
-async def test_link_snapshot_reports_stale_when_no_status_seen(bmcu_db) -> None:
+async def test_link_snapshot_reports_no_data_when_no_status_seen(bmcu_db) -> None:
+    """An EVENT-only link has said nothing about its loader, and says so.
+
+    This used to answer `stale` with `activeMask` 0 -- a bitmask that reads as
+    four empty channels, on a link that has never reported a channel at all.
+    """
     persistence = binary_transport_server.persistence
     persistence.current_state[("pico-bmcu-bridge", 0)] = _event()
     persistence.current_state_seen[("pico-bmcu-bridge", 0)] = time.monotonic()
     result = await bmcu_monitors.detail("pico-bmcu-bridge", db=bmcu_db, _=None)
     link = result.links[0]
-    assert link.motion is None
-    assert link.state == "stale"
-    assert (link.currentSlot, link.pullPercent, link.pressure, link.activeMask) == (None, None, None, 0)
+    assert link.state == "no_data"
+    assert (link.motion, link.currentSlot, link.pullPercent, link.pressure) == (None, None, None, None)
+    assert (link.activeMask, link.faultCount) == (None, None)
 
 
 @pytest.mark.asyncio
@@ -171,7 +180,7 @@ async def test_link_snapshot_dates_the_loader_view_by_the_status_itself(bmcu_db)
 @pytest.mark.asyncio
 async def test_link_snapshot_has_no_age_when_no_status_was_ever_decoded(bmcu_db) -> None:
     link = (await bmcu_monitors.detail("pico-bmcu-bridge", db=bmcu_db, _=None)).links[0]
-    assert (link.statusAgeS, link.lastSeenAt, link.state) == (None, None, "stale")
+    assert (link.statusAgeS, link.lastSeenAt, link.state) == (None, None, "no_data")
 
 
 @pytest.mark.asyncio
@@ -184,9 +193,60 @@ async def test_link_snapshot_reports_status_values(bmcu_db) -> None:
     assert link.state == "online"
     assert link.currentSlot == status.current_slot
     assert link.activeMask == status.online_mask
-    assert link.motion == "15,16,17,18"
+    # Four numbers, not a string a caller has to parse a number back out of.
+    assert link.motion == [15, 16, 17, 18]
     assert link.pressure == status.pressure
     assert link.faultCount == status.crc_error + status.frame_error
+
+
+@pytest.mark.asyncio
+async def test_an_empty_loader_is_distinguishable_from_an_unreported_one(bmcu_db) -> None:
+    """The whole point of issue #3: 0 and null must not be the same answer.
+
+    A link whose four channels are genuinely empty reports `activeMask` 0 with
+    state `online`. A link that never reported reports null with state
+    `no_data`. Before this, both said 0.
+    """
+    persistence = binary_transport_server.persistence
+    empty = replace(_status(), online_mask=0, current_slot=0xFF)
+    persistence.current_state[("pico-bmcu-bridge", 0)] = empty
+    persistence.current_state_seen[("pico-bmcu-bridge", 0)] = time.monotonic()
+    link = (await bmcu_monitors.detail("pico-bmcu-bridge", db=bmcu_db, _=None)).links[0]
+
+    assert (link.state, link.activeMask) == ("online", 0)
+    # No channel selected is also a reading, not an absence: pullPercent has
+    # nothing to report for, but the link state still says the data arrived.
+    assert (link.currentSlot, link.pullPercent) == (None, None)
+
+
+@pytest.mark.asyncio
+async def test_anomaly_count_is_unknown_rather_than_zero(bmcu_db) -> None:
+    """Nothing computes it, so it must not claim the device is clean."""
+    summary = await bmcu_monitors.detail("pico-bmcu-bridge", db=bmcu_db, _=None)
+    assert summary.anomalyCount is None
+
+
+@pytest.mark.asyncio
+async def test_guide_answers_what_openapi_cannot() -> None:
+    """The reading notes are served, and the literal path beats /{device_id}."""
+    result = await bmcu_monitors.guide(_=None)
+    assert result.readingNotes and result.thresholds
+    # The distinction the whole issue is about has to be one of them.
+    assert any("no_data" in note.note for note in result.readingNotes)
+    # A threshold states a bound and why it matters, not just a number.
+    assert all(note.note for note in result.thresholds)
+    assert all(item.warnAbove is not None or item.warnBelow is not None for item in result.thresholds)
+
+
+def test_guide_route_is_matched_before_the_device_id_route() -> None:
+    paths = [route.path for route in bmcu_monitors.router.routes]
+    assert paths.index("/bmcu-monitors/guide") < paths.index("/bmcu-monitors/{device_id}")
+
+
+def test_link_state_and_health_enumerate_only_what_the_route_produces() -> None:
+    """A bare `str` hides the value set from every consumer of /openapi.json."""
+    assert set(get_args(LinkState)) == {"online", "stale", "no_data"}
+    assert set(get_args(MonitorHealth)) == {"online", "offline"}
 
 
 @pytest.mark.asyncio

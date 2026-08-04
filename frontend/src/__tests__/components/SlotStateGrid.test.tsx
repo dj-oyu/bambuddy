@@ -8,11 +8,11 @@ const link = (linkIndex: number, linkId: string, overrides: Partial<BMCULinkSnap
   linkId,
   state: 'online',
   currentSlot: null,
-  activeMask: 0,
+  activeMask: null,
   motion: null,
   pullPercent: null,
   pressure: null,
-  faultCount: 0,
+  faultCount: null,
   statusAgeS: 0,
   lastSeenAt: null,
   ...overrides,
@@ -55,8 +55,32 @@ describe('SlotStateGrid', () => {
   });
 
   it('says so when a link never reported loader state', () => {
-    render(<SlotStateGrid links={[link(1, 'bmcu-b', { state: 'stale', statusAgeS: null })]} />);
+    render(<SlotStateGrid links={[link(1, 'bmcu-b', { state: 'no_data', statusAgeS: null })]} />);
 
-    expect(screen.getByText(/No loader state has been received/)).toBeTruthy();
+    expect(screen.getByText(/No loader state has ever been received/)).toBeTruthy();
+    expect(screen.getByText('no data')).toBeTruthy();
+  });
+
+  it('renders an unreported mask as unknown, not as an empty loader', () => {
+    // 0 is four empty channels and is a real answer; null is no answer. The
+    // grid printed "filament 0x00" for both until issue #3.
+    render(<SlotStateGrid links={[link(1, 'bmcu-b', { state: 'no_data' })]} />);
+
+    expect(screen.getByText('filament —')).toBeTruthy();
+    expect(screen.getByText('faults —')).toBeTruthy();
+    expect(screen.queryByText(/0x00/)).toBeNull();
+  });
+
+  it('still prints a genuinely empty loader as 0x00', () => {
+    render(<SlotStateGrid links={[link(0, 'bmcu-a', { activeMask: 0, faultCount: 0, statusAgeS: 1 })]} />);
+
+    expect(screen.getByText(/filament 0x00/)).toBeTruthy();
+    expect(screen.getByText(/0 faults/)).toBeTruthy();
+  });
+
+  it('renders the four motion values instead of a stringified tuple', () => {
+    render(<SlotStateGrid links={[link(0, 'bmcu-a', { motion: [0, 2, 0, 0], statusAgeS: 1 })]} />);
+
+    expect(screen.getByText('0, 2, 0, 0')).toBeTruthy();
   });
 });
