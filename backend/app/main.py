@@ -5296,6 +5296,168 @@ async def _hms_retry_loop() -> None:
                 log.warning("[HMS-RETRY] tick error for printer %s: %s", printer_id, e)
 
 
+# HMS auto-continue watch (private fork) — presses "Resume" on the faults that
+# always clear by resuming. Separate loop and separate toggle from the retry
+# watch above on purpose: that one clears errors and requeues the queue item,
+# which would restart a print that is already hours in. See
+# services/hms_auto_continue.py for the incident and the full design.
+_hms_auto_continue_task: asyncio.Task | None = None
+_HMS_AUTO_CONTINUE_TICK_S = float(os.environ.get("BAMBUDDY_HMS_AUTO_CONTINUE_TICK_S", "10"))
+
+
+def _paused_errors_for(status) -> list:
+    """Current HMS list as `PausedError`s for the auto-continue decision core."""
+    from backend.app.services.hms_auto_continue import PausedError
+
+    out = []
+    for err in getattr(status, "hms_errors", []) or []:
+        out.append(
+            PausedError(
+                short_code=_hms_short_code(err.attr, err.code),
+                full_code=getattr(err, "full_code", "") or "",
+                severity=err.severity,
+                actions=tuple(getattr(err, "actions", []) or []),
+                job_id=getattr(err, "job_id", None),
+            )
+        )
+    return out
+
+
+def _execute_hms_continue(printer_id: int, action) -> bool:
+    """Send the firmware's own CONTINUE action — the UI's Resume button.
+
+    Returns False when nothing was sent, so the caller does not spend an
+    attempt on a command that never left the box.
+    """
+    log = logging.getLogger(__name__)
+    from backend.app.services.printer_manager import printer_manager
+
+    client = printer_manager.get_client(printer_id)
+    if not client:
+        return False
+    if not action.full_code:
+        # Without the canonical hex identifier the firmware silently rejects
+        # the command (#1830); refuse rather than burn an attempt on a no-op.
+        log.warning("[HMS-CONTINUE] printer %s: %s has no full_code — not resuming", printer_id, action.short_code)
+        return False
+
+    try:
+        from backend.app.services.hms_errors import get_error_description
+
+        description = get_error_description(action.short_code)
+    except Exception:
+        description = None
+    # Log the meaning BEFORE resuming, for the same reason auto-clear does:
+    # otherwise the fault text never reaches a human at all.
+    log.warning(
+        "[HMS-CONTINUE] printer %s paused %.0fs on %s — auto-resuming (attempt %d/%d) — meaning: %s",
+        printer_id,
+        action.paused_for_s,
+        action.short_code,
+        action.attempts + 1,
+        action.max_attempts,
+        description or "(no description in HMS database)",
+    )
+    return client.execute_hms_action(action.full_code, "CONTINUE", action.job_id)
+
+
+async def _notify_hms_continue_gave_up(printer_id: int, action) -> None:
+    from backend.app.models.printer import Printer
+    from backend.app.services.hms_errors import get_error_description
+    from backend.app.services.notification_service import notification_service
+
+    log = logging.getLogger(__name__)
+    try:
+        description = get_error_description(action.short_code)
+    except Exception:
+        description = None
+
+    async with async_session() as db:
+        result = await db.execute(select(Printer).where(Printer.id == printer_id))
+        printer = result.scalar_one_or_none()
+        printer_name = printer.name if printer else f"Printer {printer_id}"
+
+        detail = "\n".join(
+            [
+                f"HMS {action.short_code}: {description or 'no description'}",
+                f"Auto-resume gave up after {action.max_attempts} attempts on this print "
+                f"(paused {action.paused_for_s / 60:.0f} min).",
+                "This fault normally clears on the first resume, so surviving "
+                f"{action.max_attempts} of them means something is actually wrong — "
+                "check the filament path, the cutter and the spool before resuming by hand.",
+                "No further automatic resumes will be sent for this print.",
+            ]
+        )
+        image_data = None
+        if printer is not None:
+            image_data = await _capture_snapshot_for_notification(printer_id, printer, log)
+
+        log.warning("[HMS-CONTINUE] gave up on printer %s: %s", printer_id, detail.replace("\n", " | "))
+        await notification_service.on_printer_error(
+            printer_id,
+            printer_name,
+            f"Auto-resume gave up ({action.short_code})",
+            db,
+            detail,
+            image_data=image_data,
+        )
+
+
+async def _hms_auto_continue_loop() -> None:
+    from backend.app.services.hms_auto_continue import CONTINUE_NOW, GIVE_UP, hms_auto_continue
+
+    log = logging.getLogger(__name__)
+    while True:
+        await asyncio.sleep(_HMS_AUTO_CONTINUE_TICK_S)
+        now = time.time()
+        for printer_id, status in list(printer_manager.get_all_statuses().items()):
+            # Per-printer try: one printer's failure must not skip the fleet.
+            try:
+                actions = hms_auto_continue.tick(
+                    printer_id,
+                    now=now,
+                    connected=getattr(status, "connected", False),
+                    paused=getattr(status, "state", None) == "PAUSE",
+                    errors=_paused_errors_for(status),
+                )
+                for action in actions:
+                    if action.kind == CONTINUE_NOW:
+                        if _execute_hms_continue(printer_id, action):
+                            hms_auto_continue.mark_attempted(printer_id, time.time())
+                    elif action.kind == GIVE_UP:
+                        try:
+                            await _notify_hms_continue_gave_up(printer_id, action)
+                            hms_auto_continue.mark_notified(printer_id)
+                        except Exception:
+                            # Un-latched: retried next tick (stall-watch pattern).
+                            log.exception("[HMS-CONTINUE] give-up notification failed for printer %s", printer_id)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                log.warning("[HMS-CONTINUE] tick error for printer %s: %s", printer_id, e)
+
+
+def start_hms_auto_continue_watch() -> None:
+    global _hms_auto_continue_task
+    from backend.app.services.hms_auto_continue import auto_continue_codes, enabled
+
+    if enabled() and _hms_auto_continue_task is None:
+        _hms_auto_continue_task = asyncio.create_task(_hms_auto_continue_loop())
+        logging.getLogger(__name__).info(
+            "HMS auto-continue watch started (tick %.0fs, codes: %s)",
+            _HMS_AUTO_CONTINUE_TICK_S,
+            ",".join(sorted(auto_continue_codes())) or "none",
+        )
+
+
+def stop_hms_auto_continue_watch() -> None:
+    global _hms_auto_continue_task
+    if _hms_auto_continue_task:
+        _hms_auto_continue_task.cancel()
+        _hms_auto_continue_task = None
+        logging.getLogger(__name__).info("HMS auto-continue watch stopped")
+
+
 def start_hms_retry_watch() -> None:
     global _hms_retry_task
     if _HMS_RETRY_ENABLED and _hms_retry_task is None:
@@ -8428,6 +8590,11 @@ async def lifespan(app: FastAPI):
     # edge-triggered rate-limited path when BAMBUDDY_HMS_RETRY=1
     start_hms_retry_watch()
 
+    # HMS auto-continue (private fork): presses Resume on the allowlisted
+    # faults that always clear by resuming, so an overnight print is not held
+    # until somebody wakes up (2026-08-07 0700_8006 feed pause)
+    start_hms_auto_continue_watch()
+
     # Event-loop stall watchdog: dumps all thread stacks to stderr if the loop
     # freezes (#1486 — silent "container hangs after adding a printer" reports).
     from backend.app.services.loop_watchdog import start_loop_watchdog
@@ -8481,6 +8648,7 @@ async def lifespan(app: FastAPI):
     stop_stall_watch()
     stop_feed_stall_watch()
     stop_hms_retry_watch()
+    stop_hms_auto_continue_watch()
     printer_manager.disconnect_all()
     await close_spoolman_client()
 
