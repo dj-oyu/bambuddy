@@ -5134,12 +5134,24 @@ _hms_retry_task: asyncio.Task | None = None
 def _hms_status_inputs(status) -> tuple[dict[str, int], list[str]]:
     """Split a printer's current HMS list into (auto-clear codes present with
     severity, descriptions of non-allowlisted serious/fatal errors)."""
+    from backend.app.services.hms_auto_continue import companion_codes
     from backend.app.services.hms_errors import get_error_description_full
+
+    # Codes that ride along with a real fault and carry no independent meaning.
+    # Without this, 0700_0006 (severity 1, no description, severity *inferred*
+    # by (attr >> 8) & 0xF rather than stated by the firmware) held every
+    # auto-clear attempt for the cutter fault it accompanies — 2026-08-07
+    # 04:30, "Auto-retry HELD: serious/fatal HMS co-present: 0700_0006",
+    # leaving the operator to press Resume by hand on a print that recovers by
+    # itself. Shared with the auto-continue watch, which has the same gate.
+    companions = companion_codes()
 
     autoclear_present: dict[str, int] = {}
     other_serious: list[str] = []
     for err in getattr(status, "hms_errors", []) or []:
         short = _hms_short_code(err.attr, err.code)
+        if short in companions:
+            continue
         if short in _HMS_AUTO_CLEAR_CODES:
             # Keep the worst (lowest) severity if the code appears twice.
             prev = autoclear_present.get(short)
@@ -5350,15 +5362,16 @@ def _execute_hms_continue(printer_id: int, action) -> bool:
     # Log the meaning BEFORE resuming, for the same reason auto-clear does:
     # otherwise the fault text never reaches a human at all.
     log.warning(
-        "[HMS-CONTINUE] printer %s paused %.0fs on %s — auto-resuming (attempt %d/%d) — meaning: %s",
+        "[HMS-CONTINUE] printer %s paused %.0fs on %s — sending %s (attempt %d/%d) — meaning: %s",
         printer_id,
         action.paused_for_s,
         action.short_code,
+        action.action,
         action.attempts + 1,
         action.max_attempts,
         description or "(no description in HMS database)",
     )
-    return client.execute_hms_action(action.full_code, "CONTINUE", action.job_id)
+    return client.execute_hms_action(action.full_code, action.action, action.job_id)
 
 
 async def _notify_hms_continue_gave_up(printer_id: int, action) -> None:
@@ -5419,6 +5432,11 @@ async def _hms_auto_continue_loop() -> None:
                     connected=getattr(status, "connected", False),
                     paused=getattr(status, "state", None) == "PAUSE",
                     errors=_paused_errors_for(status),
+                    # The retry watch owns these (clear + requeue with backoff
+                    # and escalation); two watches commanding one fault would
+                    # race. 0300_800B lives there, and the companion fix above
+                    # is what unblocks it.
+                    owned_elsewhere=_HMS_AUTO_CLEAR_CODES,
                 )
                 for action in actions:
                     if action.kind == CONTINUE_NOW:

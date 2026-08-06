@@ -19,6 +19,17 @@ from backend.app.services.hms_auto_continue import (
     PausedError,
 )
 
+# "The cutter is stuck..." — the fault the operator actually described. It has
+# been on the auto-clear allowlist all along; what held it was the companion
+# code below, not a missing entry. Its resume button is Bambu's own spelling.
+CUTTER = PausedError(
+    short_code="0300_800B",
+    full_code="0300800B",
+    severity=3,
+    actions=("RESUME_PRINTING_PROBELM_SOLVED", "CHECK_ASSISTANT"),
+    job_id="1487384347",
+)
+
 JOB = "1487384347"
 
 # The two entries exactly as the printer reported them.
@@ -53,13 +64,14 @@ def watch():
     return HmsAutoContinue(delay_s=30.0, max_attempts=3, settle_s=45.0)
 
 
-def tick(watch, t, *, paused=True, errors=None, connected=True, printer_id=1):
+def tick(watch, t, *, paused=True, errors=None, connected=True, printer_id=1, owned=frozenset()):
     return watch.tick(
         printer_id,
         now=t,
         connected=connected,
         paused=paused,
         errors=LIVE_PAUSE if errors is None else errors,
+        owned_elsewhere=owned,
     )
 
 
@@ -77,6 +89,7 @@ class TestTheLiveCase:
         # The identifiers the firmware needs; a wrong/missing full_code is
         # silently rejected by the printer (#1830).
         assert (a.short_code, a.full_code, a.job_id) == ("0700_8006", "07008006", JOB)
+        assert a.action == "CONTINUE"
         assert a.attempts == 0
 
     def test_companion_fatal_does_not_block(self, watch):
@@ -161,12 +174,20 @@ class TestRefusals:
         tick(watch, 1000.0, errors=other)
         assert tick(watch, 1030.0, errors=other) == []
 
-    def test_allowlisted_code_without_a_continue_action(self, watch):
-        """The firmware decides what is offered; if it did not offer CONTINUE
-        this time, we do not invent it."""
+    def test_allowlisted_code_without_a_resume_action(self, watch):
+        """The firmware decides what is offered; if it did not offer a resume
+        button this time, we do not invent one."""
         no_action = [PausedError("0700_8006", "07008006", 3, ("CHECK_ASSISTANT",), job_id=JOB)]
         tick(watch, 1000.0, errors=no_action)
         assert tick(watch, 1030.0, errors=no_action) == []
+
+    def test_code_owned_by_the_auto_clear_watch_is_skipped(self, watch):
+        """0300_800B belongs to the retry watch (clear + requeue with backoff
+        and escalation). Two watches commanding one fault would race, so this
+        one stands off even if the code is on both lists."""
+        errors = [COMPANION, CUTTER]
+        tick(watch, 1000.0, errors=errors, owned=frozenset({"0300_800B"}))
+        assert tick(watch, 1030.0, errors=errors, owned=frozenset({"0300_800B"})) == []
 
     def test_unrelated_serious_error_blocks(self, watch):
         """Resuming into a genuinely broken machine is worse than waiting."""
@@ -196,6 +217,36 @@ class TestRefusals:
         assert tick(watch, 1030.0) == []
 
 
+class TestResumeActionSelection:
+    """The firmware names the same intent differently per fault. Sending the
+    action the error actually carries is the whole point — hard-coding
+    CONTINUE would silently skip the cutter fault, whose button is
+    RESUME_PRINTING_PROBELM_SOLVED (Bambu's spelling)."""
+
+    def test_cutter_fault_uses_its_own_resume_action(self, monkeypatch):
+        monkeypatch.setenv("BAMBUDDY_HMS_AUTO_CONTINUE_CODES", "0300_800B")
+        w = HmsAutoContinue(delay_s=30.0, max_attempts=3, settle_s=45.0)
+        errors = [COMPANION, CUTTER]
+        tick(w, 1000.0, errors=errors)
+        actions = tick(w, 1030.0, errors=errors)
+        assert [a.kind for a in actions] == [CONTINUE_NOW]
+        assert actions[0].action == "RESUME_PRINTING_PROBELM_SOLVED"
+        assert actions[0].full_code == "0300800B"
+
+    def test_preference_order_decides_when_several_are_offered(self, monkeypatch):
+        monkeypatch.setenv("BAMBUDDY_HMS_AUTO_CONTINUE_ACTIONS", "RESUME_PRINTING_PROBELM_SOLVED,CONTINUE")
+        w = HmsAutoContinue(delay_s=0.0, max_attempts=3, settle_s=45.0)
+        both = [PausedError("0700_8006", "07008006", 3, ("CONTINUE", "RESUME_PRINTING_PROBELM_SOLVED"), job_id=JOB)]
+        assert tick(w, 1000.0, errors=both)[0].action == "RESUME_PRINTING_PROBELM_SOLVED"
+
+    def test_an_action_outside_the_configured_set_is_not_sent(self, monkeypatch):
+        """STOP_PRINTING is an action too. Only resume-family ones fire."""
+        monkeypatch.setenv("BAMBUDDY_HMS_AUTO_CONTINUE_ACTIONS", "CONTINUE")
+        w = HmsAutoContinue(delay_s=0.0, max_attempts=3, settle_s=45.0)
+        stop = [PausedError("0700_8006", "07008006", 3, ("STOP_PRINTING",), job_id=JOB)]
+        assert tick(w, 1000.0, errors=stop) == []
+
+
 class TestEnvOverrides:
     def test_codes_are_configurable(self, monkeypatch):
         monkeypatch.setenv("BAMBUDDY_HMS_AUTO_CONTINUE_CODES", "0300_0100")
@@ -207,7 +258,7 @@ class TestEnvOverrides:
     def test_companion_list_is_configurable(self, monkeypatch):
         """Drop 0700_0006 from the companions and its sev 1 blocks again —
         the escape hatch if that code ever turns out to mean something."""
-        monkeypatch.setenv("BAMBUDDY_HMS_AUTO_CONTINUE_COMPANION_CODES", "")
+        monkeypatch.setenv("BAMBUDDY_HMS_COMPANION_CODES", "")
         w = HmsAutoContinue(delay_s=0.0, max_attempts=3, settle_s=45.0)
         assert tick(w, 1000.0) == []
 
@@ -284,6 +335,79 @@ class TestStatusTranslation:
             pass
 
         assert _paused_errors_for(Bare()) == []
+
+
+class TestAutoClearSeverityGate:
+    """The companion set is shared with the auto-clear retry watch, and that
+    sharing — not the new module — is what fixes the fault the operator
+    reported.
+
+    2026-08-07 04:30, verbatim from the journal:
+
+        [HMS-RETRY] escalation printer 1: HMS 0300_800B: The cutter is stuck.
+        ... | Auto-retry HELD: serious/fatal HMS co-present: 0700_0006
+        (sev 1): no description
+
+    0300_800B had been on BAMBUDDY_HMS_AUTO_CLEAR_CODES all along. It was
+    never a missing entry; 0700_0006 was tripping the severity gate on every
+    attempt, so the operator pressed Resume by hand each time.
+    """
+
+    @pytest.fixture(autouse=True)
+    def deployed_allowlist(self, monkeypatch):
+        """`_HMS_AUTO_CLEAR_CODES` is read at import time, and 0300_800B is
+        added by the systemd drop-in rather than the in-code default — so the
+        test process would not have it. Mirror what the service actually runs."""
+        import backend.app.main as main
+
+        monkeypatch.setattr(
+            main,
+            "_HMS_AUTO_CLEAR_CODES",
+            frozenset({"0500_409D", "0501_409D", "0502_409D", "0503_409D", "0300_800B"}),
+        )
+
+    def _status(self, errors):
+        class Status:
+            hms_errors = errors
+
+        return Status()
+
+    def _errors(self):
+        from backend.app.services.bambu_mqtt import HMSError
+
+        return [
+            HMSError(code="0x800B", attr=50364427, module=3, severity=3, full_code="0300800B"),
+            HMSError(code="0x20006", attr=117448960, module=7, severity=1, full_code="0700210000020006"),
+        ]
+
+    def test_companion_no_longer_holds_the_cutter_fault(self, monkeypatch):
+        from backend.app.main import _hms_status_inputs
+
+        monkeypatch.setenv("BAMBUDDY_HMS_COMPANION_CODES", "0700_0006")
+        present, other_serious = _hms_status_inputs(self._status(self._errors()))
+        assert "0300_800B" in present
+        assert other_serious == [], "0700_0006 must not read as an independent fatal fault"
+
+    def test_dropping_the_companion_restores_the_hold(self, monkeypatch):
+        """The escape hatch, and a demonstration of the exact pre-fix
+        behaviour."""
+        from backend.app.main import _hms_status_inputs
+
+        monkeypatch.setenv("BAMBUDDY_HMS_COMPANION_CODES", "")
+        _, other_serious = _hms_status_inputs(self._status(self._errors()))
+        assert other_serious and other_serious[0].startswith("0700_0006 (sev 1)")
+
+    def test_a_real_serious_error_still_holds(self, monkeypatch):
+        """The gate must keep doing its job for anything not named a
+        companion — that is the whole reason it exists."""
+        from backend.app.main import _hms_status_inputs
+        from backend.app.services.bambu_mqtt import HMSError
+
+        monkeypatch.setenv("BAMBUDDY_HMS_COMPANION_CODES", "0700_0006")
+        errors = [*self._errors(), HMSError(code="0x1800", attr=50337792, module=3, severity=1, full_code="03001800")]
+        _, other_serious = _hms_status_inputs(self._status(errors))
+        assert len(other_serious) == 1
+        assert other_serious[0].startswith("0300_1800")
 
 
 class TestMultiplePrinters:

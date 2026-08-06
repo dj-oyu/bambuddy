@@ -26,10 +26,12 @@ error, which is exactly what the UI's Resume button sends
 
 Design (user-approved 2026-08-07):
 
-- **Allowlist, never "anything with a CONTINUE button".** Blind-resuming an
+- **Allowlist, never "anything with a resume button".** Blind-resuming an
   unknown fault is how a nozzle jam becomes a printed-in-air failure. Only
   codes named in ``BAMBUDDY_HMS_AUTO_CONTINUE_CODES`` fire, and only when the
-  firmware actually offered CONTINUE on that error this time.
+  firmware actually offered one of ``BAMBUDDY_HMS_AUTO_CONTINUE_ACTIONS`` on
+  that error this time. Codes another watch already owns (the auto-clear retry
+  list) are skipped, so two watches never issue competing commands.
 - **Bounded per print job.** Three resumes per ``job_id``, then stop and tell a
   human. A fault that survives three resumes is not the benign one this module
   was written for. The counter follows the job, not the pause, so a print that
@@ -44,7 +46,13 @@ Design (user-approved 2026-08-07):
   carries no description, and its severity is inferred by bambuddy's
   ``(attr >> 8) & 0xF`` heuristic rather than stated by the firmware, so
   treating it as an independent fatal fault would block the very case this
-  module exists for.
+  module exists for. That same code was already blocking the *auto-clear*
+  watch: at 04:30 the same night, ``0300_800B`` ("The cutter is stuck") — a
+  code that has been on the auto-clear allowlist all along — was held with
+  ``Auto-retry HELD: serious/fatal HMS co-present: 0700_0006 (sev 1)`` and the
+  operator had to press Resume by hand. The companion set is therefore shared
+  with ``_hms_status_inputs`` rather than private to this module, and that
+  sharing is what actually fixes the cutter fault.
 
 This module is the pure decision core: no I/O, no asyncio, no imports from
 main. The loop in main.py executes the returned actions and reports back via
@@ -95,9 +103,31 @@ def auto_continue_codes() -> frozenset[str]:
 
 
 def companion_codes() -> frozenset[str]:
-    """Codes that ride along with an allowlisted fault and must not be read as
-    an independent serious error. See the module docstring on 0700_0006."""
-    return _env_codes("BAMBUDDY_HMS_AUTO_CONTINUE_COMPANION_CODES", "0700_0006")
+    """Codes that ride along with a real fault and must not be read as an
+    independent serious error. See the module docstring on 0700_0006.
+
+    Shared with the auto-clear retry watch (``_hms_status_inputs`` in main),
+    which has the same severity gate and was blocked by the same code — hence
+    the deliberately un-prefixed env var name.
+    """
+    return _env_codes("BAMBUDDY_HMS_COMPANION_CODES", "0700_0006")
+
+
+def resume_actions() -> tuple[str, ...]:
+    """Actions that mean "resume this print", in preference order.
+
+    The firmware names the same intent differently per fault, and the two we
+    handle differ: 0700_8006 offers ``CONTINUE`` (dispatched as
+    ``ams_control("resume")``) while 0300_800B offers
+    ``RESUME_PRINTING_PROBELM_SOLVED`` — Bambu's own spelling — which is the
+    "Problem Solved and Resume" button (``hms_resume``). Sending the action the
+    error actually carries is the point; nothing here invents a button the
+    firmware did not offer.
+
+    Ordered, not a set: an error offering more than one takes the first listed.
+    """
+    raw = os.environ.get("BAMBUDDY_HMS_AUTO_CONTINUE_ACTIONS", "CONTINUE,RESUME_PRINTING_PROBELM_SOLVED")
+    return tuple(a.strip().upper() for a in raw.split(",") if a.strip())
 
 
 @dataclass(frozen=True)
@@ -118,6 +148,9 @@ class Action:
     short_code: str
     full_code: str
     job_id: str | None
+    # The firmware's own name for the button to press, taken from this error's
+    # action list — not a constant.
+    action: str
     attempts: int  # attempts already made, BEFORE the one this action asks for
     max_attempts: int
     paused_for_s: float
@@ -164,22 +197,32 @@ class HmsAutoContinue:
         connected: bool,
         paused: bool,
         errors: list[PausedError],
+        owned_elsewhere: frozenset[str] = frozenset(),
     ) -> list[Action]:
         """Decide what to do for one printer this tick.
 
         ``errors`` is the printer's current HMS list; it is only consulted when
-        ``paused`` is true. Returns the actions the caller must execute.
+        ``paused`` is true. ``owned_elsewhere`` names codes another watch
+        already handles (the auto-clear retry list) — those are skipped so the
+        two never issue competing commands for the same fault. Returns the
+        actions the caller must execute.
         """
         if not enabled():
             return []
 
         allow = auto_continue_codes()
         companions = companion_codes()
+        preferred = resume_actions()
 
-        candidate = next(
-            (e for e in errors if e.short_code in allow and "CONTINUE" in e.actions),
-            None,
-        )
+        candidate = None
+        chosen_action = ""
+        for e in errors:
+            if e.short_code not in allow or e.short_code in owned_elsewhere:
+                continue
+            action = next((a for a in preferred if a in e.actions), None)
+            if action:
+                candidate, chosen_action = e, action
+                break
 
         # The job the budget belongs to. Fall back to the candidate's job_id;
         # None is a legitimate value (idle-sourced errors) and simply means one
@@ -228,22 +271,31 @@ class HmsAutoContinue:
         if state.attempts >= self.max_attempts:
             if state.gave_up_notified:
                 return []
-            return [self._action(GIVE_UP, printer_id, candidate, state, paused_for)]
+            return [self._action(GIVE_UP, printer_id, candidate, chosen_action, state, paused_for)]
 
-        # Give the previous CONTINUE time to take effect before spending
-        # another attempt on it.
+        # Give the previous resume time to take effect before spending another
+        # attempt on it.
         if state.last_attempt_at and now - state.last_attempt_at < self.settle_s:
             return []
 
-        return [self._action(CONTINUE_NOW, printer_id, candidate, state, paused_for)]
+        return [self._action(CONTINUE_NOW, printer_id, candidate, chosen_action, state, paused_for)]
 
-    def _action(self, kind: str, printer_id: int, err: PausedError, state: _JobState, paused_for: float) -> Action:
+    def _action(
+        self,
+        kind: str,
+        printer_id: int,
+        err: PausedError,
+        action: str,
+        state: _JobState,
+        paused_for: float,
+    ) -> Action:
         return Action(
             kind=kind,
             printer_id=printer_id,
             short_code=err.short_code,
             full_code=err.full_code,
             job_id=err.job_id,
+            action=action,
             attempts=state.attempts,
             max_attempts=self.max_attempts,
             paused_for_s=paused_for,
