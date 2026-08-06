@@ -43,14 +43,15 @@ class TestSchedulerAmsMappingHelpers:
         assert result == "#808080"
 
     def test_normalize_color_for_compare(self, scheduler):
-        """Color for compare should be lowercase without hash."""
+        """Color for compare is lowercase, no hash, alpha made explicit."""
         result = scheduler._normalize_color_for_compare("#FF5500")
-        assert result == "ff5500"
+        assert result == "ff5500ff"
 
     def test_normalize_color_for_compare_with_alpha(self, scheduler):
-        """Alpha channel should be stripped for comparison."""
+        """Alpha is kept, not stripped: truncating it made translucent
+        filament compare equal to opaque (#5)."""
         result = scheduler._normalize_color_for_compare("#FF5500AA")
-        assert result == "ff5500"
+        assert result == "ff5500aa"
 
     def test_colors_are_similar_exact_match(self, scheduler):
         """Exact same colors should be similar."""
@@ -58,12 +59,12 @@ class TestSchedulerAmsMappingHelpers:
 
     def test_colors_are_similar_within_threshold(self, scheduler):
         """Colors within threshold should be similar."""
-        # Red difference of 10, well within default threshold of 40
+        # ΔE76 = 4.2, well inside the default 20.0
         assert scheduler._colors_are_similar("#FF5500", "#F55500") is True
 
     def test_colors_are_similar_outside_threshold(self, scheduler):
         """Colors outside threshold should not be similar."""
-        # Red: FF (255) vs 00 (0) = 255 difference
+        # ΔE76 = 170.6
         assert scheduler._colors_are_similar("#FF0000", "#00FF00") is False
 
     def test_colors_are_similar_none_colors(self, scheduler):
@@ -170,6 +171,49 @@ class TestBuildLoadedFilaments:
         assert result[0]["type"] == "PLA"
 
 
+class TestTrayColourRaw:
+    """``color`` is lossy on purpose (display); ``color_raw`` is what the tray
+    actually reported, and is the only one comparisons may use (#5).
+
+    The printer sends 8-digit RGBA — a live A1 mini reports ``EB3A3AFF``. The
+    display value truncated that to 6 digits and turned a tray that reported
+    nothing into ``#808080``, which is indistinguishable from a tray that
+    really is mid grey.
+    """
+
+    @pytest.fixture
+    def scheduler(self):
+        return PrintScheduler()
+
+    def test_alpha_survives_on_ams_trays(self, scheduler):
+        class MockStatus:
+            raw_data = {"ams": [{"id": 0, "tray": [{"id": 0, "tray_type": "PETG", "tray_color": "FFFFFF00"}]}]}
+
+        tray = scheduler._build_loaded_filaments(MockStatus())[0]
+        assert tray["color"] == "#FFFFFF"  # display, unchanged
+        assert tray["color_raw"] == "FFFFFF00"
+        assert scheduler._tray_compare_color(tray) == "FFFFFF00"
+
+    def test_alpha_survives_on_the_external_spool(self, scheduler):
+        class MockStatus:
+            raw_data = {"vt_tray": [{"tray_type": "TPU", "tray_color": "000000FF"}]}
+
+        tray = scheduler._build_loaded_filaments(MockStatus())[0]
+        assert tray["color_raw"] == "000000FF"
+
+    def test_missing_colour_is_none_not_grey(self, scheduler):
+        class MockStatus:
+            raw_data = {"ams": [{"id": 0, "tray": [{"id": 0, "tray_type": "PLA", "tray_color": ""}]}]}
+
+        tray = scheduler._build_loaded_filaments(MockStatus())[0]
+        assert tray["color"] == "#808080"
+        assert tray["color_raw"] is None
+        assert scheduler._tray_compare_color(tray) is None
+
+    def test_fixtures_without_color_raw_fall_back_to_display(self, scheduler):
+        assert scheduler._tray_compare_color({"color": "#FF0000"}) == "#FF0000"
+
+
 class TestMatchFilamentsToSlots:
     """Test the _match_filaments_to_slots method."""
 
@@ -202,6 +246,42 @@ class TestMatchFilamentsToSlots:
 
         result = scheduler._match_filaments_to_slots(required, loaded)
         assert result == [0]
+
+    def test_match_prefers_translucent_over_opaque(self, scheduler):
+        """A job sliced for Bambu PETG Translucent must land on the translucent
+        spool. Alpha used to be truncated before comparison, so both trays
+        looked like exact matches and slot order decided (#5)."""
+        required = [{"slot_id": 1, "type": "PETG", "color": "#FFFFFF00"}]
+        loaded = [
+            {"type": "PETG", "color": "#FFFFFF", "color_raw": "FFFFFFFF", "global_tray_id": 0},
+            {"type": "PETG", "color": "#FFFFFF", "color_raw": "FFFFFF00", "global_tray_id": 1},
+        ]
+
+        assert scheduler._match_filaments_to_slots(required, loaded) == [1]
+
+    def test_match_prefers_the_visually_closer_red(self, scheduler):
+        """ΔE ranks by perceived difference; the old per-channel box called
+        both of these "not similar" and fell through to slot order."""
+        required = [{"slot_id": 1, "type": "PETG", "color": "#D6001C"}]
+        loaded = [
+            {"type": "PETG", "color": "#0000FF", "color_raw": "0000FFFF", "global_tray_id": 0},
+            {"type": "PETG", "color": "#EB3A3A", "color_raw": "EB3A3AFF", "global_tray_id": 1},
+        ]
+
+        assert scheduler._match_filaments_to_slots(required, loaded) == [1]
+
+    def test_match_does_not_treat_two_unknown_colours_as_exact(self, scheduler):
+        """A tray that reported nothing must not exact-match a requirement that
+        specified nothing and win over a tray whose colour actually matches."""
+        required = [{"slot_id": 1, "type": "PLA", "color": ""}]
+        loaded = [
+            {"type": "PLA", "color": "#808080", "color_raw": None, "global_tray_id": 0},
+            {"type": "PLA", "color": "#FF0000", "color_raw": "FF0000FF", "global_tray_id": 1},
+        ]
+
+        # Neither is a colour match, so both are type-only and the first wins —
+        # but by falling through, not by a fabricated exact match.
+        assert scheduler._match_filaments_to_slots(required, loaded) == [0]
 
     def test_match_type_only(self, scheduler):
         """Should match by type when colors don't match."""

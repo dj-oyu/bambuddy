@@ -24,7 +24,7 @@ from backend.app.models.settings import Settings
 from backend.app.models.smart_plug import SmartPlug
 from backend.app.models.spool_assignment import SpoolAssignment
 from backend.app.models.spoolman_slot_assignment import SpoolmanSlotAssignment
-from backend.app.services import print_dispatch_context, printer_lifecycle
+from backend.app.services import color_match, print_dispatch_context, printer_lifecycle
 from backend.app.services.bambu_ftp import (
     UploadCancelled,
     cache_3mf_download,
@@ -1615,17 +1615,53 @@ class PrintScheduler:
                         "loaded_type": fil["type"],
                     }
                 )
-            elif req.get("color") and not self._colors_are_similar(req["color"], fil["color"]):
-                problems.append(
-                    {
-                        "issue": "mapped_tray_color_mismatch",
-                        "slot_id": req["slot_id"],
-                        "tray": tray,
-                        "required_color": req["color"],
-                        "loaded_color": fil["color"],
-                    }
-                )
+            elif req.get("color"):
+                problems.extend(self._validate_tray_color(req, tray, fil))
         return problems
+
+    def _validate_tray_color(self, req: dict, tray: int, fil: dict) -> list[dict]:
+        """Colour half of ``_validate_stored_ams_mapping``, for one slot.
+
+        Split out because "the colours differ" and "I could not read a colour"
+        are different facts and used to be reported as the same one (#5). Both
+        still hold the item — refusing to dispatch a colour we cannot verify is
+        the fail-safe direction, and it is what the previous code did — but the
+        issue code now says which happened, so an operator is not sent looking
+        for a colour difference that was never established.
+        """
+        req_color = req["color"]
+        tray_color = self._tray_compare_color(fil)
+        unreadable = [
+            side
+            for side, value in (("required", req_color), ("loaded", tray_color))
+            if color_match.parse_color(value) is None
+        ]
+        if unreadable:
+            return [
+                {
+                    "issue": "color_unknown",
+                    "slot_id": req["slot_id"],
+                    "tray": tray,
+                    "required_color": req_color,
+                    "loaded_color": tray_color,
+                    "unreadable": unreadable,
+                }
+            ]
+        if self._colors_are_similar(req_color, tray_color):
+            return []
+        return [
+            {
+                "issue": "mapped_tray_color_mismatch",
+                "slot_id": req["slot_id"],
+                "tray": tray,
+                "required_color": req_color,
+                "loaded_color": tray_color,
+                # The distance that failed, so the hold reason is actionable
+                # without re-deriving the maths by hand.
+                "delta_e": round(color_match.delta_e(req_color, tray_color), 1),
+                "delta_e_threshold": color_match.delta_e_threshold(),
+            }
+        ]
 
     _MAPPING_INVALID_CODE = "ams_mapping_invalid"
 
@@ -1685,7 +1721,18 @@ class PrintScheduler:
             "required": [
                 {"slot_id": r["slot_id"], "type": r.get("type", ""), "color": r.get("color", "")} for r in filament_reqs
             ],
-            "loaded_trays": [{"tray": f["global_tray_id"], "type": f["type"], "color": f["color"]} for f in loaded],
+            "loaded_trays": [
+                {
+                    "tray": f["global_tray_id"],
+                    "type": f["type"],
+                    "color": f["color"],
+                    # `color` is the display value, which fabricates #808080 for
+                    # a tray that reported nothing; report the raw value too so
+                    # the hold reason shows which of the two this was (#5).
+                    "color_raw": self._tray_compare_color(f),
+                }
+                for f in loaded
+            ],
         }
 
         computed = await self._compute_ams_mapping_for_printer(db, printer_id, item)
@@ -1700,10 +1747,17 @@ class PrintScheduler:
             return True
 
         reason["action"] = "held"
-        reason["recovery_hint"] = (
+        hint = (
             "load a matching filament in the AMS, or PATCH the queue item's ams_mapping "
             "(null = recompute at dispatch); re-checked every scheduler tick"
         )
+        if any(p["issue"] == "color_unknown" for p in problems):
+            hint += (
+                "; a colour could not be read on the side listed in `unreadable` — this is "
+                "not a colour difference. A tray reports no colour while the AMS/BMCU view "
+                "is stale, so re-reading printer status often clears it"
+            )
+        reason["recovery_hint"] = hint
         reason_json = json.dumps(reason)
         if item.waiting_reason != reason_json:
             item.waiting_reason = reason_json
@@ -1798,7 +1852,10 @@ class PrintScheduler:
                     tray_color = tray.get("tray_color", "")
                     # tray_info_idx identifies the specific spool (e.g., "GFA00", "P4d64437")
                     tray_info_idx = tray.get("tray_info_idx", "")
-                    # Normalize color: remove alpha, add hash
+                    # Two colours, deliberately: `color` is the lossy display
+                    # value every existing consumer expects, `color_raw` is what
+                    # the tray reported (alpha intact, None when it reported
+                    # nothing) and is the only one comparisons may use (#5).
                     color = self._normalize_color(tray_color)
                     # Calculate global tray ID
                     # AMS-HT units have IDs starting at 128 with a single tray
@@ -1808,6 +1865,7 @@ class PrintScheduler:
                         {
                             "type": tray_type,
                             "color": color,
+                            "color_raw": tray_color or None,
                             "tray_info_idx": tray_info_idx,
                             "ams_id": ams_id,
                             "tray_id": tray_id,
@@ -1822,12 +1880,14 @@ class PrintScheduler:
         # Check external spool(s) (vt_tray is a list)
         for idx, vt in enumerate(status.raw_data.get("vt_tray") or []):
             if vt.get("tray_type"):
-                color = self._normalize_color(vt.get("tray_color", ""))
+                vt_color = vt.get("tray_color", "")
+                color = self._normalize_color(vt_color)
                 tray_id = int(vt.get("id", 254))
                 filaments.append(
                     {
                         "type": vt["tray_type"],
                         "color": color,
+                        "color_raw": vt_color or None,
                         "tray_info_idx": vt.get("tray_info_idx", ""),
                         "ams_id": -1,
                         "tray_id": idx,
@@ -1842,35 +1902,52 @@ class PrintScheduler:
         return filaments
 
     def _normalize_color(self, color: str | None) -> str:
-        """Normalize color to #RRGGBB format."""
+        """Normalize color to #RRGGBB for *display*.
+
+        Lossy on purpose, and only safe for display: alpha is dropped and a
+        tray that reported no colour becomes ``#808080``, which is
+        indistinguishable from a tray that really is mid grey. Comparisons must
+        go through ``_tray_compare_color`` instead (#5).
+        """
         if not color:
             return "#808080"
         hex_color = color.replace("#", "")[:6]
         return f"#{hex_color}"
 
+    @staticmethod
+    def _tray_compare_color(fil: dict) -> str | None:
+        """The colour of a loaded tray as reported, for comparison.
+
+        ``color`` is the display value from ``_normalize_color``; ``color_raw``
+        is what the printer actually said, alpha intact, and ``None`` when it
+        said nothing. Only the raw value can be compared: the fabricated grey
+        would otherwise match a genuinely grey requirement and dispatch a print
+        onto a tray whose colour is unknown.
+
+        Dicts without a ``color_raw`` key at all (hand-built test fixtures)
+        fall back to the display value, which is what they already compared —
+        as distinct from ``color_raw`` present and ``None``, which is the tray
+        positively saying it has no colour.
+        """
+        return fil["color_raw"] if "color_raw" in fil else fil.get("color")
+
     def _normalize_color_for_compare(self, color: str | None) -> str:
-        """Normalize color for comparison (lowercase, no hash)."""
-        if not color:
-            return ""
-        return color.replace("#", "").lower()[:6]
+        """Canonical ``rrggbbaa`` for equality, ``""`` when unreadable.
 
-    def _colors_are_similar(self, color1: str | None, color2: str | None, threshold: int = 40) -> bool:
-        """Check if two colors are visually similar within a threshold."""
-        hex1 = self._normalize_color_for_compare(color1)
-        hex2 = self._normalize_color_for_compare(color2)
-        if not hex1 or not hex2 or len(hex1) < 6 or len(hex2) < 6:
-            return False
+        A 6-digit colour gains an explicit ``ff`` instead of losing its alpha,
+        so ``#FFFFFF`` still equals ``#FFFFFFFF`` while ``#FFFFFF00``
+        (translucent) no longer equals either (#5).
+        """
+        return color_match.normalize_for_compare(color)
 
-        try:
-            r1 = int(hex1[0:2], 16)
-            g1 = int(hex1[2:4], 16)
-            b1 = int(hex1[4:6], 16)
-            r2 = int(hex2[0:2], 16)
-            g2 = int(hex2[2:4], 16)
-            b2 = int(hex2[4:6], 16)
-            return abs(r1 - r2) <= threshold and abs(g1 - g2) <= threshold and abs(b1 - b2) <= threshold
-        except ValueError:
-            return False
+    def _colors_are_similar(self, color1: str | None, color2: str | None, threshold: float | None = None) -> bool:
+        """Whether two filament colours are close enough to be the same spool.
+
+        ΔE76 in CIELAB plus an opacity test; see ``color_match`` for why, and
+        for the ``BAMBUDDY_COLOR_*`` overrides. ``threshold`` overrides the
+        configured ΔE ceiling — it is *not* the old per-channel RGB window.
+        """
+        return color_match.colors_are_similar(color1, color2, threshold)
 
     async def _build_inventory_remain_overrides(
         self, db: AsyncSession, printer_id: int, loaded: list[dict]
@@ -2127,8 +2204,8 @@ class PrintScheduler:
                         idx_matches.sort(key=lambda f: self._prefer_lowest_sort_key(f, inventory_remain_overrides))
                     # Use color matching within this subset
                     for f in idx_matches:
-                        f_color = f.get("color", "")
-                        if self._normalize_color_for_compare(f_color) == self._normalize_color_for_compare(req_color):
+                        f_color = self._tray_compare_color(f)
+                        if color_match.colors_are_exact(f_color, req_color):
                             if not exact_match:
                                 exact_match = f
                         elif self._colors_are_similar(f_color, req_color):
@@ -2145,8 +2222,8 @@ class PrintScheduler:
                         continue
 
                     # Type matches - check color
-                    f_color = f.get("color", "")
-                    if self._normalize_color_for_compare(f_color) == self._normalize_color_for_compare(req_color):
+                    f_color = self._tray_compare_color(f)
+                    if color_match.colors_are_exact(f_color, req_color):
                         if not exact_match:
                             exact_match = f
                     elif self._colors_are_similar(f_color, req_color):
