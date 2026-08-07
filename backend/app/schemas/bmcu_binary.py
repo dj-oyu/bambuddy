@@ -147,8 +147,21 @@ class TimelinePointResponse(BaseModel):
     pressure: int | None = Field(default=None, description="Set only on `pressure` points.")
     motion: int | None = Field(
         default=None,
-        description="Set only on `motion` and `state_change` points: the AMS motion enum value for "
-        "that channel. Was a stringified int before issue #3.",
+        description="Set only on `motion` points, and on `state_change` points whose field IS motion: "
+        "the AMS motion enum value for that channel. Was a stringified int before issue #3, and "
+        "carried every state_change's value -- including motion_fault -- until 2026-08-07.",
+    )
+    field: int | None = Field(
+        default=None,
+        description="Set only on `state_change` points: the registry `state_field` id that moved. "
+        "Without it every state change reads alike and a latching motion_fault cannot be told "
+        "from a slot selection.",
+    )
+    fieldName: str | None = Field(
+        default=None,
+        description="Registry name for `field` (slot, inserted_mask, online_mask, motion, pressure, "
+        "led_mode, control_error, motion_fault). Null when this build has no name for the id, which "
+        "is a different answer from the point not being a state change.",
     )
     kind: str = Field(description="Point category, e.g. current_slot, motion, pull_pct, event, state_change.")
     label: str

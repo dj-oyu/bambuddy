@@ -555,3 +555,65 @@ def test_link_snapshot_allows_null_motion() -> None:
         links=[LinkSnapshot(**payload)],
     ).model_dump(mode="json")
     assert detail["links"][0]["motion"] is None
+
+
+def _motion_fault_wire(value: int = 1, previous: int = 0) -> bytes:
+    """A STATE_CHANGE EVENT for motion_fault on slot 1, as the bridge sends it."""
+    from backend.app.services.bmcu_binary.constants import RecordType, StateField
+    from backend.tests.unit.test_bmcu_monitor_schema_contract import _wire
+
+    payload = bytearray(16)
+    payload[4] = RecordType.STATE_CHANGE
+    payload[5] = 4  # severity: error, which is how the SET transition arrives
+    payload[6] = 5  # source: safety
+    payload[7] = 6  # value type
+    payload[8] = StateField.MOTION_FAULT
+    payload[9] = 1  # slot
+    payload[10] = previous
+    payload[12] = value
+    return _wire(3, bytes(payload))
+
+
+@pytest.mark.asyncio
+async def test_timeline_response_carries_the_state_change_field(bmcu_db) -> None:
+    """The response model is the layer that dropped it.
+
+    `timeline_points` was carrying `field` correctly and its unit tests passed,
+    but TimelinePointResponse had no such attribute, so Pydantic stripped both
+    keys on the way out and every state change still reached the client
+    unnamed. Assert through the schema, not the dict the route builds.
+    """
+    bmcu_db.add(
+        BMCUBinaryRecord(
+            device_id="pico-bmcu-bridge",
+            pico_boot_id="0000000000000001",
+            transport_sequence=u64_decimal(1),
+            link_index=0,
+            flags=0,
+            message_type=MessageType.BMCU_FRAME,
+            received_at_us=u64_decimal(1000),
+            server_received_at=datetime(2026, 8, 7),
+            bmcu_kind=3,
+            raw_payload=b"\x00",
+            raw_bmcu_frame=_motion_fault_wire(),
+        )
+    )
+    await bmcu_db.commit()
+    result = await bmcu_monitors.timeline(
+        "pico-bmcu-bridge", from_time=None, to_time=None, limit=100, db=bmcu_db, _=None
+    )
+    serialized = TimelineResponse.model_validate(result).model_dump(mode="json", by_alias=True)
+
+    changes = [point for point in serialized["points"] if point["kind"] == "state_change"]
+    assert len(changes) == 1
+    assert changes[0]["fieldName"] == "motion_fault"
+    assert changes[0]["field"] == 8
+    assert changes[0]["label"] == "state change: motion_fault"
+    assert changes[0]["slot"] == 1
+    # motion_fault=1 must not reach the client as "motion state 1".
+    assert changes[0]["motion"] is None
+
+    anomalies = [point for point in serialized["points"] if point["kind"] == "motion_fault"]
+    assert len(anomalies) == 1
+    assert anomalies[0]["anomaly"] is True
+    assert anomalies[0]["severity"] == "error"
