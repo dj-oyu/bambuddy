@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 from datetime import datetime, timezone
@@ -32,11 +33,44 @@ from .bmcu_decoder import (
     status_from_full_status,
     validate_alpha3_wire_frame,
 )
-from .constants import MessageType
+from .constants import MessageType, RecordType, StateField
 from .errors import InvalidBMCUFrame, InvalidTransportDrop
 from .framing import Frame
 from .messages import ControlResult, Hello, PicoLog, TransportDrop, decode_bmcu_frame
 from .storage_keys import advance_contiguous_with_losses, u64_decimal, u64_hex
+
+logger = logging.getLogger(__name__)
+
+
+def _log_motion_fault(device_id: str, link_index: int, event: BMCUEvent) -> None:
+    """Put a channel's motion-fault transitions in the journal.
+
+    ``journalctl -u bambuddy`` is this deployment's primary source of truth,
+    and it said nothing about motion_fault at all: on 2026-08-07 a channel-1
+    fault latched at 21:31 and stayed set through two feed pauses six hours
+    later, and finding it meant hand-decoding stored frames. The BMCU had been
+    reporting it the whole time.
+
+    Set is logged at WARNING and clear at INFO — the firmware's own severities
+    are inverted here (set arrives as `error`, clear as `notice`), and grepping
+    for the fault should not depend on knowing that.
+    """
+    if event.record_type != RecordType.STATE_CHANGE or event.field != StateField.MOTION_FAULT:
+        return
+    line = "[BMCU] motion_fault %s on %s link %s slot %s (%s -> %s)"
+    args = (
+        "SET" if event.value else "cleared",
+        device_id,
+        link_index,
+        event.slot,
+        event.previous_value,
+        event.value,
+    )
+    if event.value:
+        logger.warning(line, *args)
+    else:
+        logger.info(line, *args)
+
 
 # Realtime per-link values live only in BMCUStatus (kind 2). Historically any
 # decoded frame overwrote current_state, so the EVENT flood (~37:1) erased the
@@ -360,6 +394,7 @@ class BinaryPersistence:
             if isinstance(semantic, BMCUEvent):
                 self.last_event[key] = semantic
                 self.last_event_seen[key] = now_m
+                _log_motion_fault(device_id, frame.header.link_index, semantic)
             elif isinstance(semantic, BMCUHello):
                 self.last_hello[key] = semantic
                 self.bmcu_hello_epoch[device_id] = self.bmcu_hello_epoch.get(device_id, 0) + 1

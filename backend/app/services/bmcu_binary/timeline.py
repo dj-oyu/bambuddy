@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .bmcu_decoder import BMCUEvent, BMCUFullStatusRecord, BMCUHello, BMCUStatus
+from .constants import RecordType, StateField
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +17,10 @@ class TimelinePoint:
     value: int | tuple[int, ...]
     severity: int | None = None
     source: str = "bmcu"
+    # STATE_CHANGE only: which field moved. Dropping it collapsed every state
+    # change into one "state change" series, so a latching motion_fault was
+    # indistinguishable from a slot selection (#5-adjacent, 2026-08-07).
+    field: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,7 +70,7 @@ def timeline_points(
                 value.record_type,
             ),
         )
-    if value.record_type == 4 and value.field is not None:
+    if value.record_type == RecordType.STATE_CHANGE and value.field is not None:
         return (
             TimelinePoint(
                 received_at_us,
@@ -75,6 +80,7 @@ def timeline_points(
                 value.value or 0,
                 value.severity,
                 "bmcu",
+                value.field,
             ),
         )
     return (
@@ -95,17 +101,34 @@ def anomaly_inputs(
     received_at_us: int,
     link_index: int,
 ) -> tuple[AnomalyInput, ...]:
-    if isinstance(value, BMCUEvent) and value.severity >= 3:
-        return (
-            AnomalyInput(
-                received_at_us,
-                link_index,
-                "reported_event",
-                value.severity,
-                value.slot,
-                value.record_type,
-            ),
-        )
+    if isinstance(value, BMCUEvent):
+        # A latching motion fault is the one state change worth naming on its
+        # own. Folded into `reported_event` it is invisible among slot and mask
+        # changes, which is how a channel-1 fault sat latched from 2026-08-06
+        # 21:31 through both feed pauses six hours later without ever being
+        # reported. Emitted on the transition to set, not on the clear.
+        if value.record_type == RecordType.STATE_CHANGE and value.field == StateField.MOTION_FAULT and value.value:
+            return (
+                AnomalyInput(
+                    received_at_us,
+                    link_index,
+                    "motion_fault",
+                    value.severity,
+                    value.slot,
+                    value.value,
+                ),
+            )
+        if value.severity >= 3:
+            return (
+                AnomalyInput(
+                    received_at_us,
+                    link_index,
+                    "reported_event",
+                    value.severity,
+                    value.slot,
+                    value.record_type,
+                ),
+            )
     if isinstance(value, BMCUStatus) and value.control_error:
         return (
             AnomalyInput(

@@ -87,6 +87,34 @@ def test_timeline_severity_buckets_start_at_the_registry_warning_level() -> None
     assert not anomaly_inputs(BMCUEvent(0, 1, warning - 1, 1, b""), 0, 0)
 
 
+def test_every_state_field_the_registry_names_has_a_constant() -> None:
+    """The names are load-bearing now: the timeline labels state changes by
+    them, so a field the registry gained and the enum did not would reach the
+    client unnamed."""
+    from backend.app.services.bmcu_binary.constants import StateField
+
+    for key, name in ENUMS["state_field"].items():
+        assert StateField(int(key)).name.lower() == name
+
+
+def test_state_field_names_round_trip_and_unknown_stays_unknown() -> None:
+    from backend.app.services.bmcu_binary.constants import state_field_name
+
+    assert state_field_name(_value("state_field", "motion_fault")) == "motion_fault"
+    assert state_field_name(_value("state_field", "control_error")) == "control_error"
+    # "a field this build has no name for" must not be confused with "not a
+    # state change" — both are None to the caller, but only one is a gap.
+    assert state_field_name(max(int(k) for k in ENUMS["state_field"]) + 1) is None
+    assert state_field_name(None) is None
+
+
+def test_record_types_match_the_registry() -> None:
+    from backend.app.services.bmcu_binary.constants import RecordType
+
+    for key, name in ENUMS["record_type"].items():
+        assert RecordType(int(key)).name.lower() == name
+
+
 def test_registry_is_the_link_one_and_not_the_transport_one() -> None:
     """The two registries do not overlap; mirroring only one caused this issue."""
     transport = json.loads((Path(__file__).parents[3] / "docs" / "bmcu_binary_registry.json").read_text())

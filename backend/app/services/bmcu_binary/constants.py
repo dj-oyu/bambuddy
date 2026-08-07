@@ -61,6 +61,55 @@ class LogSeverity(IntEnum):
     CRITICAL = 5
 
 
+class RecordType(IntEnum):
+    """EVENT `record_type`. Only STATE_CHANGE carries the field/slot union."""
+
+    BOOT = 1
+    PRINTER_LINK = 2
+    PRINTER_TRANSACTION = 3
+    STATE_CHANGE = 4
+    SENSOR = 5
+    COMMAND_RESULT = 6
+    SAFETY_DECISION = 7
+    DIAGNOSTIC_COUNTER = 8
+    PRINTER_LONG_TRANSACTION = 9
+    RESET_STATE = 10
+
+
+class StateField(IntEnum):
+    """Which field a STATE_CHANGE event reports, from the link registry.
+
+    The names matter downstream: the timeline used to collapse every
+    state_change into one indistinguishable "state change" series, so a
+    MOTION_FAULT latching on a channel looked exactly like a SLOT selection —
+    2026-08-07, when a channel-1 motion fault sat latched through two feed
+    pauses and had to be recovered by hand-decoding stored frames.
+    """
+
+    SLOT = 1
+    INSERTED_MASK = 2
+    ONLINE_MASK = 3
+    MOTION = 4
+    PRESSURE = 5
+    LED_MODE = 6
+    CONTROL_ERROR = 7
+    MOTION_FAULT = 8
+
+
+def state_field_name(field: int | None) -> str | None:
+    """Registry name for a STATE_CHANGE field, or None when unnamed.
+
+    None is "this firmware named a field we do not know", which must stay
+    distinguishable from a field we chose not to label.
+    """
+    if field is None:
+        return None
+    try:
+        return StateField(field).name.lower()
+    except ValueError:
+        return None
+
+
 class ValueType(IntEnum):
     UINT8 = 1
     UINT16 = 2

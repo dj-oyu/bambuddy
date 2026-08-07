@@ -36,7 +36,7 @@ from backend.app.services.bmcu_binary.bmcu_decoder import (
     decode_semantic,
     decode_wire_frame,
 )
-from backend.app.services.bmcu_binary.constants import MessageType
+from backend.app.services.bmcu_binary.constants import MessageType, StateField, state_field_name
 from backend.app.services.bmcu_binary.guide import READING_NOTES, THRESHOLDS
 from backend.app.services.bmcu_binary.messages import decode_tlvs, typed_tlv_value
 from backend.app.services.bmcu_binary.sampling import sample_strides
@@ -310,6 +310,13 @@ async def timeline(
         for item_index, item in enumerate((*points, *anomalies)):
             value = item.value
             category = getattr(item, "category", getattr(item, "kind", "event"))
+            # STATE_CHANGE says *which* field moved; without it every state
+            # change reached the client as an identical "state change" and a
+            # latching motion_fault could not be told from a slot selection
+            # (2026-08-07). None = a field this build has no name for, which
+            # is a different answer from "not a state change".
+            field = getattr(item, "field", None)
+            field_name = state_field_name(field)
             severity_value = item.severity or 0
             severity = (
                 "critical"
@@ -333,9 +340,22 @@ async def timeline(
                     "pressure": value if category == "pressure" and isinstance(value, int) else None,
                     # The motion enum as a number. `str(value)` here put "2" on
                     # the wire and made every consumer parse it back.
-                    "motion": value if category in ("motion", "state_change") and isinstance(value, int) else None,
+                    #
+                    # A state_change only carries a motion value when the field
+                    # that moved IS motion; filing every state change here put
+                    # `motion_fault=1` on the wire as "motion state 1".
+                    "motion": (
+                        value
+                        if isinstance(value, int)
+                        and (category == "motion" or (category == "state_change" and field == StateField.MOTION))
+                        else None
+                    ),
+                    "field": field,
+                    "fieldName": field_name,
                     "kind": category,
-                    "label": category.replace("_", " "),
+                    "label": f"{category.replace('_', ' ')}: {field_name}"
+                    if field_name
+                    else category.replace("_", " "),
                     "severity": severity,
                     "source": item.source,
                     "anomaly": severity_value >= 3,
