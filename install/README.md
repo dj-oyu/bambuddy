@@ -355,7 +355,7 @@ Get-Content "C:\Bambuddy\bambuddy-runtime-error.log" -Tail 100
 ## Requirements
 
 ### Native Installation
-- Python 3.10+ (automatically installed if missing)
+- Python 3.11+ (automatically installed if missing)
 - Node.js 18+ (automatically installed if missing)
 - Git (automatically installed if missing)
 - ~500MB disk space
