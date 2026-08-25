@@ -15,7 +15,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class SliceJob:
     # those jobs are visible only to READ_ALL pollers — see slice_jobs.py.
     owner_id: int | None = None
     status: SliceJobStatus = "pending"
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     started_at: datetime | None = None
     completed_at: datetime | None = None
     # On success: the body returned to the caller — usually a SliceResponse
@@ -103,7 +103,7 @@ class SliceDispatchService:
         job: SliceJob,
         run: Callable[[int], Awaitable[dict[str, Any]]],
     ) -> None:
-        job.started_at = datetime.now(timezone.utc)
+        job.started_at = datetime.now(UTC)
         job.status = "running"
         try:
             result = await run(job.id)
@@ -120,7 +120,7 @@ class SliceDispatchService:
             job.error_status = 500
             job.error_detail = f"Unexpected error: {exc}"
         finally:
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
             self._tasks.pop(job.id, None)
 
     def get(self, job_id: int) -> SliceJob | None:
@@ -141,7 +141,7 @@ class SliceDispatchService:
     def _sweep_locked(self) -> None:
         """Drop finished jobs older than the retention window. Caller holds
         the lock."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stale_ids = [
             jid
             for jid, job in self._jobs.items()

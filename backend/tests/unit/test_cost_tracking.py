@@ -11,7 +11,7 @@ Tests cost calculation scenarios:
 
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -168,7 +168,7 @@ class TestCostCalculation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -225,7 +225,7 @@ class TestCostCalculation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -282,7 +282,7 @@ class TestCostCalculation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -334,7 +334,7 @@ class TestCostCalculation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -394,7 +394,7 @@ class TestCostCalculation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
         )
 
@@ -437,7 +437,7 @@ class TestCostCalculation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80, (0, 1): 90},
             tray_now_at_start=0,
         )
@@ -538,7 +538,7 @@ class TestCostAggregation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="TestPrint",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -626,7 +626,7 @@ class TestCostAggregation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="TestPrint",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -709,7 +709,7 @@ class TestCostAggregation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="TestPrint",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -795,7 +795,7 @@ class TestCostAggregation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="TestPrint",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )
@@ -909,7 +909,7 @@ class TestCostAggregation:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name=legacy_print_name,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=0,
         )

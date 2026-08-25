@@ -6,6 +6,8 @@ inventory, and is readable with either a read-status or a manage-inventory
 API-key scope.
 """
 
+from datetime import UTC
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,7 +119,7 @@ class TestSpoolByTagLookup:
     async def test_archived_excluded_by_default(self, async_client: AsyncClient, spool_factory):
         from datetime import datetime, timezone
 
-        await spool_factory(tray_uuid=TRAY_UUID, archived_at=datetime.now(timezone.utc))
+        await spool_factory(tray_uuid=TRAY_UUID, archived_at=datetime.now(UTC))
         resp = await async_client.get(f"/api/v1/inventory/spools/by-tag?tray_uuid={TRAY_UUID}")
         assert resp.status_code == 404
 

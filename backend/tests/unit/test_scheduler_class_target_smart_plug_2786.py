@@ -13,7 +13,7 @@ printer -- and did nothing for the thirteen minutes before that.
 """
 
 from contextlib import ExitStack
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -379,7 +379,7 @@ class TestWhatIsNotWokenUp:
         await _add_item(
             queue_db,
             target_model="X1C",
-            scheduled_time=datetime.now(timezone.utc) + timedelta(hours=6),
+            scheduled_time=datetime.now(UTC) + timedelta(hours=6),
         )
 
         power_on = await _run(queue_db, PrintScheduler(), power_on=AsyncMock(return_value=True))

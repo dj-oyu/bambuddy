@@ -9,7 +9,7 @@ import json
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -760,7 +760,7 @@ class VirtualPrinterInstance:
                     file_size=file_path.stat().st_size,
                     source_ip=source_ip,
                     status="pending",
-                    uploaded_at=datetime.now(timezone.utc),
+                    uploaded_at=datetime.now(UTC),
                     metadata_print_name=metadata_print_name,
                 )
                 db.add(pending)
@@ -814,7 +814,7 @@ class VirtualPrinterInstance:
             try:
                 await asyncio.wait_for(event.wait(), timeout=_SLICER_OPTIONS_WAIT_TIMEOUT)
                 slicer_opts = self._slicer_print_options.pop(file_path.name, None)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 slicer_opts = None
             finally:
                 self._slicer_print_options_events.pop(file_path.name, None)

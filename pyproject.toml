@@ -38,8 +38,6 @@ ignore = [
     "SIM108", # ternary operator (readability preference)
     "SIM102", # nested if (readability preference)
     "SIM105", # contextlib.suppress (readability preference)
-    "UP017",  # keep the existing timezone.utc spelling consistent
-    "UP041",  # keep the explicit asyncio.TimeoutError spelling consistent
     "UP042",  # retain explicit str/Enum classes where ORM behavior depends on it
 ]
 

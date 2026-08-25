@@ -11,7 +11,7 @@ import io
 import json
 import logging
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -35,10 +35,10 @@ async def get_cached_base_profile(name: str, db: AsyncSession) -> dict | None:
         return None
 
     # Check TTL
-    cutoff = datetime.now(timezone.utc) - timedelta(days=CACHE_TTL_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=CACHE_TTL_DAYS)
     fetched = profile.fetched_at
     if fetched.tzinfo is None:
-        fetched = fetched.replace(tzinfo=timezone.utc)
+        fetched = fetched.replace(tzinfo=UTC)
     if fetched < cutoff:
         return None
 
@@ -94,13 +94,13 @@ async def fetch_and_cache_base_profile(name: str, profile_type: str, db: AsyncSe
     if existing:
         existing.setting = setting_json
         existing.profile_type = profile_type
-        existing.fetched_at = datetime.now(timezone.utc)
+        existing.fetched_at = datetime.now(UTC)
     else:
         cache_entry = OrcaBaseProfile(
             name=name,
             profile_type=profile_type,
             setting=setting_json,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
         )
         db.add(cache_entry)
 
@@ -477,14 +477,14 @@ async def get_cache_status(db: AsyncSession) -> dict:
     result = await db.execute(select(OrcaBaseProfile))
     profiles = result.scalars().all()
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=CACHE_TTL_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=CACHE_TTL_DAYS)
     fresh = 0
     stale = 0
 
     for p in profiles:
         fetched = p.fetched_at
         if fetched.tzinfo is None:
-            fetched = fetched.replace(tzinfo=timezone.utc)
+            fetched = fetched.replace(tzinfo=UTC)
         if fetched >= cutoff:
             fresh += 1
         else:

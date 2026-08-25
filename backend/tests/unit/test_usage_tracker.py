@@ -5,7 +5,7 @@ AMS remain% delta as fallback, per-layer gcode for partial prints,
 slot-to-tray mapping resolution, and notification variable formatting.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -196,7 +196,7 @@ class TestOnPrintComplete:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Benchy",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
         )
 
@@ -248,7 +248,7 @@ class TestOnPrintComplete:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
         )
 
@@ -287,7 +287,7 @@ class TestOnPrintComplete:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Benchy",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
         )
 
@@ -341,7 +341,7 @@ class TestTrackFrom3mf:
         archive = _make_archive(archive_id=80)
 
         live_assignment = _make_assignment(spool_id=2, ams_id=0, tray_id=0)
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         live_assignment.created_at = started_at + timedelta(seconds=5)
 
         # db: archive, queue_item(None), live assignment lookup, spool_new lookup
@@ -391,7 +391,7 @@ class TestTrackFrom3mf:
         archive = _make_archive(archive_id=81)
 
         live_assignment = _make_assignment(spool_id=2, ams_id=0, tray_id=0)
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         live_assignment.created_at = started_at - timedelta(seconds=5)
 
         # db: archive, queue_item(None), live assignment lookup, spool_old lookup

@@ -11,7 +11,7 @@ import re
 import shutil
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
@@ -1699,7 +1699,7 @@ def _mtime_to_datetime(mtime: float) -> datetime:
     ``updated_at`` are naive ``func.now()``), so activity comparisons never mix
     naive and aware values on either dialect.
     """
-    return datetime.fromtimestamp(mtime, tz=timezone.utc).replace(tzinfo=None)
+    return datetime.fromtimestamp(mtime, tz=UTC).replace(tzinfo=None)
 
 
 @router.post("/folders/{folder_id}/scan")
@@ -4477,7 +4477,7 @@ async def slice_and_persist_as_archive(
         current_user_id=current_user_id,
     )
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     printer_folder = str(source_archive.printer_id) if source_archive.printer_id is not None else "unassigned"
 
     # ``model_filename`` is built from the archive's display name, which comes
@@ -5004,7 +5004,7 @@ async def delete_file(
         return {"status": "success", "message": "File deleted", "trashed": False}
 
     # Managed file: soft-delete. Sweeper removes bytes + thumbnail after retention.
-    file.deleted_at = datetime.now(timezone.utc)
+    file.deleted_at = datetime.now(UTC)
     await db.commit()
     return {"status": "success", "message": "File moved to trash", "trashed": True}
 
@@ -5329,7 +5329,7 @@ async def bulk_delete(
     # Delete files first. Managed files go to trash (sweeper hard-deletes bytes
     # later); external files bypass trash since their disk state is outside our
     # control and can't be restored from trash anyway.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for file_id in data.file_ids:
         result = await db.execute(LibraryFile.active().where(LibraryFile.id == file_id))
         file = result.scalar_one_or_none()

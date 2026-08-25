@@ -11,7 +11,7 @@ pin the new contract.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -89,7 +89,7 @@ async def _run_one_iteration(session_maker, state_value: str):
 async def test_pause_state_does_not_accumulate_runtime():
     """PAUSE must NOT add to runtime_seconds — paused = no motion = no wear (#1521)."""
     seeded_runtime = 1000  # 1000s already accumulated
-    seeded_last_update = datetime.now(timezone.utc) - timedelta(seconds=300)  # 5min ago
+    seeded_last_update = datetime.now(UTC) - timedelta(seconds=300)  # 5min ago
     engine, session_maker = await _build_db_with_printer(
         runtime_seconds=seeded_runtime, last_runtime_update=seeded_last_update
     )
@@ -113,7 +113,7 @@ async def test_pause_state_does_not_accumulate_runtime():
 async def test_running_state_still_accumulates_runtime():
     """RUNNING must continue to accumulate — the bug was scope, not the whole feature."""
     seeded_runtime = 1000
-    seeded_last_update = datetime.now(timezone.utc) - timedelta(seconds=60)
+    seeded_last_update = datetime.now(UTC) - timedelta(seconds=60)
     engine, session_maker = await _build_db_with_printer(
         runtime_seconds=seeded_runtime, last_runtime_update=seeded_last_update
     )
@@ -139,7 +139,7 @@ async def test_idle_state_clears_last_update_without_accumulating():
     """A non-active state (FINISH/IDLE/PREPARE/etc.) must clear last_runtime_update
     so a later RUNNING transition doesn't retroactively back-bill all the idle time."""
     seeded_runtime = 1000
-    seeded_last_update = datetime.now(timezone.utc) - timedelta(seconds=3600)  # 1h ago
+    seeded_last_update = datetime.now(UTC) - timedelta(seconds=3600)  # 1h ago
     engine, session_maker = await _build_db_with_printer(
         runtime_seconds=seeded_runtime, last_runtime_update=seeded_last_update
     )

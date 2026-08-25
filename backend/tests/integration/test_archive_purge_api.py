@@ -1,6 +1,6 @@
 """Integration tests for archive auto-purge (#1008 follow-up)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -54,8 +54,8 @@ async def test_preview_counts_old_archives(async_client: AsyncClient, archive_fa
     old = await archive_factory(printer.id, print_name="Old", file_size=1000)
     fresh = await archive_factory(printer.id, print_name="Fresh", file_size=2000)
 
-    old.created_at = datetime.now(timezone.utc) - timedelta(days=400)
-    fresh.created_at = datetime.now(timezone.utc) - timedelta(days=10)
+    old.created_at = datetime.now(UTC) - timedelta(days=400)
+    fresh.created_at = datetime.now(UTC) - timedelta(days=10)
     await db_session.commit()
 
     resp = await async_client.get("/api/v1/archives/purge/preview?older_than_days=365")
@@ -76,9 +76,9 @@ async def test_preview_ignores_recently_reprinted_archives(
     reprinted = await archive_factory(printer.id, print_name="Reprinted", file_size=1000)
 
     # Originally printed 400 days ago, but a reprint last week refreshed completed_at.
-    reprinted.created_at = datetime.now(timezone.utc) - timedelta(days=400)
-    reprinted.started_at = datetime.now(timezone.utc) - timedelta(days=7)
-    reprinted.completed_at = datetime.now(timezone.utc) - timedelta(days=7)
+    reprinted.created_at = datetime.now(UTC) - timedelta(days=400)
+    reprinted.started_at = datetime.now(UTC) - timedelta(days=7)
+    reprinted.completed_at = datetime.now(UTC) - timedelta(days=7)
     await db_session.commit()
 
     resp = await async_client.get("/api/v1/archives/purge/preview?older_than_days=365")
@@ -103,8 +103,8 @@ async def test_manual_purge_soft_deletes_by_default(
 
     old_id = old.id
     fresh_id = fresh.id
-    old.created_at = datetime.now(timezone.utc) - timedelta(days=400)
-    fresh.created_at = datetime.now(timezone.utc) - timedelta(days=10)
+    old.created_at = datetime.now(UTC) - timedelta(days=400)
+    fresh.created_at = datetime.now(UTC) - timedelta(days=10)
     await db_session.commit()
 
     resp = await async_client.post(
@@ -140,7 +140,7 @@ async def test_manual_purge_hard_deletes_when_purge_stats_set(
     printer = await printer_factory()
     old = await archive_factory(printer.id, print_name="Old")
     old_id = old.id
-    old.created_at = datetime.now(timezone.utc) - timedelta(days=400)
+    old.created_at = datetime.now(UTC) - timedelta(days=400)
     await db_session.commit()
 
     resp = await async_client.post(
@@ -175,7 +175,7 @@ async def test_auto_purge_soft_deletes_by_default(
     printer = await printer_factory()
     stale = await archive_factory(printer.id, print_name="Stale")
     stale_id = stale.id
-    stale.created_at = datetime.now(timezone.utc) - timedelta(days=400)
+    stale.created_at = datetime.now(UTC) - timedelta(days=400)
     await db_session.commit()
 
     await archive_purge_service.set_settings(db_session, enabled=True, days=365)
@@ -203,7 +203,7 @@ async def test_auto_purge_hard_deletes_when_settings_opts_in(
     printer = await printer_factory()
     stale = await archive_factory(printer.id, print_name="Stale")
     stale_id = stale.id
-    stale.created_at = datetime.now(timezone.utc) - timedelta(days=400)
+    stale.created_at = datetime.now(UTC) - timedelta(days=400)
     await db_session.commit()
 
     await archive_purge_service.set_settings(db_session, enabled=True, days=365, purge_stats=True)
@@ -223,12 +223,12 @@ async def test_auto_purge_throttles_within_24h(async_client: AsyncClient, archiv
 
     printer = await printer_factory()
     stale = await archive_factory(printer.id, print_name="Stale")
-    stale.created_at = datetime.now(timezone.utc) - timedelta(days=400)
+    stale.created_at = datetime.now(UTC) - timedelta(days=400)
     await db_session.commit()
 
     await archive_purge_service.set_settings(db_session, enabled=True, days=365)
     # Stamp a last-run time 1h ago — should block the sweeper for another 23h.
-    await archive_purge_service._stamp_last_run(db_session, datetime.now(timezone.utc) - timedelta(hours=1))
+    await archive_purge_service._stamp_last_run(db_session, datetime.now(UTC) - timedelta(hours=1))
 
     deleted = await archive_purge_service._maybe_run_auto_purge(db_session)
     assert deleted == 0
@@ -246,7 +246,7 @@ async def test_auto_purge_skipped_when_disabled(
     printer = await printer_factory()
     stale = await archive_factory(printer.id, print_name="Stale")
     stale_id = stale.id
-    stale.created_at = datetime.now(timezone.utc) - timedelta(days=400)
+    stale.created_at = datetime.now(UTC) - timedelta(days=400)
     await db_session.commit()
 
     await archive_purge_service.set_settings(db_session, enabled=False, days=365)

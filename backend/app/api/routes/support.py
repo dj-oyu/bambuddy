@@ -11,7 +11,7 @@ import platform
 import re
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
@@ -71,7 +71,7 @@ async def _get_debug_setting(db: AsyncSession) -> tuple[bool, datetime | None]:
         try:
             enabled_at = datetime.fromisoformat(enabled_at_setting.value)
             if enabled_at.tzinfo is None:
-                enabled_at = enabled_at.replace(tzinfo=timezone.utc)
+                enabled_at = enabled_at.replace(tzinfo=UTC)
         except ValueError:
             pass  # Ignore malformed timestamp; enabled_at stays None
 
@@ -89,7 +89,7 @@ async def _set_debug_setting(db: AsyncSession, enabled: bool) -> datetime | None
         db.add(Settings(key="debug_logging_enabled", value=str(enabled).lower()))
 
     # Update enabled_at timestamp
-    enabled_at = datetime.now(tz=timezone.utc) if enabled else None
+    enabled_at = datetime.now(tz=UTC) if enabled else None
     result = await db.execute(select(Settings).where(Settings.key == "debug_logging_enabled_at"))
     at_setting = result.scalar_one_or_none()
     if at_setting:
@@ -132,7 +132,7 @@ async def get_debug_logging_state(
 
     duration = None
     if enabled and enabled_at:
-        duration = int((datetime.now(tz=timezone.utc) - enabled_at).total_seconds())
+        duration = int((datetime.now(tz=UTC) - enabled_at).total_seconds())
 
     return DebugLoggingState(
         enabled=enabled,
@@ -154,7 +154,7 @@ async def toggle_debug_logging(
 
     duration = None
     if toggle.enabled and enabled_at:
-        duration = int((datetime.now(tz=timezone.utc) - enabled_at).total_seconds())
+        duration = int((datetime.now(tz=UTC) - enabled_at).total_seconds())
 
     return DebugLoggingState(
         enabled=toggle.enabled,
@@ -436,7 +436,7 @@ async def _collect_auth_info(db: AsyncSession) -> dict:
     from backend.app.models.user_otp_code import UserOTPCode
     from backend.app.models.user_totp import UserTOTP
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     auth: dict = {}
 
     # OIDC providers — names are public (login-button labels), no secrets.
@@ -788,7 +788,7 @@ async def _collect_support_info() -> dict:
     in_docker = is_running_in_docker()
 
     info = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "app": {
             "version": APP_VERSION,
             "debug_mode": settings.debug,
@@ -1131,8 +1131,7 @@ async def _collect_support_info() -> dict:
                 "online_count": sum(
                     1
                     for d in devices
-                    if d.last_seen
-                    and (datetime.now(tz=timezone.utc) - d.last_seen.replace(tzinfo=timezone.utc)).total_seconds() < 30
+                    if d.last_seen and (datetime.now(tz=UTC) - d.last_seen.replace(tzinfo=UTC)).total_seconds() < 30
                 ),
                 "devices": [
                     {
@@ -1461,7 +1460,7 @@ async def generate_support_bundle(
             snapshot = {
                 "model": printer.model or "Unknown",
                 "firmware_version": state.firmware_version,
-                "captured_at": datetime.now(timezone.utc).isoformat(),
+                "captured_at": datetime.now(UTC).isoformat(),
                 "raw_data": redacted,
             }
             # Belt-and-suspenders: pass every string value through the

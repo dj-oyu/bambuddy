@@ -17,7 +17,7 @@ Post-fix behaviour:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -38,7 +38,7 @@ def queue_factory(db_session, printer_factory):
     scheduler's `ORDER BY completed_at DESC` reliably picks the latest as
     the predecessor. `printer_id` is shared so all items count.
     """
-    base_time = datetime(2026, 6, 6, 12, 0, 0, tzinfo=timezone.utc)
+    base_time = datetime(2026, 6, 6, 12, 0, 0, tzinfo=UTC)
     counter = {"n": 0}
     printer_holder: dict = {}
 

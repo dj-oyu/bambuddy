@@ -25,7 +25,7 @@ import re
 import secrets
 import string
 import urllib.parse
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import jwt
@@ -163,7 +163,7 @@ def _as_utc(dt: datetime) -> datetime:
     columns back – the stored value is always UTC, so we just re-attach the
     info when doing Python-level comparisons.
     """
-    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +243,7 @@ async def create_pre_auth_token(db: AsyncSession, username: str, challenge_id: s
     token to the originating browser session.  The same value must be present as
     a cookie on every subsequent call that consumes this token.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Prune expired tokens opportunistically (keep table small)
     await db.execute(
         delete(AuthEphemeralToken).where(
@@ -274,7 +274,7 @@ async def consume_pre_auth_token(db: AsyncSession, token: str, challenge_id: str
     M5: When challenge_id is provided, also enforces the cookie-binding constraint
     so a stolen token cannot be replayed from a different browser session.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         delete(AuthEphemeralToken)
         .where(
@@ -304,7 +304,7 @@ async def peek_pre_auth_token(db: AsyncSession, token: str, challenge_id: str | 
     caller must supply the matching value.  A mismatch is treated as an invalid
     token — no information leakage about whether the token itself exists.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         select(AuthEphemeralToken).where(
             AuthEphemeralToken.token == token,
@@ -346,7 +346,7 @@ async def check_rate_limit(
     and the limit can be slightly exceeded only under precise concurrent timing.
     """
     username_key = username.lower()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - LOCKOUT_WINDOW
     result = await db.execute(
         select(AuthRateLimitEvent).where(
@@ -390,7 +390,7 @@ async def check_email_otp_send_rate(db: AsyncSession, username: str) -> None:
     without actually triggering a send.
     """
     username_key = username.lower()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - EMAIL_OTP_SEND_WINDOW
     result = await db.execute(
         select(AuthRateLimitEvent).where(
@@ -429,11 +429,11 @@ def _assert_totp_not_replayed(totp_obj: pyotp.TOTP, totp_record: UserTOTP, code:
     when the previous-window code is accepted, allowing immediate replay.
     """
     # Determine which time-step the accepted code belongs to.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     accepted_counter: int | None = None
     for offset in (0, -1):  # current window first, then previous
         candidate_time = now.timestamp() + offset * totp_obj.interval
-        candidate_counter = totp_obj.timecode(datetime.fromtimestamp(candidate_time, tz=timezone.utc))
+        candidate_counter = totp_obj.timecode(datetime.fromtimestamp(candidate_time, tz=UTC))
         if totp_obj.at(candidate_counter) == code:
             accepted_counter = candidate_counter
             break
@@ -907,7 +907,7 @@ async def enable_email_otp(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Email service is not configured")
 
     # Generate and store the setup token (reuse AuthEphemeralToken with type "email_otp_setup")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Prune any existing pending setup tokens for this user
     await db.execute(
         delete(AuthEphemeralToken).where(
@@ -974,7 +974,7 @@ async def confirm_enable_email_otp(
     M4: Rate-limited to prevent brute-forcing the 6-digit setup code.
     """
     await check_rate_limit(db, current_user.username, event_type=EventType.TWO_FA_ATTEMPT)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # --- Peek: validate token without consuming ---
     peek_result = await db.execute(
@@ -1082,7 +1082,7 @@ async def send_email_otp(
     # Generate a 6-digit code and stage the record (not committed yet)
     code = str(secrets.randbelow(1_000_000)).zfill(6)
     code_hash = pwd_context.hash(code)
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=UserOTPCode.OTP_TTL_MINUTES)
+    expires_at = datetime.now(UTC) + timedelta(minutes=UserOTPCode.OTP_TTL_MINUTES)
 
     otp_record = UserOTPCode(
         user_id=user.id,
@@ -1176,7 +1176,7 @@ async def verify_2fa(
         await db.flush()  # L-3: persist last_totp_counter immediately to block replay
 
     elif method == "email":
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await db.execute(
             select(UserOTPCode)
             .where(UserOTPCode.user_id == user.id)
@@ -1307,7 +1307,7 @@ async def admin_disable_2fa(
     # Without this, a stolen token remains valid after 2FA removal.
     target_user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if target_user:
-        target_user.password_changed_at = datetime.now(timezone.utc)
+        target_user.password_changed_at = datetime.now(UTC)
 
     await db.commit()
     actor = current_user.username if current_user else "anonymous"
@@ -1674,7 +1674,7 @@ async def oidc_authorize(
     external_url = await _get_base_external_url(db)
     redirect_uri = f"{external_url}/api/v1/auth/oidc/callback"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Prune expired OIDC states from the DB
     await db.execute(
         delete(AuthEphemeralToken).where(
@@ -1739,7 +1739,7 @@ async def oidc_callback(
         # Atomically validate and consume OIDC state from DB (I6: single-use enforcement).
         # DELETE...RETURNING ensures concurrent callbacks with the same state token
         # cannot both succeed — only the first DELETE finds the row.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         state_del = await db.execute(
             delete(AuthEphemeralToken)
             .where(
@@ -2062,7 +2062,7 @@ async def oidc_callback(
 
             # Issue an OIDC exchange token (short-lived, single-use) stored in DB.
             # I7: Opportunistically prune expired exchange tokens to keep the table small.
-            now2 = datetime.now(timezone.utc)
+            now2 = datetime.now(UTC)
             await db.execute(
                 delete(AuthEphemeralToken).where(
                     AuthEphemeralToken.token_type == TokenType.OIDC_EXCHANGE,
@@ -2116,7 +2116,7 @@ async def oidc_exchange(
     (requires_2fa=True) instead of a full JWT.  The frontend must then complete the
     2FA step exactly as it would after a password-based login.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Atomically consume the exchange token (DELETE...RETURNING prevents replay).
     consume_result = await db.execute(
         delete(AuthEphemeralToken)

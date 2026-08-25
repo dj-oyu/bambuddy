@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -39,12 +39,10 @@ class UserOTPCode(Base):
         cannot silently re-use an invalidated code.  The caller is responsible
         for flushing/committing the change to the DB.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         exp = self.expires_at
         if exp.tzinfo is None:
-            from datetime import timezone as _tz
-
-            exp = exp.replace(tzinfo=_tz.utc)
+            exp = exp.replace(tzinfo=UTC)
         if self.used:
             raise ValueError("OTP code has already been used")
         if exp < now:

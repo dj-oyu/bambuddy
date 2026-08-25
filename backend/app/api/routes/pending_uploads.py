@@ -1,6 +1,6 @@
 """API routes for pending uploads (virtual printer queue mode)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -166,7 +166,7 @@ async def archive_all_pending(
             if archive:
                 pending.status = "archived"
                 pending.archived_id = archive.id
-                pending.archived_at = datetime.now(timezone.utc)
+                pending.archived_at = datetime.now(UTC)
                 archived += 1
 
                 # Clean up temp file
@@ -287,7 +287,7 @@ async def archive_pending_upload(
     # Update pending record
     pending.status = "archived"
     pending.archived_id = archive.id
-    pending.archived_at = datetime.now(timezone.utc)
+    pending.archived_at = datetime.now(UTC)
     if request:
         pending.tags = request.tags
         pending.notes = request.notes

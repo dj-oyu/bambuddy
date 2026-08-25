@@ -5,7 +5,7 @@ import os
 import platform
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import psutil
@@ -386,7 +386,7 @@ async def _get_storage_usage_cached(refresh: bool, max_age_seconds: int) -> dict
         snapshot = await asyncio.to_thread(_scan_storage_usage)
         _storage_usage_cache = {
             **snapshot,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
         _storage_usage_cache_ts = time.time()
         return {
@@ -505,10 +505,10 @@ async def get_system_info(
     # (#1690). On bare metal / VMs PID 1 is the host init, which starts at
     # boot, so the value matches psutil.boot_time() within a sub-second.
     try:
-        boot_time = datetime.fromtimestamp(psutil.Process(1).create_time(), tz=timezone.utc)
+        boot_time = datetime.fromtimestamp(psutil.Process(1).create_time(), tz=UTC)
     except (psutil.Error, OSError):
-        boot_time = datetime.fromtimestamp(psutil.boot_time(), tz=timezone.utc)
-    uptime_seconds = (datetime.now(timezone.utc) - boot_time).total_seconds()
+        boot_time = datetime.fromtimestamp(psutil.boot_time(), tz=UTC)
+    uptime_seconds = (datetime.now(UTC) - boot_time).total_seconds()
 
     # Python and system info
     import sys

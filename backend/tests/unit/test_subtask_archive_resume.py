@@ -18,7 +18,7 @@ every restart). It now decides resume-vs-stale from the printer's current
 progress — see TestStaleVsResume.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
@@ -84,7 +84,7 @@ class TestSubtaskIdResume:
             age_hours: float = 0,
             failure_reason: str | None = None,
         ):
-            started = datetime.now(timezone.utc) - timedelta(hours=age_hours)
+            started = datetime.now(UTC) - timedelta(hours=age_hours)
             archive = PrintArchive(
                 printer_id=printer.id,
                 filename="Broly_Legendary.gcode.3mf",
@@ -157,7 +157,7 @@ class TestSubtaskIdResume:
         assert candidate.status == "printing"
         # Crucially, started_at is preserved — this is the whole point of the
         # fix. A fresh archive would have started_at = now, losing continuity.
-        age_after = datetime.now(timezone.utc) - candidate.started_at.replace(tzinfo=timezone.utc)
+        age_after = datetime.now(UTC) - candidate.started_at.replace(tzinfo=UTC)
         assert age_after > timedelta(hours=9), "started_at must survive revival"
 
     async def test_subtask_id_null_does_not_match_other_nulls(self, archive_factory, db_session):

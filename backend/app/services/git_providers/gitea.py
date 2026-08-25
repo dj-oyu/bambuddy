@@ -4,7 +4,7 @@ import base64
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -311,7 +311,7 @@ class GiteaBackend(GitHubBackend):
             if not api_files:
                 return {"status": "skipped", "message": "No changes to commit", "commit_sha": None, "files_changed": 0}
 
-            commit_message = f"Bambuddy backup - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            commit_message = f"Bambuddy backup - {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}"
             response = await client.post(
                 f"{api_base}/repos/{owner}/{repo}/contents",
                 headers=headers,
@@ -439,7 +439,7 @@ class GiteaBackend(GitHubBackend):
                 content_b64 = base64.b64encode(content_str.encode("utf-8")).decode()
                 api_files.append({"operation": "create", "path": path, "content": content_b64})
 
-            commit_message = f"Initial Bambuddy backup - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            commit_message = f"Initial Bambuddy backup - {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}"
             body = {
                 "branch": branch,
                 "new_branch": branch,

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -498,7 +498,7 @@ def _make_orchestration_callable(
                 return {}
 
             run.status = "slicing"
-            run.started_at = datetime.now(timezone.utc)
+            run.started_at = datetime.now(UTC)
             await session.commit()
             await _publish_run_event(session, run)
 
@@ -529,7 +529,7 @@ def _make_orchestration_callable(
             except HTTPException as exc:
                 run.status = "failed"
                 run.error_message = f"Slice failed: {exc.detail}"
-                run.completed_at = datetime.now(timezone.utc)
+                run.completed_at = datetime.now(UTC)
                 await session.commit()
                 await _publish_run_event(session, run)
                 raise
@@ -537,7 +537,7 @@ def _make_orchestration_callable(
                 logger.exception("Pipeline run %d slice raised unexpectedly", run_id)
                 run.status = "failed"
                 run.error_message = f"Slice failed: {exc}"
-                run.completed_at = datetime.now(timezone.utc)
+                run.completed_at = datetime.now(UTC)
                 await session.commit()
                 await _publish_run_event(session, run)
                 raise
@@ -588,7 +588,7 @@ def _make_orchestration_callable(
                 # Don't write job.status yet — final cancellation check below
                 # may flip it to 'cancelled' instead. dispatched_at is fine to
                 # set unconditionally since the orchestration actually got here.
-                job.dispatched_at = datetime.now(timezone.utc)
+                job.dispatched_at = datetime.now(UTC)
 
             # Final cancellation check before committing 'dispatching'. The
             # cancel route writes via a separate session so we have to refresh
@@ -619,7 +619,7 @@ def _make_orchestration_callable(
                         )
                     if job.status not in ("completed", "failed", "cancelled"):
                         job.status = "cancelled"
-                        job.completed_at = datetime.now(timezone.utc)
+                        job.completed_at = datetime.now(UTC)
                 await session.commit()
                 await _publish_run_event(session, run)
                 return slice_response.model_dump()
@@ -910,7 +910,7 @@ async def cancel_run(
         return await _materialise_run(db, run)
 
     run.status = "cancelled"
-    run.completed_at = datetime.now(timezone.utc)
+    run.completed_at = datetime.now(UTC)
     if not run.error_message:
         run.error_message = "Cancelled by user"
 
@@ -930,7 +930,7 @@ async def cancel_run(
             )
         if job.status not in ("completed", "failed", "cancelled"):
             job.status = "cancelled"
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(run)

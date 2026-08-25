@@ -110,7 +110,7 @@ class TailscaleService:
         )
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
             await process.wait()
             raise
@@ -134,7 +134,7 @@ class TailscaleService:
 
         try:
             returncode, stdout, stderr = await self._run_tailscale("status", "--json", timeout=5.0)
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             # asyncio.TimeoutError covers the case where ``_run_tailscale``
             # killed a stuck subprocess and re-raised. Without this branch
             # the timeout escaped into the FastAPI route handler and could

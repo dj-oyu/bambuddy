@@ -4,7 +4,7 @@ Tests 3MF-primary tracking (Path 1) and AMS remain% delta fallback
 (Path 2) for spools not covered by 3MF data.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,7 +42,7 @@ def _make_assignment(*, spool_id=1, printer_id=1, ams_id=0, tray_id=0, created_a
     assignment.printer_id = printer_id
     assignment.ams_id = ams_id
     assignment.tray_id = tray_id
-    assignment.created_at = created_at or datetime.now(timezone.utc)
+    assignment.created_at = created_at or datetime.now(UTC)
     return assignment
 
 
@@ -134,7 +134,7 @@ class TestOnPrintCompleteAMSDelta:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
         )
 
@@ -172,7 +172,7 @@ class TestOnPrintCompleteAMSDelta:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 50},
         )
 
@@ -195,7 +195,7 @@ class TestOnPrintCompleteAMSDelta:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             tray_now_at_start=255,
         )
@@ -229,7 +229,7 @@ class TestOnPrintCompleteAMSDelta:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="test",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 100},
         )
         ams_data = [{"id": 0, "tray": [{"id": 0, "remain": 100}]}]
@@ -266,7 +266,7 @@ class TestOnPrintCompleteAMSDelta:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="splitter",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 1): 100, (0, 2): 17, (0, 3): 100},
             tray_now_at_start=3,
             ams_mapping=[3],
@@ -683,7 +683,7 @@ class TestSpoolAssignmentSnapshot:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Benchy",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             spool_assignments={(0, 0): 77},
         )
@@ -725,7 +725,7 @@ class TestSpoolAssignmentSnapshot:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Benchy",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 80},
             spool_assignments={},  # Empty snapshot (pre-upgrade session)
         )
@@ -775,7 +775,7 @@ class TestSpoolAssignmentSnapshot:
         _active_sessions[1] = PrintSession(
             printer_id=1,
             print_name="Big Print",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={(0, 0): 90},
             spool_assignments={(0, 0): 8},  # Snapshot from print start
         )

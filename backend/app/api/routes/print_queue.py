@@ -3,7 +3,7 @@
 import json
 import logging
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
@@ -2295,7 +2295,7 @@ async def cancel_queue_item(
         from_states=("pending",),
         reason="cancelled by user",
         caller="print_queue.cancel_queue_item",
-        extra={"completed_at": datetime.now(timezone.utc)},
+        extra={"completed_at": datetime.now(UTC)},
         item=item,
     )
     if not cas:
@@ -2398,7 +2398,7 @@ async def stop_queue_item(
         reason="stopped by user",
         caller="print_queue.stop_queue_item",
         extra={
-            "completed_at": datetime.now(timezone.utc),
+            "completed_at": datetime.now(UTC),
             "error_message": "Stopped by user" if stop_sent else "Stopped by user (printer was offline)",
         },
         item=item,
@@ -2421,7 +2421,7 @@ async def stop_queue_item(
         archive = await db.get(PrintArchive, item.archive_id)
         if archive and archive.status == "printing":
             archive.status = "cancelled"
-            archive.completed_at = datetime.now(timezone.utc)
+            archive.completed_at = datetime.now(UTC)
             archive.failure_reason = "Stopped by user (printer was offline)"
 
     await db.commit()

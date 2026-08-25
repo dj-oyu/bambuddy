@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,7 +154,7 @@ class ArchivePurgeService:
         if not cfg["enabled"]:
             return 0
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last = await self._get_last_run(db)
         if last is not None and (now - last) < timedelta(hours=24):
             return 0
@@ -199,7 +199,7 @@ class ArchivePurgeService:
                 "sample_filenames": [],
                 "older_than_days": older_than_days,
             }
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = _age_cutoff(now, older_than_days)
         last_activity = _last_activity_expr()
         clause = last_activity < cutoff
@@ -255,7 +255,7 @@ class ArchivePurgeService:
         """
         if older_than_days < 1:
             return 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = _age_cutoff(now, older_than_days)
 
         # Soft-delete mode must also skip rows already soft-deleted, otherwise

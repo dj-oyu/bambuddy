@@ -6,7 +6,7 @@ hash/lookup/expiry/revoke logic is exercised end-to-end with no HTTP.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -153,7 +153,7 @@ async def test_verify_returns_none_for_garbage_token(db_session, alice: User):
 async def test_verify_returns_none_for_expired_token(db_session, alice: User):
     created = await create_token(db_session, user_id=alice.id, name="x", expires_in_days=1)
     # Force expiry into the past.
-    created.record.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    created.record.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     await db_session.commit()
     assert await verify_token(db_session, created.plaintext) is None
 

@@ -17,6 +17,7 @@ These tests pin the parts that make the diff dependable:
 """
 
 import logging
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -375,8 +376,8 @@ class TestManualScanUsesTheBaseline:
         a.filename = "mops.3mf"
         a.timelapse_path = None
         a.timelapse_baseline = baseline
-        a.started_at = datetime(2026, 7, 28, 20, 30, tzinfo=timezone.utc)
-        a.completed_at = datetime(2026, 7, 28, 21, 19, tzinfo=timezone.utc)
+        a.started_at = datetime(2026, 7, 28, 20, 30, tzinfo=UTC)
+        a.completed_at = datetime(2026, 7, 28, 21, 19, tzinfo=UTC)
         a.created_at = a.completed_at
         return a
 

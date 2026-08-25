@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import jwt as pyjwt
@@ -304,7 +304,7 @@ class TestEmailOTP:
                 token_type="email_otp_setup",
                 username="confirmenable",
                 nonce=code_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -333,7 +333,7 @@ class TestEmailOTP:
                 token_type="email_otp_setup",
                 username="confirmwrong",
                 nonce=code_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -362,7 +362,7 @@ class TestEmailOTP:
                 token_type="email_otp_setup",
                 username="confirmonce",
                 nonce=code_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -409,7 +409,7 @@ class TestEmailOTP:
                 token_type="email_otp_setup",
                 username="disemailpw",
                 nonce=_pwd_context.hash(code),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -1428,7 +1428,7 @@ class TestEmailOTPSendVerify:
                 token_type="email_otp_setup",
                 username="emailsendok",
                 nonce=_pwd_context.hash(setup_code),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -1496,7 +1496,7 @@ class TestEmailOTPSendVerify:
                 token_type="email_otp_setup",
                 username="emailwrongcode",
                 nonce=_pwd_context.hash(setup_code),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -1645,7 +1645,7 @@ class TestOIDCEndToEnd:
                 provider_id=provider_id,
                 nonce=nonce,
                 code_verifier=code_verifier,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -1780,7 +1780,7 @@ class TestOIDCEndToEnd:
                 provider_id=provider_id,
                 nonce=nonce,
                 code_verifier=secrets.token_urlsafe(48),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -1862,7 +1862,7 @@ class TestEmailOTPSetupTokenPreservedOnWrongCode:
                 token_type="email_otp_setup",
                 username="h2retryuser",
                 nonce=code_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -1990,7 +1990,7 @@ class TestSlicerTokenResourceBinding:
         from backend.app.core.auth import verify_slicer_download_token
         from backend.app.models.auth_ephemeral import AuthEphemeralToken
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         token_val = secrets.token_urlsafe(24)
         db_session.add(
             AuthEphemeralToken(
@@ -2019,7 +2019,7 @@ class TestSlicerTokenResourceBinding:
         from backend.app.core.auth import verify_slicer_download_token
         from backend.app.models.auth_ephemeral import AuthEphemeralToken
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         token_val = secrets.token_urlsafe(24)
         db_session.add(
             AuthEphemeralToken(
@@ -2467,7 +2467,7 @@ class TestOIDCAutoLinkExistingLinkRejection:
                 provider_id=prov_a.id,
                 nonce=nonce,
                 code_verifier=code_verifier,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -2577,7 +2577,7 @@ class TestOIDCStateReplay:
                 provider_id=provider.id,
                 nonce=secrets.token_urlsafe(32),
                 code_verifier=secrets.token_urlsafe(48),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -2673,7 +2673,7 @@ class TestOIDCIssMismatch:
                 provider_id=provider_id,
                 nonce=nonce,
                 code_verifier=secrets.token_urlsafe(48),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -2756,7 +2756,7 @@ class TestForgotPasswordTokenSingleUse:
                 token=reset_token,
                 token_type="password_reset",
                 username="fpcuser1",
-                expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
             )
         )
         await db_session.commit()
@@ -2820,7 +2820,7 @@ class TestSetupTOTPReplayRejected:
 
         totp_now = pyotp.TOTP(secret_now)
         valid_code = totp_now.now()
-        accepted_counter = totp_now.timecode(datetime.now(timezone.utc))
+        accepted_counter = totp_now.timecode(datetime.now(UTC))
 
         # Step 4: Pre-set last_totp_counter so this code looks already used
         totp_record.last_totp_counter = accepted_counter
@@ -2908,7 +2908,7 @@ class TestOIDCAudAndNonceMismatch:
                 provider_id=provider_id,
                 nonce=nonce,
                 code_verifier=secrets.token_urlsafe(48),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -3019,7 +3019,7 @@ class TestOIDCAudAndNonceMismatch:
                 provider_id=provider_id,
                 nonce=stored_nonce,  # state has correct nonce; JWT carries wrong_nonce
                 code_verifier=secrets.token_urlsafe(48),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -3115,7 +3115,7 @@ class TestOIDCExpiredTokenRejection:
                 nonce=secrets.token_urlsafe(16),
                 code_verifier=secrets.token_urlsafe(48),
                 # already expired
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+                expires_at=datetime.now(UTC) - timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -3142,7 +3142,7 @@ class TestOIDCExpiredTokenRejection:
                 token_type="oidc_exchange",
                 username="some_user",
                 # already expired
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+                expires_at=datetime.now(UTC) - timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -3287,7 +3287,7 @@ class TestOIDCIssuerUrlTrailingSlash:
                 provider_id=provider_id,
                 nonce=nonce,
                 code_verifier=code_verifier,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -3452,7 +3452,7 @@ async def _run_oidc_callback(
             provider_id=provider_id,
             nonce=nonce,
             code_verifier=code_verifier,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            expires_at=datetime.now(UTC) + timedelta(minutes=5),
         )
     )
     await db_session.commit()
@@ -4518,7 +4518,7 @@ class TestOIDCFallCAutoLinkE2E:
                 provider_id=provider.id,
                 nonce=nonce,
                 code_verifier=code_verifier,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()

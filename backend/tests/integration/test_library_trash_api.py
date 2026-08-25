@@ -1,6 +1,6 @@
 """Integration tests for the library trash bin + admin purge (#1008)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -159,7 +159,7 @@ async def test_hard_delete_rejects_active_file(async_client: AsyncClient, file_f
 @pytest.mark.integration
 async def test_purge_preview_counts_old_files(async_client: AsyncClient, file_factory, db_session):
     """Preview counts only files past the threshold and returns total size + samples."""
-    old_cutoff = datetime.now(timezone.utc) - timedelta(days=120)
+    old_cutoff = datetime.now(UTC) - timedelta(days=120)
 
     old1 = await file_factory(file_size=5000)
     old2 = await file_factory(file_size=7000)
@@ -187,7 +187,7 @@ async def test_purge_preview_counts_old_files(async_client: AsyncClient, file_fa
 @pytest.mark.integration
 async def test_purge_excludes_never_printed_when_requested(async_client: AsyncClient, file_factory, db_session):
     """With include_never_printed=False, only files with last_printed_at are eligible."""
-    long_ago = datetime.now(timezone.utc) - timedelta(days=200)
+    long_ago = datetime.now(UTC) - timedelta(days=200)
 
     recently_printed = await file_factory()
     recently_printed.last_printed_at = long_ago
@@ -214,7 +214,7 @@ async def test_purge_excludes_never_printed_when_requested(async_client: AsyncCl
 @pytest.mark.integration
 async def test_purge_execute_moves_to_trash(async_client: AsyncClient, file_factory, db_session):
     """POST /library/purge moves matching files into trash (deleted_at stamped)."""
-    long_ago = datetime.now(timezone.utc) - timedelta(days=200)
+    long_ago = datetime.now(UTC) - timedelta(days=200)
     f = await file_factory()
     f.created_at = long_ago
     await db_session.commit()
@@ -234,7 +234,7 @@ async def test_purge_execute_moves_to_trash(async_client: AsyncClient, file_fact
 @pytest.mark.integration
 async def test_purge_skips_external_files(async_client: AsyncClient, file_factory, db_session):
     """External files are never eligible for purge, regardless of age."""
-    long_ago = datetime.now(timezone.utc) - timedelta(days=300)
+    long_ago = datetime.now(UTC) - timedelta(days=300)
     ext = await file_factory(is_external=True)
     ext.created_at = long_ago
     await db_session.commit()
@@ -289,14 +289,14 @@ async def test_sweeper_hard_deletes_past_retention(db_session):
         file_path="/test/library/fresh.3mf",
         file_size=1024,
         file_type="3mf",
-        deleted_at=datetime.now(timezone.utc) - timedelta(days=5),
+        deleted_at=datetime.now(UTC) - timedelta(days=5),
     )
     stale = LibraryFile(
         filename="stale.3mf",
         file_path="/test/library/stale.3mf",
         file_size=2048,
         file_type="3mf",
-        deleted_at=datetime.now(timezone.utc) - timedelta(days=40),
+        deleted_at=datetime.now(UTC) - timedelta(days=40),
     )
     db_session.add_all([fresh, stale])
     await db_session.commit()
@@ -347,7 +347,7 @@ async def test_auto_purge_runs_when_enabled_and_throttles_by_24h(file_factory, d
     """The scheduler loop's auto-purge branch runs once, then the 24h throttle blocks."""
     from backend.app.services.library_trash import library_trash_service
 
-    long_ago = datetime.now(timezone.utc) - timedelta(days=200)
+    long_ago = datetime.now(UTC) - timedelta(days=200)
     f = await file_factory()
     f.created_at = long_ago
     await db_session.commit()
@@ -363,7 +363,7 @@ async def test_auto_purge_runs_when_enabled_and_throttles_by_24h(file_factory, d
     assert f.deleted_at is not None
 
     # Second invocation within 24h should be throttled — no additional rows moved.
-    long_ago2 = datetime.now(timezone.utc) - timedelta(days=200)
+    long_ago2 = datetime.now(UTC) - timedelta(days=200)
     f2 = await file_factory()
     f2.created_at = long_ago2
     await db_session.commit()
@@ -378,7 +378,7 @@ async def test_auto_purge_skipped_when_disabled(file_factory, db_session):
     """If the toggle is off, old files stay put even when everything else matches."""
     from backend.app.services.library_trash import library_trash_service
 
-    long_ago = datetime.now(timezone.utc) - timedelta(days=200)
+    long_ago = datetime.now(UTC) - timedelta(days=200)
     f = await file_factory()
     f.created_at = long_ago
     await db_session.commit()
@@ -564,7 +564,7 @@ async def test_sweeper_releases_items_before_hard_deleting(file_factory, queue_f
     from backend.app.services.library_trash import library_trash_service
 
     f = await file_factory(filename="swept.3mf")
-    f.deleted_at = datetime.now(timezone.utc) - timedelta(days=400)
+    f.deleted_at = datetime.now(UTC) - timedelta(days=400)
     await db_session.commit()
     waiting = await queue_factory(f)
 

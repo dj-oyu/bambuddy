@@ -7,7 +7,7 @@ which — with no overlay running in the test — equals firmware truth.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -302,7 +302,7 @@ async def test_pending_fails_on_timeout(session_maker, monkeypatch):
     # Backdate engaged_at beyond the timeout; firmware never echoed.
     async with session_maker() as db:
         r = await db.get(FilamentSpoof, row.id)
-        r.engaged_at = datetime.now(timezone.utc) - timedelta(seconds=10)
+        r.engaged_at = datetime.now(UTC) - timedelta(seconds=10)
         await db.commit()
     await eng._reconcile(1)
     rows = await _rows(session_maker)

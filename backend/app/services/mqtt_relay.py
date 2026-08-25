@@ -10,7 +10,7 @@ import logging
 import ssl
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import paho.mqtt.client as mqtt
@@ -211,7 +211,7 @@ class MQTTRelayService:
         """Publish BamBuddy status (online/offline)."""
         self._publish(
             f"{self.topic_prefix}/status",
-            {"status": status, "timestamp": datetime.now(timezone.utc).isoformat()},
+            {"status": status, "timestamp": datetime.now(UTC).isoformat()},
             retain=True,
         )
 
@@ -264,7 +264,7 @@ class MQTTRelayService:
             "printer_id": printer_id,
             "printer_name": printer_name,
             "printer_serial": printer_serial,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "connected": state.connected,
             "state": state.state,
             "progress": state.progress,
@@ -325,7 +325,7 @@ class MQTTRelayService:
                 "printer_name": printer_name,
                 "printer_serial": printer_serial,
                 "awaiting": awaiting,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             retain=True,
         )
@@ -341,7 +341,7 @@ class MQTTRelayService:
                 "printer_id": printer_id,
                 "printer_name": printer_name,
                 "printer_serial": printer_serial,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -356,7 +356,7 @@ class MQTTRelayService:
                 "printer_id": printer_id,
                 "printer_name": printer_name,
                 "printer_serial": printer_serial,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -380,7 +380,7 @@ class MQTTRelayService:
                 "printer_serial": printer_serial,
                 "filename": filename,
                 "subtask_name": subtask_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -412,7 +412,7 @@ class MQTTRelayService:
                 "filename": filename,
                 "subtask_name": subtask_name,
                 "status": status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -434,7 +434,7 @@ class MQTTRelayService:
                 "printer_name": printer_name,
                 "printer_serial": printer_serial,
                 "ams_units": ams_data,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -456,7 +456,7 @@ class MQTTRelayService:
                 "printer_name": printer_name,
                 "printer_serial": printer_serial,
                 "errors": errors,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -482,7 +482,7 @@ class MQTTRelayService:
                 "filename": filename,
                 "printer_id": printer_id,
                 "printer_name": printer_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -506,7 +506,7 @@ class MQTTRelayService:
                 "printer_id": printer_id,
                 "printer_name": printer_name,
                 "printer_serial": printer_serial,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -536,7 +536,7 @@ class MQTTRelayService:
                 "printer_id": printer_id,
                 "printer_name": printer_name,
                 "status": status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -564,7 +564,7 @@ class MQTTRelayService:
                 "maintenance_type": maintenance_type,
                 "current_value": current_value,
                 "threshold": threshold,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -584,7 +584,7 @@ class MQTTRelayService:
                 "printer_id": printer_id,
                 "printer_name": printer_name,
                 "maintenance_type": maintenance_type,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -604,7 +604,7 @@ class MQTTRelayService:
                 "printer_id": printer_id,
                 "printer_name": printer_name,
                 "maintenance_type": maintenance_type,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -630,7 +630,7 @@ class MQTTRelayService:
                 "print_name": print_name,
                 "printer_name": printer_name,
                 "status": status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -650,7 +650,7 @@ class MQTTRelayService:
                 "archive_id": archive_id,
                 "print_name": print_name,
                 "status": status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -676,7 +676,7 @@ class MQTTRelayService:
                 "spool_name": spool_name,
                 "remaining_weight": remaining_weight,
                 "remaining_percent": remaining_percent,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -706,7 +706,7 @@ class MQTTRelayService:
                 "state": state,
                 "printer_id": printer_id,
                 "printer_name": printer_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -730,7 +730,7 @@ class MQTTRelayService:
                 "power_watts": power,
                 "energy_today_kwh": energy_today,
                 "energy_total_kwh": energy_total,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 

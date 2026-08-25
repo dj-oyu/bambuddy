@@ -7,7 +7,7 @@ Handles authentication and profile management with Bambu Cloud.
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -208,7 +208,7 @@ async def mark_cloud_token_invalid(user_id: int | None) -> None:
     Best-effort: a bookkeeping failure must never replace the 401 the caller
     actually needs to see.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     try:
         async with async_session() as db:
             if user_id is not None:

@@ -3,6 +3,7 @@
 Tests the full request/response cycle for /api/v1/system/ endpoints.
 """
 
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -242,15 +243,15 @@ class TestSystemAPI:
             printer.id,
             status="completed",
             print_time_seconds=3600,
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
         )
         await archive_factory(
             printer.id,
             status="failed",
             print_time_seconds=1800,
-            started_at=datetime(2026, 5, 2, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 2, 10, 30, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 2, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 2, 10, 30, tzinfo=UTC),
         )
 
         with (

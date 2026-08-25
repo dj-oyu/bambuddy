@@ -5,7 +5,7 @@ than PrintArchive's runtime fields, so a reprint contributes new totals
 instead of overwriting the source archive's first-run data.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -35,12 +35,12 @@ async def test_stats_count_reprints_independently(
             archive_id=archive.id,
             printer_id=archive.printer_id,
             status="completed",
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
             duration_seconds=3600,
             filament_used_grams=100.0,
             cost=2.5,
-            created_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+            created_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
         )
     )
     # Reprint — failed at 10g.
@@ -49,13 +49,13 @@ async def test_stats_count_reprints_independently(
             archive_id=archive.id,
             printer_id=archive.printer_id,
             status="failed",
-            started_at=datetime(2026, 5, 5, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 5, 10, 5, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 5, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 5, 10, 5, tzinfo=UTC),
             duration_seconds=300,
             filament_used_grams=10.0,
             cost=0.25,
             failure_reason="Cancelled by user",
-            created_at=datetime(2026, 5, 5, 10, 5, tzinfo=timezone.utc),
+            created_at=datetime(2026, 5, 5, 10, 5, tzinfo=UTC),
         )
     )
     await db_session.commit()
@@ -94,19 +94,19 @@ async def test_archive_list_includes_run_aggregates(
                 archive_id=archive.id,
                 printer_id=archive.printer_id,
                 status="completed",
-                started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-                completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+                started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
                 filament_used_grams=100.0,
-                created_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+                created_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
             ),
             PrintLogEntry(
                 archive_id=archive.id,
                 printer_id=archive.printer_id,
                 status="failed",
-                started_at=datetime(2026, 5, 10, 10, 0, tzinfo=timezone.utc),
-                completed_at=datetime(2026, 5, 10, 10, 5, tzinfo=timezone.utc),
+                started_at=datetime(2026, 5, 10, 10, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 5, 10, 10, 5, tzinfo=UTC),
                 filament_used_grams=10.0,
-                created_at=datetime(2026, 5, 10, 10, 5, tzinfo=timezone.utc),
+                created_at=datetime(2026, 5, 10, 10, 5, tzinfo=UTC),
             ),
         ]
     )
@@ -142,16 +142,16 @@ async def test_runs_endpoint_returns_runs_newest_first(
                 archive_id=archive.id,
                 printer_id=archive.printer_id,
                 status="completed",
-                started_at=datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc),
-                completed_at=datetime(2026, 4, 1, 11, 0, tzinfo=timezone.utc),
+                started_at=datetime(2026, 4, 1, 10, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 4, 1, 11, 0, tzinfo=UTC),
                 filament_used_grams=50.0,
             ),
             PrintLogEntry(
                 archive_id=archive.id,
                 printer_id=archive.printer_id,
                 status="failed",
-                started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-                completed_at=datetime(2026, 5, 1, 10, 5, tzinfo=timezone.utc),
+                started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 5, 1, 10, 5, tzinfo=UTC),
                 filament_used_grams=5.0,
                 failure_reason="Cancelled by user",
             ),
@@ -353,8 +353,8 @@ class TestComputeTimeAccuracyMultiRun:
 
         archive = self._make_archive(
             print_time_seconds=3600,
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
         )
         result = compute_time_accuracy(archive, run_aggregate={"run_count": 1})
 
@@ -369,8 +369,8 @@ class TestComputeTimeAccuracyMultiRun:
 
         archive = self._make_archive(
             print_time_seconds=3600,
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 10, 50, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 10, 50, tzinfo=UTC),
         )
         result = compute_time_accuracy(archive)  # no run_aggregate
 
@@ -386,8 +386,8 @@ class TestComputeTimeAccuracyMultiRun:
 
         archive = self._make_archive(
             print_time_seconds=18354,
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 11, 46, 4, tzinfo=timezone.utc),  # ~6364s
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 11, 46, 4, tzinfo=UTC),  # ~6364s
         )
         result = compute_time_accuracy(archive, run_aggregate={"run_count": 9})
 
@@ -405,8 +405,8 @@ class TestComputeTimeAccuracyMultiRun:
 
         archive = self._make_archive(
             print_time_seconds=3600,
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
         )
         result = compute_time_accuracy(archive, run_aggregate={"run_count": 0})
 
@@ -430,8 +430,8 @@ async def test_archive_list_suppresses_time_accuracy_for_multi_run_archives(
         printer.id,
         status="completed",
         print_time_seconds=18354,  # all-plates estimate (post-#1593 parser)
-        started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-        completed_at=datetime(2026, 5, 1, 11, 46, 4, tzinfo=timezone.utc),  # ~6364s = one plate
+        started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+        completed_at=datetime(2026, 5, 1, 11, 46, 4, tzinfo=UTC),  # ~6364s = one plate
         with_run=False,
     )
     # Three runs each ~6364s — plate-by-plate.
@@ -441,8 +441,8 @@ async def test_archive_list_suppresses_time_accuracy_for_multi_run_archives(
                 archive_id=archive.id,
                 printer_id=archive.printer_id,
                 status="completed",
-                started_at=datetime(2026, 5, day, 10, 0, tzinfo=timezone.utc),
-                completed_at=datetime(2026, 5, day, 11, 46, 4, tzinfo=timezone.utc),
+                started_at=datetime(2026, 5, day, 10, 0, tzinfo=UTC),
+                completed_at=datetime(2026, 5, day, 11, 46, 4, tzinfo=UTC),
                 duration_seconds=6364,
             )
         )
@@ -475,8 +475,8 @@ async def test_archive_list_keeps_time_accuracy_for_single_run_archives(
         printer.id,
         status="completed",
         print_time_seconds=3600,
-        started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-        completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+        started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+        completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
         with_run=False,
     )
     db_session.add(
@@ -484,8 +484,8 @@ async def test_archive_list_keeps_time_accuracy_for_single_run_archives(
             archive_id=archive.id,
             printer_id=archive.printer_id,
             status="completed",
-            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=timezone.utc),
+            started_at=datetime(2026, 5, 1, 10, 0, tzinfo=UTC),
+            completed_at=datetime(2026, 5, 1, 11, 0, tzinfo=UTC),
             duration_seconds=3600,
         )
     )

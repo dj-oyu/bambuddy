@@ -8,7 +8,7 @@ import re
 import secrets
 import smtplib
 import string
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
@@ -605,7 +605,7 @@ async def send_user_print_notification(
     # Add common variables (username, timestamp, app_name) merged with caller-supplied variables
     all_variables = {
         "username": username,
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "timestamp": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
         "app_name": "Bambuddy",
         **variables,
     }

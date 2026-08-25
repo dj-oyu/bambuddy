@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -121,7 +121,7 @@ class SmartPlugManager:
             except Exception as e:
                 logger.error("Error in energy snapshot capture: %s", e)
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             delay = (next_local_hour(now) - now).total_seconds()
             await asyncio.sleep(max(delay, 60))
 

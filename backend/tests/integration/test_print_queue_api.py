@@ -1,5 +1,7 @@
 """Integration tests for Print Queue API endpoints."""
 
+from datetime import UTC
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -754,7 +756,7 @@ class TestPrintQueueAPI:
         can't be reassigned out from under the running FTP upload."""
         from datetime import datetime, timezone
 
-        item = await queue_item_factory(dispatching_at=datetime.now(timezone.utc))
+        item = await queue_item_factory(dispatching_at=datetime.now(UTC))
         other = await printer_factory()
         original_printer_id = item.printer_id
 
@@ -772,7 +774,7 @@ class TestPrintQueueAPI:
         """#2615: bulk edits skip a claimed row rather than splitting it."""
         from datetime import datetime, timezone
 
-        item = await queue_item_factory(dispatching_at=datetime.now(timezone.utc))
+        item = await queue_item_factory(dispatching_at=datetime.now(UTC))
         other = await printer_factory()
         original_printer_id = item.printer_id
 
@@ -2450,7 +2452,7 @@ class TestAbortedStatusNormalisation:
             position=1,
         )
 
-        before = datetime.now(timezone.utc).replace(tzinfo=None)
+        before = datetime.now(UTC).replace(tzinfo=None)
         await _bump_library_file_usage_if_completed(db_session, item, "completed")
         await db_session.commit()
         await db_session.refresh(lib_file)
@@ -3166,7 +3168,7 @@ class TestAbortedStatusNormalisation:
         archive = await archive_factory(
             print_name="Test Print",
             thumbnail_path="archives/test/test/thumbnail.png",
-            deleted_at=datetime.now(timezone.utc),  # Pre-soft-deleted
+            deleted_at=datetime.now(UTC),  # Pre-soft-deleted
         )
         item = await queue_item_factory(printer_id=printer.id, archive_id=archive.id, status="cancelled")
 

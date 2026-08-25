@@ -34,7 +34,7 @@ pattern; no schema change from the previous PKCE flow.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select, update
@@ -153,8 +153,8 @@ def _iso(dt: datetime | None) -> str | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).isoformat()
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat()
 
 
 def _as_utc(dt: datetime | None) -> datetime | None:
@@ -164,8 +164,8 @@ def _as_utc(dt: datetime | None) -> datetime | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -177,7 +177,7 @@ def _parse_iso(value: str | None) -> datetime | None:
     except (TypeError, ValueError):
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -524,7 +524,7 @@ async def device_start(
 
     interval = int(data.get("interval") or 5)
     expires_in = int(data.get("expires_in") or DEVICE_CODE_TTL.total_seconds())
-    await _persist_pending_device(db, current_user, device_code, interval, datetime.now(timezone.utc))
+    await _persist_pending_device(db, current_user, device_code, interval, datetime.now(UTC))
 
     return OrcaDeviceStartResponse(
         user_code=user_code,
@@ -552,7 +552,7 @@ async def device_poll(
 
     # creds.pending_at is already tz-aware UTC after _load_credentials' _as_utc
     # normalization. Subtracting two aware UTC datetimes gives a real delta.
-    age = datetime.now(timezone.utc) - creds.pending_at
+    age = datetime.now(UTC) - creds.pending_at
     if age > DEVICE_CODE_TTL:
         await _clear_pending_device(db, current_user)
         return OrcaDevicePollResponse(status=DevicePoll.EXPIRED, connected=False)

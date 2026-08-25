@@ -4,7 +4,7 @@ import logging
 import re as _re
 import zipfile
 from collections import defaultdict
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -541,7 +541,7 @@ async def no_3mf_warning(
     The backend stays stateless.
     """
     user, can_read_all = auth_result
-    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    cutoff = datetime.now(UTC) - timedelta(days=30)
     conditions = [
         PrintArchive.created_at >= cutoff,
         PrintArchive.deleted_at.is_(None),
@@ -608,10 +608,10 @@ async def list_archives_slim(
         created_by_id = current_user.id
     filters = []
     if date_from:
-        dt_from = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+        dt_from = datetime.combine(date_from, time.min, tzinfo=UTC)
         filters.append(PrintLogEntry.created_at >= dt_from)
     if date_to:
-        dt_to = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+        dt_to = datetime.combine(date_to, time.max, tzinfo=UTC)
         filters.append(PrintLogEntry.created_at <= dt_to)
     _apply_run_user_filter(filters, created_by_id)
 
@@ -1091,10 +1091,10 @@ async def get_archive_stats(
     # Build date filter conditions scoped to PrintLogEntry (event-time).
     base_conditions = []
     if date_from:
-        dt_from = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+        dt_from = datetime.combine(date_from, time.min, tzinfo=UTC)
         base_conditions.append(PrintLogEntry.created_at >= dt_from)
     if date_to:
-        dt_to = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+        dt_to = datetime.combine(date_to, time.max, tzinfo=UTC)
         base_conditions.append(PrintLogEntry.created_at <= dt_to)
     _apply_run_user_filter(base_conditions, created_by_id)
 
@@ -1254,8 +1254,8 @@ async def get_archive_stats(
         # to compute per-plug (endpoint - baseline) deltas.
         total_energy_kwh, energy_data_warming_up = await _sum_snapshot_deltas(
             db,
-            dt_from=(datetime.combine(date_from, time.min, tzinfo=timezone.utc) if date_from else None),
-            dt_to=(datetime.combine(date_to, time.max, tzinfo=timezone.utc) if date_to else None),
+            dt_from=(datetime.combine(date_from, time.min, tzinfo=UTC) if date_from else None),
+            dt_to=(datetime.combine(date_to, time.max, tzinfo=UTC) if date_to else None),
         )
         total_energy_cost = total_energy_kwh * energy_cost_per_kwh
     else:
@@ -2470,13 +2470,13 @@ async def scan_timelapse(
     # Strategy 4: If only one timelapse exists and archive was recently completed, use it
     # This handles cases where printer clock is wrong or timezone issues exist
     if not used_baseline and not matching_file and len(video_files) == 1:
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         archive_completed = archive.completed_at or archive.created_at
         if archive_completed:
             if archive_completed.tzinfo is None:
-                archive_completed = archive_completed.replace(tzinfo=timezone.utc)
-            time_since_completion = datetime.now(timezone.utc) - archive_completed
+                archive_completed = archive_completed.replace(tzinfo=UTC)
+            time_since_completion = datetime.now(UTC) - archive_completed
             # If archive was completed within the last hour, assume the single timelapse is for it
             if time_since_completion < timedelta(hours=1):
                 matching_file = video_files[0]

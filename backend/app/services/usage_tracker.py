@@ -11,7 +11,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -380,7 +380,7 @@ async def restore_session(db: AsyncSession, printer_id: int, register_active: bo
 
     started_at = row.started_at
     if started_at.tzinfo is None:
-        started_at = started_at.replace(tzinfo=timezone.utc)
+        started_at = started_at.replace(tzinfo=UTC)
 
     session = PrintSession(
         printer_id=printer_id,
@@ -436,7 +436,7 @@ def _to_epoch_seconds(value: datetime | None) -> float | None:
         return None
     dt = value
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.timestamp()
 
 
@@ -629,7 +629,7 @@ async def on_print_start(
     session = PrintSession(
         printer_id=printer_id,
         print_name=print_name,
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         tray_remain_start=tray_remain_start,
         tray_now_at_start=tray_now_at_start,
         spool_assignments=spool_assignments,
@@ -902,7 +902,7 @@ async def on_print_complete(
 
                 # Update spool
                 spool.weight_used = (spool.weight_used or 0) + weight_grams
-                spool.last_used = datetime.now(timezone.utc)
+                spool.last_used = datetime.now(UTC)
 
                 # Calculate cost for this usage
                 cost = None
@@ -1518,7 +1518,7 @@ async def _track_from_3mf(
                     continue
 
                 spool.weight_used = (spool.weight_used or 0) + segment_grams
-                spool.last_used = datetime.now(timezone.utc)
+                spool.last_used = datetime.now(UTC)
 
                 percent = round(segment_grams / (spool.label_weight or 1000) * 100)
 
@@ -1659,7 +1659,7 @@ async def _track_from_3mf(
 
         # Update spool
         spool.weight_used = (spool.weight_used or 0) + weight_grams
-        spool.last_used = datetime.now(timezone.utc)
+        spool.last_used = datetime.now(UTC)
 
         percent = round(weight_grams / (spool.label_weight or 1000) * 100)
 

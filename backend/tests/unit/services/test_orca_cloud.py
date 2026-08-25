@@ -5,7 +5,7 @@ rotation, external-API headers (bearer, no apikey), and profile pull."""
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -236,7 +236,7 @@ class TestRefresh:
         disconnected rather than retrying forever."""
         svc.access_token = "OLD"
         svc.refresh_token = "oc_ext_rt_old"
-        svc.token_expiry = datetime.now(timezone.utc)
+        svc.token_expiry = datetime.now(UTC)
         resp = _mock_response(status_code=400, json_data={"error": "invalid_grant"})
         svc._client.post = AsyncMock(return_value=resp)
 
@@ -264,12 +264,12 @@ class TestIsAuthenticated:
 
     def test_within_refresh_leeway_is_not_authenticated(self, svc):
         svc.access_token = "A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(minutes=2)
+        svc.token_expiry = datetime.now(UTC) + timedelta(minutes=2)
         assert svc.is_authenticated is False
 
     def test_with_comfortable_expiry_is_authenticated(self, svc):
         svc.access_token = "A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         assert svc.is_authenticated is True
 
 
@@ -329,7 +329,7 @@ class TestListProfiles:
     @pytest.mark.asyncio
     async def test_pull_response_upserts_extracted(self, svc):
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(
             return_value=_mock_response(
                 json_data={
@@ -351,7 +351,7 @@ class TestListProfiles:
         (``/api/v1/external/sync/pull``, not the first-party ``/api/v1/sync``)
         with no ``?cursor=`` — ``cursor=0`` trips ``410 cursor_too_old``."""
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(return_value=_mock_response(json_data={"upserts": [], "deletes": []}))
         await svc.list_profiles()
         called_url = svc._client.get.call_args.args[0]
@@ -362,7 +362,7 @@ class TestListProfiles:
     @pytest.mark.asyncio
     async def test_401_raises_auth_error(self, svc):
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(return_value=_mock_response(status_code=401, text_body="nope"))
         with pytest.raises(OrcaCloudAuthError):
             await svc.list_profiles()
@@ -370,7 +370,7 @@ class TestListProfiles:
     @pytest.mark.asyncio
     async def test_410_cursor_too_old_raises(self, svc):
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(return_value=_mock_response(status_code=410, json_data={"error": "cursor_too_old"}))
         with pytest.raises(OrcaCloudError, match="cursor too old"):
             await svc.list_profiles()
@@ -378,7 +378,7 @@ class TestListProfiles:
     @pytest.mark.asyncio
     async def test_bare_list_response_tolerated(self, svc):
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(return_value=_mock_response(json_data=[{"id": "a", "name": "A"}]))
         assert [p["id"] for p in await svc.list_profiles()] == ["a"]
 
@@ -387,7 +387,7 @@ class TestGetProfile:
     @pytest.mark.asyncio
     async def test_returns_matching_profile_with_content(self, svc):
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(
             return_value=_mock_response(
                 json_data={
@@ -406,7 +406,7 @@ class TestGetProfile:
     @pytest.mark.asyncio
     async def test_not_found_raises(self, svc):
         svc.access_token = "oc_ext_A"
-        svc.token_expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+        svc.token_expiry = datetime.now(UTC) + timedelta(hours=12)
         svc._client.get = AsyncMock(
             return_value=_mock_response(json_data={"upserts": [{"id": "a", "name": "A"}], "deletes": []})
         )

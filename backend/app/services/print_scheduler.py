@@ -8,7 +8,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -791,7 +791,7 @@ class PrintScheduler:
                         continue
 
                     item.status = status
-                    item.completed_at = datetime.now(timezone.utc)
+                    item.completed_at = datetime.now(UTC)
                     closed = True
                     logger.warning(
                         "Queue item %s was still 'printing' after printer %s reported %s for %.0fs — "
@@ -1095,8 +1095,8 @@ class PrintScheduler:
                 if item.scheduled_time:
                     sched = item.scheduled_time
                     if sched.tzinfo is None:
-                        sched = sched.replace(tzinfo=timezone.utc)
-                    if sched > datetime.now(timezone.utc):
+                        sched = sched.replace(tzinfo=UTC)
+                    if sched > datetime.now(UTC):
                         skip_reasons["scheduled_future"] = skip_reasons.get("scheduled_future", 0) + 1
                         continue
 
@@ -1894,7 +1894,7 @@ class PrintScheduler:
             .where(PrintQueueItem.id == item_id)
             .where(PrintQueueItem.status == "pending")
             .where(PrintQueueItem.dispatching_at.is_(None))
-            .values(dispatching_at=datetime.now(timezone.utc))
+            .values(dispatching_at=datetime.now(UTC))
         )
         await db.commit()
         return res.rowcount > 0
@@ -2563,7 +2563,7 @@ class PrintScheduler:
         """
         item.status = "failed"
         item.error_message = message
-        item.completed_at = datetime.now(timezone.utc)
+        item.completed_at = datetime.now(UTC)
         item.waiting_reason = None
         await db.commit()
         logger.warning(
@@ -5595,7 +5595,7 @@ class PrintScheduler:
             caller="print_scheduler.check_queue",
             extra={
                 "error_message": "Previous print failed or was aborted",
-                "completed_at": datetime.now(timezone.utc),
+                "completed_at": datetime.now(UTC),
             },
             item=item,
         )
@@ -5623,7 +5623,7 @@ class PrintScheduler:
             from_states=("pending", "printing"),
             reason=reason,
             caller="print_scheduler._start_print",
-            extra={"error_message": error_message, "completed_at": datetime.now(timezone.utc)},
+            extra={"error_message": error_message, "completed_at": datetime.now(UTC)},
             item=item,
         )
         if not result:
@@ -5692,7 +5692,7 @@ class PrintScheduler:
         except HTTPException as exc:
             item.status = "failed"
             item.error_message = str(exc.detail)
-            item.completed_at = datetime.now(timezone.utc)
+            item.completed_at = datetime.now(UTC)
             await db.commit()
             logger.error("Queue item %s: Budget check failed: %s", item.id, item.error_message)
             await self._power_off_if_needed(db, item)
@@ -6213,7 +6213,7 @@ class PrintScheduler:
         # — printer obeys, user sees "I pressed cancel and the print started".
         # rowcount==0 means the user won the race; bail out, best-effort delete
         # the file we just uploaded, do NOT send start_print.
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         billing_run_id = str(uuid.uuid4())
         cas = await printer_lifecycle.transition(
             db,
@@ -6367,7 +6367,7 @@ class PrintScheduler:
                         f"Nozzle rack pick no longer fits the printer: {rack_error}. "
                         "Edit the item to choose another position."
                     )
-                    item.completed_at = datetime.now(timezone.utc)
+                    item.completed_at = datetime.now(UTC)
                     await db.commit()
                     logger.warning(
                         "Queue item %s: refusing to dispatch to %s — %s (chose %s, rack %s)",
@@ -6860,7 +6860,7 @@ class PrintScheduler:
                             "failed (HMS 0500-0500-0001-0007). Enable Developer Mode on the "
                             "printer, restart it, then start the job again."
                         ),
-                        "completed_at": datetime.now(timezone.utc),
+                        "completed_at": datetime.now(UTC),
                     }
                 )
             elif gave_up:
@@ -6885,7 +6885,7 @@ class PrintScheduler:
                 extra.update(
                     {
                         "error_message": failure_message,
-                        "completed_at": datetime.now(timezone.utc),
+                        "completed_at": datetime.now(UTC),
                     }
                 )
 

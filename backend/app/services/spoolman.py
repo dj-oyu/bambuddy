@@ -4,7 +4,7 @@ import asyncio
 import logging
 import weakref
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 import httpx
@@ -443,7 +443,7 @@ class SpoolmanClient:
             data["location"] = location
         if extra:
             data["extra"] = extra
-        data["last_used"] = datetime.now(timezone.utc).isoformat()
+        data["last_used"] = datetime.now(UTC).isoformat()
 
         response = await self._request_spool("PATCH", spool_id, json_body=data, operation="update")
         return response.json()

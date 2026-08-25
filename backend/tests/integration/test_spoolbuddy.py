@@ -1,6 +1,6 @@
 """Integration tests for SpoolBuddy API endpoints."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -33,7 +33,7 @@ def device_factory(db_session: AsyncSession):
             "has_scale": True,
             "tare_offset": 0,
             "calibration_factor": 1.0,
-            "last_seen": datetime.now(timezone.utc),
+            "last_seen": datetime.now(UTC),
         }
         defaults.update(kwargs)
         device = SpoolBuddyDevice(**defaults)
@@ -297,7 +297,7 @@ class TestDeviceEndpoints:
         spoolbuddy_routes._spoolbuddy_online_last_broadcast.clear()
         await device_factory(
             device_id="sb-offline",
-            last_seen=datetime.now(timezone.utc) - timedelta(seconds=120),
+            last_seen=datetime.now(UTC) - timedelta(seconds=120),
         )
 
         with patch("backend.app.api.routes.spoolbuddy.ws_manager") as mock_ws:
@@ -320,7 +320,7 @@ class TestDeviceEndpoints:
         spoolbuddy_routes._spoolbuddy_online_last_broadcast.clear()
         await device_factory(
             device_id="sb-already-online",
-            last_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(UTC),
         )
 
         with patch("backend.app.api.routes.spoolbuddy.ws_manager") as mock_ws:
@@ -342,7 +342,7 @@ class TestDeviceEndpoints:
         spoolbuddy_routes._spoolbuddy_online_last_broadcast.clear()
         await device_factory(
             device_id="sb-throttle",
-            last_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(UTC),
         )
 
         with patch("backend.app.api.routes.spoolbuddy.ws_manager") as mock_ws:
@@ -1116,7 +1116,7 @@ class TestUpdateEndpoints:
     async def test_trigger_update_offline_device_409(self, async_client: AsyncClient, device_factory):
         await device_factory(
             device_id="sb-upd-off",
-            last_seen=datetime.now(timezone.utc) - timedelta(seconds=120),
+            last_seen=datetime.now(UTC) - timedelta(seconds=120),
         )
 
         resp = await async_client.post(f"{API}/devices/sb-upd-off/update")
@@ -1390,7 +1390,7 @@ class TestSystemCommandEndpoints:
     async def test_command_offline_device_409(self, async_client: AsyncClient, device_factory):
         await device_factory(
             device_id="sb-offline-cmd",
-            last_seen=datetime.now(timezone.utc) - timedelta(seconds=120),
+            last_seen=datetime.now(UTC) - timedelta(seconds=120),
         )
 
         resp = await async_client.post(

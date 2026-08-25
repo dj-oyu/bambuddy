@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,17 +36,17 @@ class FailureAnalysisService:
         non_date_filter = []
         if date_from or date_to:
             if date_from:
-                dt_from = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+                dt_from = datetime.combine(date_from, time.min, tzinfo=UTC)
                 base_filter.append(PrintLogEntry.created_at >= dt_from)
             if date_to:
-                dt_to = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+                dt_to = datetime.combine(date_to, time.max, tzinfo=UTC)
                 base_filter.append(PrintLogEntry.created_at <= dt_to)
-            range_start = dt_from if date_from else datetime.now(timezone.utc) - timedelta(days=365)
-            range_end = dt_to if date_to else datetime.now(timezone.utc)
+            range_start = dt_from if date_from else datetime.now(UTC) - timedelta(days=365)
+            range_end = dt_to if date_to else datetime.now(UTC)
             effective_days = max((range_end - range_start).days, 1)
         else:
             effective_days = days if days is not None else 30
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=effective_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=effective_days)
             base_filter.append(PrintLogEntry.created_at >= cutoff_date)
         if printer_id:
             non_date_filter.append(PrintLogEntry.printer_id == printer_id)
@@ -197,7 +197,7 @@ class FailureAnalysisService:
         trend_data = []
         num_weeks = max(effective_days // 7, 1)
         for i in range(num_weeks):
-            week_end = datetime.now(timezone.utc) - timedelta(weeks=i)
+            week_end = datetime.now(UTC) - timedelta(weeks=i)
             week_start = week_end - timedelta(weeks=1)
 
             week_filter = [

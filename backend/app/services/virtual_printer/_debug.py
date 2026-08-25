@@ -37,7 +37,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from backend.app.core.config import settings as app_settings
 
@@ -133,7 +133,7 @@ def append_event(vp_name: str, direction: str, topic: str, payload: dict | bytes
             parsed = payload
 
         record = {
-            "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "ts": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "dir": direction,
             "topic": topic,
             "cmd": _command_label(parsed) if isinstance(parsed, dict) else "?",

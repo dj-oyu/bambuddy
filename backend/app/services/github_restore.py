@@ -37,7 +37,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field as dataclasses_field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from sqlalchemy import select
@@ -165,7 +165,7 @@ def _parse_dt(value) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        parsed = parsed.astimezone(UTC).replace(tzinfo=None)
     return parsed
 
 
@@ -804,7 +804,7 @@ class GitHubRestoreService:
                     any_failed = any(tally.failed for tally in results.values())
 
                     log.status = "failed" if any_failed and total_restored == 0 else "success"
-                    log.completed_at = datetime.now(timezone.utc)
+                    log.completed_at = datetime.now(UTC)
                     log.files_changed = total_restored
                     if any_failed:
                         log.error_message = "Some items could not be restored — see the restore result for detail"
@@ -828,7 +828,7 @@ class GitHubRestoreService:
                     await db.rollback()
                     committed = sum(tally.restored for tally in results.values())
                     log.status = "failed"
-                    log.completed_at = datetime.now(timezone.utc)
+                    log.completed_at = datetime.now(UTC)
                     log.files_changed = committed
                     log.error_message = str(e)[:1000]
                     await db.commit()

@@ -6,6 +6,8 @@ Tests the ownership permission model where users can have:
 - Ownerless items (created_by_id = null) require *_all permission
 """
 
+from datetime import UTC
+
 import pytest
 from httpx import AsyncClient
 
@@ -1009,7 +1011,7 @@ class TestLibraryOwnershipPermissions(TestOwnershipPermissionsSetup):
         await library_file_factory(
             folder_id=folder.id,
             created_by_id=auth_setup["operator2_user"]["id"],
-            deleted_at=datetime.now(timezone.utc),
+            deleted_at=datetime.now(UTC),
         )
 
         response = await async_client.delete(

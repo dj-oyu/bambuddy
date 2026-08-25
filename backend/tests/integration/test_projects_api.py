@@ -1,5 +1,7 @@
 """Integration tests for Projects API endpoints."""
 
+from datetime import UTC
+
 import pytest
 from httpx import AsyncClient
 
@@ -1696,7 +1698,7 @@ class TestSoftDeletedArchivesLeaveTheProject:
         from datetime import datetime, timezone
 
         archive_id = archive.id
-        archive.deleted_at = datetime.now(timezone.utc)
+        archive.deleted_at = datetime.now(UTC)
         await db_session.commit()
         return archive_id
 

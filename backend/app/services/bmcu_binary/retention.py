@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 
@@ -66,7 +66,7 @@ async def prune_once(session_factory=None) -> dict[str, int]:
     if not hours:
         return {}
     factory = session_factory or _database.async_session
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=hours)
     batch, removed = _batch_size(), {}
     for model, column in _TABLES:
         total = 0

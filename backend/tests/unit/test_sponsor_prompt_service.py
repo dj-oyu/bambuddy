@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -25,7 +25,7 @@ async def _make_user(db: AsyncSession, *, username: str = "alice", created_days_
     db.add(user)
     await db.flush()
     if created_days_ago:
-        user.created_at = datetime.now(timezone.utc) - timedelta(days=created_days_ago)
+        user.created_at = datetime.now(UTC) - timedelta(days=created_days_ago)
         await db.flush()
     return user
 
@@ -93,7 +93,7 @@ class TestCooldown:
         # Pre-populate state with a recent last_shown_at
         state = SponsorToastState(
             user_id=user.id,
-            last_shown_at=datetime.now(timezone.utc) - timedelta(days=3),
+            last_shown_at=datetime.now(UTC) - timedelta(days=3),
         )
         db_session.add(state)
         await db_session.flush()
@@ -106,7 +106,7 @@ class TestCooldown:
         await _add_completed_prints(db_session, user_id=user.id, count=200)
         state = SponsorToastState(
             user_id=user.id,
-            last_shown_at=datetime.now(timezone.utc) - timedelta(days=15),
+            last_shown_at=datetime.now(UTC) - timedelta(days=15),
         )
         db_session.add(state)
         await db_session.flush()

@@ -9,7 +9,7 @@ gate makes the retry tracker's backoff real (without it the 30s tick would
 re-dispatch immediately once the item is pending again).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +25,7 @@ def _client(printer_state, ams_status_main=0, connected=True):
 
 
 def _item(age_s: float, tz_aware: bool = False):
-    started = datetime.now(timezone.utc) - timedelta(seconds=age_s)
+    started = datetime.now(UTC) - timedelta(seconds=age_s)
     if not tz_aware:
         started = started.replace(tzinfo=None)
     return SimpleNamespace(id=1, status="printing", started_at=started)

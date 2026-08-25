@@ -6,7 +6,7 @@ on a configurable schedule with retention management.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import select
@@ -113,7 +113,7 @@ class LocalBackupService:
             self._next_run = None
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # If no next_run set, schedule one
         if self._next_run is None:
@@ -133,7 +133,7 @@ class LocalBackupService:
         in the container's local timezone (TZ env var, UTC fallback). Returns
         a UTC-aware datetime for storage / comparison against ``now``.
         """
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         if schedule_type == "hourly":
             # Next full hour
@@ -162,7 +162,7 @@ class LocalBackupService:
         if schedule_type == "weekly":
             next_local += timedelta(weeks=1)
 
-        return next_local.astimezone(timezone.utc)
+        return next_local.astimezone(UTC)
 
     def _resolve_backup_dir(self, path_setting: str) -> Path:
         """Resolve the backup output directory from settings."""
@@ -201,7 +201,7 @@ class LocalBackupService:
                 # A raw "[Errno 30] Read-only file system" sends people off to check
                 # folder permissions, which is exactly where the answer is not (#2544).
                 diagnosis = classify_backup_dir_error(e, backup_dir)
-                self._last_backup_at = datetime.now(timezone.utc).isoformat()
+                self._last_backup_at = datetime.now(UTC).isoformat()
                 self._last_status = "failed"
                 self._last_message = diagnosis["message"]
                 logger.error("Local backup failed: %s (%s)", diagnosis["message"], diagnosis["detail"])
@@ -211,14 +211,14 @@ class LocalBackupService:
             retention = max(1, settings["retention"])
             self._prune_backups(backup_dir, retention)
 
-            self._last_backup_at = datetime.now(timezone.utc).isoformat()
+            self._last_backup_at = datetime.now(UTC).isoformat()
             self._last_status = "success"
             self._last_message = filename
             logger.info("Local backup created: %s", zip_path)
             return {"success": True, "message": "Backup created", "filename": filename}
 
         except Exception as e:
-            self._last_backup_at = datetime.now(timezone.utc).isoformat()
+            self._last_backup_at = datetime.now(UTC).isoformat()
             self._last_status = "failed"
             self._last_message = str(e)
             logger.error("Local backup failed: %s", e, exc_info=True)
@@ -277,7 +277,7 @@ class LocalBackupService:
                 {
                     "filename": f.name,
                     "size": stat.st_size,
-                    "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                    "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
                 }
             )
         return backups

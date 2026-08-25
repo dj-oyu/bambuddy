@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import smtplib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -975,10 +975,10 @@ class NotificationService:
         provider = result.scalar_one_or_none()
         if provider:
             if success:
-                provider.last_success = datetime.now(timezone.utc)
+                provider.last_success = datetime.now(UTC)
             else:
                 provider.last_error = error
-                provider.last_error_at = datetime.now(timezone.utc)
+                provider.last_error_at = datetime.now(UTC)
             await db.commit()
 
     async def _get_providers_for_event(

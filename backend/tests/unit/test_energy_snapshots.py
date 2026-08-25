@@ -8,7 +8,7 @@ Covers:
   still compute the delta.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
@@ -33,7 +33,7 @@ class TestSumSnapshotDeltas:
     async def test_simple_delta_with_baseline_and_endpoint(self, db_session, smart_plug_factory):
         plug = await smart_plug_factory(name="A")
         # Baseline sits before the range, endpoint inside the range.
-        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
         db_session.add(_snap(plug.id, t0, 100.0))  # baseline
         db_session.add(_snap(plug.id, t0 + timedelta(days=2), 115.0))  # endpoint
         await db_session.commit()
@@ -49,13 +49,13 @@ class TestSumSnapshotDeltas:
     async def test_warming_up_when_no_baseline_before_range(self, db_session, smart_plug_factory):
         plug = await smart_plug_factory(name="A")
         # All snapshots happen AFTER range_start — simulates fresh upgrade.
-        t0 = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 4, 10, 12, 0, tzinfo=UTC)
         db_session.add(_snap(plug.id, t0, 500.0))  # first snapshot ever (fallback baseline)
         db_session.add(_snap(plug.id, t0 + timedelta(hours=6), 502.0))  # endpoint
         await db_session.commit()
 
-        range_start = datetime(2026, 4, 10, 0, 0, tzinfo=timezone.utc)  # before any snapshot
-        range_end = datetime(2026, 4, 10, 23, 59, tzinfo=timezone.utc)
+        range_start = datetime(2026, 4, 10, 0, 0, tzinfo=UTC)  # before any snapshot
+        range_end = datetime(2026, 4, 10, 23, 59, tzinfo=UTC)
 
         total, warming = await _sum_snapshot_deltas(db_session, dt_from=range_start, dt_to=range_end)
 
@@ -65,7 +65,7 @@ class TestSumSnapshotDeltas:
     @pytest.mark.asyncio
     async def test_counter_reset_is_clamped_to_zero(self, db_session, smart_plug_factory):
         plug = await smart_plug_factory(name="A")
-        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
         db_session.add(_snap(plug.id, t0, 1000.0))  # baseline
         # Counter reset — endpoint is lower than baseline (plug replaced, firmware reset, ...)
         db_session.add(_snap(plug.id, t0 + timedelta(days=2), 5.0))
@@ -84,7 +84,7 @@ class TestSumSnapshotDeltas:
     async def test_multiple_plugs_are_summed(self, db_session, smart_plug_factory):
         plug1 = await smart_plug_factory(name="A", ip_address="10.0.0.1")
         plug2 = await smart_plug_factory(name="B", ip_address="10.0.0.2")
-        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
         # plug1: 100 -> 110  (delta 10)
         db_session.add(_snap(plug1.id, t0, 100.0))
         db_session.add(_snap(plug1.id, t0 + timedelta(days=2), 110.0))
@@ -106,7 +106,7 @@ class TestSumSnapshotDeltas:
     async def test_plug_with_no_snapshots_signals_warming(self, db_session, smart_plug_factory):
         # Plug exists but never snapshotted (yet).
         await smart_plug_factory(name="A")
-        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
 
         total, warming = await _sum_snapshot_deltas(
             db_session,
@@ -120,7 +120,7 @@ class TestSumSnapshotDeltas:
     @pytest.mark.asyncio
     async def test_endpoint_picks_last_snapshot_at_or_before_range_end(self, db_session, smart_plug_factory):
         plug = await smart_plug_factory(name="A")
-        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
         db_session.add(_snap(plug.id, t0, 100.0))  # baseline
         db_session.add(_snap(plug.id, t0 + timedelta(days=1), 105.0))  # inside range
         db_session.add(_snap(plug.id, t0 + timedelta(days=5), 130.0))  # AFTER range_end — must be ignored

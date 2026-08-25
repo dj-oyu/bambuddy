@@ -17,7 +17,7 @@ clears the flag.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -264,7 +264,7 @@ class TestPersistedFlag:
 
     @pytest.mark.asyncio
     async def test_set_flag_is_read_back(self, db_session):
-        db_session.add(Settings(key=CLOUD_TOKEN_INVALID_KEY, value=datetime.now(timezone.utc).isoformat()))
+        db_session.add(Settings(key=CLOUD_TOKEN_INVALID_KEY, value=datetime.now(UTC).isoformat()))
         await db_session.commit()
         assert await is_cloud_token_invalid(db_session, None) is True
 

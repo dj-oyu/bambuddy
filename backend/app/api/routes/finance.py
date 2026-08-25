@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -99,7 +99,7 @@ async def _get_budget_window_start_utc(db: AsyncSession) -> datetime:
     try:
         tz = ZoneInfo(tz_name)
     except ZoneInfoNotFoundError:
-        tz = timezone.utc
+        tz = UTC
 
     now_local = datetime.now(tz)
     current_month_reset_day = _clamp_day(now_local.year, now_local.month, desired_day)
@@ -115,7 +115,7 @@ async def _get_budget_window_start_utc(db: AsyncSession) -> datetime:
         prev_month_reset_day = _clamp_day(prev_year, prev_month, desired_day)
         start_local = datetime(prev_year, prev_month, prev_month_reset_day, tzinfo=tz)
 
-    return start_local.astimezone(timezone.utc)
+    return start_local.astimezone(UTC)
 
 
 async def _get_cost_center_usage_maps(
@@ -592,10 +592,8 @@ async def create_manual_print(
     await _get_user_or_404(db, request.user_id)
     await _get_cost_center_or_404(db, request.cost_center_id)
 
-    from datetime import timezone
-
     # Use provided created_at or current time
-    created_at = request.created_at or datetime.now(timezone.utc)
+    created_at = request.created_at or datetime.now(UTC)
 
     # Ensure manual print charges are negative amounts (charges reduce wallet)
     amount = request.amount

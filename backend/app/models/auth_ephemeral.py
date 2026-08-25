@@ -20,7 +20,7 @@ AuthRateLimitEvent
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from sqlalchemy import DateTime, Integer, String
@@ -88,7 +88,7 @@ class AuthEphemeralToken(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     # ------------------------------------------------------------------
@@ -195,5 +195,5 @@ class AuthRateLimitEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

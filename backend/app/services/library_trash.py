@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import and_, delete, func, or_, select
@@ -255,7 +255,7 @@ class LibraryTrashService:
         if not cfg["enabled"]:
             return 0
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last = await self._get_last_auto_purge_run(db)
         if last is not None and (now - last) < timedelta(hours=24):
             return 0
@@ -282,7 +282,7 @@ class LibraryTrashService:
         """Count + size of files eligible for purge. Reads only; never mutates."""
         if older_than_days < 1:
             return {"count": 0, "total_bytes": 0, "sample_filenames": []}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = _age_cutoff(now, older_than_days)
         clause = _purge_filter(cutoff, include_never_printed)
 
@@ -314,7 +314,7 @@ class LibraryTrashService:
         """Move matching files to trash (stamps ``deleted_at``). Returns count."""
         if older_than_days < 1:
             return 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = _age_cutoff(now, older_than_days)
         clause = _purge_filter(cutoff, include_never_printed)
 
@@ -336,7 +336,7 @@ class LibraryTrashService:
     async def _sweep(self, db: AsyncSession) -> int:
         """Hard-delete trashed rows whose retention window has elapsed."""
         retention = await self._read_retention(db)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - timedelta(days=retention)
 
         result = await db.execute(
