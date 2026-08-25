@@ -384,6 +384,25 @@ class TestSanitizeLogContent:
 class TestCollectSupportInfo:
     """Tests for _collect_support_info() new diagnostic sections."""
 
+    @pytest.fixture(autouse=True)
+    def mock_expensive_collectors(self):
+        """Keep section tests from starting background collectors."""
+        async def run_inline(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        with (
+            patch(
+                "backend.app.api.routes.support._collect_process_info",
+                return_value={"available": True},
+            ),
+            patch("backend.app.api.routes.support.asyncio.to_thread", new=run_inline),
+            patch(
+                "backend.app.services.diagnostic_snapshot.collect_diagnostic_snapshot",
+                new=AsyncMock(return_value={}),
+            ),
+        ):
+            yield
+
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_environment_has_timezone(self):
