@@ -8,6 +8,7 @@ import { QueuePage } from './pages/QueuePage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { BMCULinkPage } from './pages/BMCULinkPage';
+import { FinancePage } from './pages/FinancePage';
 import { ProfilesPage } from './pages/ProfilesPage';
 import { MaintenancePage } from './pages/MaintenancePage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -212,6 +213,7 @@ function App() {
                   <Route path="pipelines/runs" element={<Navigate to="/queue?tab=pipelines" replace />} />
                   <Route path="stats" element={<StatsPage />} />
                   <Route path="profiles" element={<ProfilesPage />} />
+                  <Route path="finance" element={<PermissionRoute permission="cost_centers:read_own"><FinancePage /></PermissionRoute>} />
                   <Route path="maintenance" element={<MaintenancePage />} />
                   <Route path="projects" element={<ProjectsPage />} />
                   <Route path="projects/:id" element={<ProjectDetailPage />} />
