@@ -21,7 +21,7 @@ AuthRateLimitEvent
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -29,7 +29,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from backend.app.core.database import Base
 
 
-class TokenType(str, Enum):
+class TokenType(StrEnum):
     """T3: Enumerated token types for AuthEphemeralToken.token_type.
 
     Using str-based Enum keeps the stored values human-readable and
@@ -44,7 +44,7 @@ class TokenType(str, Enum):
     SLICER_DOWNLOAD = "slicer_download"
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """T3: Enumerated event types for AuthRateLimitEvent.event_type.
 
     Using str-based Enum keeps the stored values human-readable and

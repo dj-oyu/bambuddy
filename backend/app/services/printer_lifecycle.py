@@ -24,7 +24,7 @@ Neither swallows DB exceptions — callers that need retry keep using
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import select, update
@@ -170,7 +170,7 @@ def active_job_stale(archive_subtask_id: str | None, state: Any) -> tuple[bool, 
 EXTRA_COLUMN_WHITELIST = frozenset({"error_message", "completed_at", "started_at", "dispatch_attempts"})
 
 
-class TransitionOutcome(str, Enum):
+class TransitionOutcome(StrEnum):
     APPLIED = "applied"  # CAS matched (or force applied); row updated
     STATE_MISMATCH = "state_mismatch"  # CAS rowcount == 0: another writer won
     NOT_FOUND = "not_found"  # row no longer exists (e.g. cancel-then-remove)
