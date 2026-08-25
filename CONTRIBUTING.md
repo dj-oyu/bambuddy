@@ -95,12 +95,9 @@ Both docs repos can be edited directly in the browser, no `git clone` required:
    ```
 
 `upstream` is a fetch-and-merge source only. Pull requests must target this
-fork's `main` branch; never submit a PR to `maziggy/bambuddy`. Use the guarded
-helper so the repository and base branch cannot be overridden accidentally:
-
-```bash
-./scripts/create-pr.sh --title "Short change summary" --body "What changed and how it was tested"
-```
+fork's `main` branch; never submit a PR to `maziggy/bambuddy`. Before creating a
+PR with GitHub CLI, verify that `gh repo set-default --view` reports
+`dj-oyu/bambuddy`, then run `gh pr create` without an explicit `--repo`.
 
 ## Development Setup
 
