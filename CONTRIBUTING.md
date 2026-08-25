@@ -94,6 +94,14 @@ Both docs repos can be edited directly in the browser, no `git clone` required:
    git remote add upstream https://github.com/maziggy/bambuddy.git
    ```
 
+`upstream` is a fetch-and-merge source only. Pull requests must target this
+fork's `main` branch; never submit a PR to `maziggy/bambuddy`. Use the guarded
+helper so the repository and base branch cannot be overridden accidentally:
+
+```bash
+./scripts/create-pr.sh --title "Short change summary" --body "What changed and how it was tested"
+```
+
 ## Development Setup
 
 ### Prerequisites
