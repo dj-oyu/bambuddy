@@ -6,7 +6,7 @@ import os
 import re
 import shutil
 import zipfile
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
@@ -1294,8 +1294,8 @@ class ArchiveService:
 
         # Determine status and timestamps
         status = print_data.get("status", "completed") if print_data else "archived"
-        started_at = datetime.now(timezone.utc) if status == "printing" else None
-        completed_at = datetime.now(timezone.utc) if status in ("completed", "failed", "archived") else None
+        started_at = datetime.now(UTC) if status == "printing" else None
+        completed_at = datetime.now(UTC) if status in ("completed", "failed", "archived") else None
 
         # Calculate cost based on filament usage and type
         cost = None
@@ -1444,11 +1444,11 @@ class ArchiveService:
             query = query.where(PrintArchive.project_id == project_id)
 
         if date_from:
-            dt_from = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+            dt_from = datetime.combine(date_from, time.min, tzinfo=UTC)
             query = query.where(PrintArchive.created_at >= dt_from)
 
         if date_to:
-            dt_to = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+            dt_to = datetime.combine(date_to, time.max, tzinfo=UTC)
             query = query.where(PrintArchive.created_at <= dt_to)
 
         if visible_to_user_id is not None:
@@ -1480,7 +1480,7 @@ class ArchiveService:
 
         await _null_print_log_thumbnail_paths(self.db, archive_id)
         await _delete_related_queue_items(self.db, archive_id)
-        archive.deleted_at = datetime.now(timezone.utc)
+        archive.deleted_at = datetime.now(UTC)
         await self.db.commit()
 
         if dir_to_delete:

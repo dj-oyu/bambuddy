@@ -36,7 +36,7 @@ Fail-safe throughout: any uncertainty → do nothing (keep rows, skip writes).
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -381,7 +381,7 @@ class FilamentSpoofEngine:
                 db, printer_id, p_ams, p_tray
             ):
                 raise FilamentSpoofError("Slot already participates in a runout backup", status=409)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             row = FilamentSpoof(
                 printer_id=printer_id,
                 backup_ams_id=b_ams,
@@ -567,7 +567,7 @@ class FilamentSpoofEngine:
         # Ensure AMS Filament Backup (auto_switch_filament) is ON.
         self._ensure_backup_enabled(client, printer_id)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         async with async_session() as db:
             row = FilamentSpoof(
                 printer_id=printer_id,
@@ -691,7 +691,7 @@ class FilamentSpoofEngine:
 
             for r in rows:
                 r.state = "RELEASED"
-                r.released_at = datetime.now(timezone.utc)
+                r.released_at = datetime.now(UTC)
             await db.commit()
             await db.refresh(row)
 
@@ -747,7 +747,7 @@ class FilamentSpoofEngine:
                     )
                     continue
                 row.state = "RELEASED"
-                row.released_at = datetime.now(timezone.utc)
+                row.released_at = datetime.now(UTC)
                 released_any = True
                 logger.info(
                     "[%s] Filament spoof auto-RELEASED on runout: backup AMS %s tray %s became active",
@@ -956,7 +956,7 @@ class FilamentSpoofEngine:
         if client is None:
             return
         changed = False
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         timeout = _confirm_timeout_s()
         async with async_session() as db:
             rows = await self._load_active(db, printer_id)
@@ -975,7 +975,7 @@ class FilamentSpoofEngine:
                             row.backup_tray_id,
                         )
                     elif row.engaged_at is not None:
-                        age = (now - row.engaged_at.replace(tzinfo=timezone.utc)).total_seconds()
+                        age = (now - row.engaged_at.replace(tzinfo=UTC)).total_seconds()
                         if age > timeout:
                             row.state = "FAILED"
                             row.released_at = now
@@ -1058,7 +1058,7 @@ class FilamentSpoofEngine:
         if client is None:
             return 0
         changed = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         async with async_session() as db:
             rows = await self._load_active(db, printer_id)
             for row in rows:

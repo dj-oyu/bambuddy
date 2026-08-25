@@ -3,6 +3,7 @@
 Tests the full request/response cycle for /api/v1/archives/ endpoints.
 """
 
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -769,7 +770,7 @@ class TestNo3MFWarning:
         printer = await printer_factory()
         archive = await archive_factory(printer.id, extra_data={"no_3mf_available": True})
         # Backdate past the 30-day window — old fallbacks are forgiven.
-        archive.created_at = datetime.now(timezone.utc) - timedelta(days=45)
+        archive.created_at = datetime.now(UTC) - timedelta(days=45)
         await db_session.commit()
 
         response = await async_client.get("/api/v1/archives/no-3mf-warning")
@@ -788,7 +789,7 @@ class TestNo3MFWarning:
 
         printer = await printer_factory()
         archive = await archive_factory(printer.id, extra_data={"no_3mf_available": True})
-        archive.deleted_at = datetime.now(timezone.utc)
+        archive.deleted_at = datetime.now(UTC)
         await db_session.commit()
 
         response = await async_client.get("/api/v1/archives/no-3mf-warning")
@@ -1263,8 +1264,8 @@ class TestArchivesSlimAPI:
         from datetime import datetime, timezone
 
         printer = await printer_factory()
-        started = datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
-        completed = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)  # 2 hours = 7200s
+        started = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+        completed = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)  # 2 hours = 7200s
         await archive_factory(
             printer.id,
             status="completed",
@@ -1293,8 +1294,8 @@ class TestArchivesSlimAPI:
         await archive_factory(
             printer.id,
             status="failed",
-            started_at=datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
-            completed_at=datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+            started_at=datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
+            completed_at=datetime(2024, 1, 1, 11, 0, 0, tzinfo=UTC),
         )
 
         response = await async_client.get("/api/v1/archives/slim")
@@ -1313,12 +1314,12 @@ class TestArchivesSlimAPI:
         await archive_factory(
             printer.id,
             print_name="Old Print",
-            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2024, 1, 1, tzinfo=UTC),
         )
         await archive_factory(
             printer.id,
             print_name="New Print",
-            created_at=datetime(2024, 6, 15, tzinfo=timezone.utc),
+            created_at=datetime(2024, 6, 15, tzinfo=UTC),
         )
 
         # Filter to only June 2024
@@ -2022,7 +2023,7 @@ class TestSoftDeletedArchivesAreExcluded:
         from datetime import datetime, timezone
 
         archive_id = archive.id
-        archive.deleted_at = datetime.now(timezone.utc)
+        archive.deleted_at = datetime.now(UTC)
         await db_session.commit()
         return archive_id
 

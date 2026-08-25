@@ -19,7 +19,7 @@ which kind of batch they are looking at.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -314,7 +314,7 @@ async def refresh_batch_status(db: AsyncSession, batch: PrintBatch) -> bool:
 
     if batch.status == "active" and progress.is_fulfilled:
         batch.status = "completed"
-        batch.completed_at = datetime.now(timezone.utc)
+        batch.completed_at = datetime.now(UTC)
         logger.info("Batch %s fulfilled — marked completed", batch.id)
         return True
 

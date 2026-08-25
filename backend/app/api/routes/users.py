@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 import jwt as _jwt
@@ -546,7 +546,7 @@ async def change_own_password(
 
     # Update password
     user.password_hash = get_password_hash(password_data.new_password)
-    user.password_changed_at = datetime.now(timezone.utc)  # M-R7-B: invalidate all prior JWTs
+    user.password_changed_at = datetime.now(UTC)  # M-R7-B: invalidate all prior JWTs
     await db.commit()
 
     # L-R6-A: Password verified successfully — reset the failure counter
@@ -562,7 +562,7 @@ async def change_own_password(
             exp = payload.get("exp")
             if jti and exp:
                 try:
-                    await revoke_jti(jti, datetime.fromtimestamp(exp, tz=timezone.utc), user.username)
+                    await revoke_jti(jti, datetime.fromtimestamp(exp, tz=UTC), user.username)
                 except Exception as exc:
                     # B4: log so operators know revocation is broken; password was
                     # already changed so the token will fail freshness checks anyway.

@@ -8,7 +8,7 @@ arithmetic that replaces it, and the two ways it can legitimately have no answer
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -54,7 +54,7 @@ async def _snapshot(db, plug_id: int, when: datetime, kwh: float) -> None:
 
 async def test_derives_today_and_yesterday_from_the_counter(db_session):
     plug = await _plug(db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     await _snapshot(db_session, plug.id, local_day_start(now, days_ago=1), 100.0)
     await _snapshot(db_session, plug.id, local_day_start(now, days_ago=0), 102.0)
@@ -70,7 +70,7 @@ async def test_yesterday_is_none_until_two_midnights_have_passed(db_session):
     yesterday against. Better an empty field than a fabricated one.
     """
     plug = await _plug(db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _snapshot(db_session, plug.id, local_day_start(now, days_ago=0), 102.0)
 
     today, yesterday = await derive_today_yesterday(db_session, plug.id, live_total_kwh=103.5)
@@ -81,7 +81,7 @@ async def test_yesterday_is_none_until_two_midnights_have_passed(db_session):
 
 async def test_nothing_derivable_before_the_first_midnight(db_session):
     plug = await _plug(db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Snapshot taken this morning, after midnight — no baseline for the day.
     await _snapshot(db_session, plug.id, now - timedelta(minutes=30), 102.0)
 
@@ -96,7 +96,7 @@ async def test_counter_reset_reports_nothing_rather_than_a_negative(db_session):
     and "-101.6 kWh used today" is worse than a blank.
     """
     plug = await _plug(db_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _snapshot(db_session, plug.id, local_day_start(now, days_ago=1), 100.0)
     await _snapshot(db_session, plug.id, local_day_start(now, days_ago=0), 102.0)
 
@@ -112,7 +112,7 @@ async def test_snapshots_from_other_plugs_are_not_borrowed(db_session):
     await db_session.commit()
     await db_session.refresh(other)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await _snapshot(db_session, other.id, local_day_start(now, days_ago=0), 50.0)
 
     today, yesterday = await derive_today_yesterday(db_session, plug.id, live_total_kwh=103.5)
@@ -124,7 +124,7 @@ async def test_snapshots_from_other_plugs_are_not_borrowed(db_session):
 class TestFillDerivedEnergy:
     async def test_fills_today_and_yesterday_for_a_lifetime_only_plug(self, db_session):
         plug = await _plug(db_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _snapshot(db_session, plug.id, local_day_start(now, days_ago=1), 100.0)
         await _snapshot(db_session, plug.id, local_day_start(now, days_ago=0), 102.0)
 
@@ -139,7 +139,7 @@ class TestFillDerivedEnergy:
         itself beats our hourly-snapshot arithmetic, so it wins.
         """
         plug = await _plug(db_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _snapshot(db_session, plug.id, local_day_start(now, days_ago=1), 100.0)
         await _snapshot(db_session, plug.id, local_day_start(now, days_ago=0), 102.0)
 

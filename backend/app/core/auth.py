@@ -4,7 +4,7 @@ import logging
 import os
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt
@@ -678,7 +678,7 @@ SLICER_TOKEN_EXPIRE_MINUTES = 5
 
 async def create_slicer_download_token(resource_type: str, resource_id: int) -> str:
     """Create a short-lived, single-use download token for slicer protocol handlers."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=SLICER_TOKEN_EXPIRE_MINUTES)
     token = secrets.token_urlsafe(24)
     resource_key = f"{resource_type}:{resource_id}"
@@ -714,7 +714,7 @@ async def verify_slicer_download_token(token: str, resource_type: str, resource_
     permanently invalidating it while returning False to the caller.
     """
     expected_key = f"{resource_type}:{resource_id}"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with async_session() as db:
         result = await db.execute(
             delete(AuthEphemeralToken)
@@ -742,7 +742,7 @@ CAMERA_STREAM_TOKEN_EXPIRE_MINUTES = 60
 
 async def create_camera_stream_token() -> str:
     """Create a reusable token for camera stream/snapshot access."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=CAMERA_STREAM_TOKEN_EXPIRE_MINUTES)
     token = secrets.token_urlsafe(24)
     async with async_session() as db:
@@ -783,7 +783,7 @@ async def create_websocket_token(username: str | None) -> str:
     page reloads / brief disconnects, short enough that a leaked token
     is not a credential.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=WEBSOCKET_TOKEN_EXPIRE_MINUTES)
     token = secrets.token_urlsafe(24)
     async with async_session() as db:
@@ -815,7 +815,7 @@ async def verify_websocket_token(token: str) -> str | None:
     NOT consumed — a single page reload should not need a new round
     trip to mint a replacement.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with async_session() as db:
         result = await db.execute(
             select(AuthEphemeralToken).where(
@@ -837,7 +837,7 @@ async def verify_camera_stream_token(token: str) -> bool:
     and falls through to long-lived tokens (#1108) for HA / kiosk integrations
     that paste a token once and expect it to keep working for days.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with async_session() as db:
         result = await db.execute(
             select(AuthEphemeralToken).where(
@@ -911,7 +911,7 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token with jti (revocation) and iat (freshness) claims."""
     to_encode = data.copy()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if expires_delta:
         expire = now + expires_delta
     else:
@@ -936,10 +936,10 @@ def _is_token_fresh(iat: int | float | None, user: User) -> bool:
         return False
     if not hasattr(user, "password_changed_at") or user.password_changed_at is None:
         return True  # No password change recorded yet (I2 migration handles this)
-    token_issued_at = datetime.fromtimestamp(iat, tz=timezone.utc)
+    token_issued_at = datetime.fromtimestamp(iat, tz=UTC)
     pca = user.password_changed_at
     if pca.tzinfo is None:
-        pca = pca.replace(tzinfo=timezone.utc)
+        pca = pca.replace(tzinfo=UTC)
     # JWT iat is whole seconds; truncate pca so tokens issued in the same second pass.
     pca = pca.replace(microsecond=0)
     return token_issued_at >= pca
@@ -1157,11 +1157,11 @@ async def _validate_api_key(db: AsyncSession, api_key_value: str) -> APIKey | No
                 if api_key.expires_at:
                     expires = api_key.expires_at
                     if expires.tzinfo is None:
-                        expires = expires.replace(tzinfo=timezone.utc)
-                    if expires < datetime.now(timezone.utc):
+                        expires = expires.replace(tzinfo=UTC)
+                    if expires < datetime.now(UTC):
                         return None  # Expired
                 # Update last_used timestamp
-                api_key.last_used = datetime.now(timezone.utc)
+                api_key.last_used = datetime.now(UTC)
                 await db.commit()
                 return api_key
     except Exception as e:  # SEC-AUTH-EXC: validation failure returns None; every caller treats None as "invalid key" → 401 (fail-closed)
@@ -1517,14 +1517,14 @@ async def get_api_key(
             if api_key.expires_at:
                 expires = api_key.expires_at
                 if expires.tzinfo is None:
-                    expires = expires.replace(tzinfo=timezone.utc)
-                if expires < datetime.now(timezone.utc):
+                    expires = expires.replace(tzinfo=UTC)
+                if expires < datetime.now(UTC):
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="API key has expired",
                     )
             # Update last_used timestamp
-            api_key.last_used = datetime.now(timezone.utc)
+            api_key.last_used = datetime.now(UTC)
             await db.commit()
             return api_key
 

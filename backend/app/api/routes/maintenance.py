@@ -1,7 +1,7 @@
 """Maintenance tracking API routes."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -315,7 +315,7 @@ async def _get_printer_maintenance_internal(
     due_count = 0
     warning_count = 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for maint_type in all_types:
         # Skip system types that don't apply to this printer model
@@ -363,7 +363,7 @@ async def _get_printer_maintenance_internal(
             if last_performed_at:
                 # DB stores naive datetimes; treat as UTC for comparison
                 if last_performed_at.tzinfo is None:
-                    last_performed_at = last_performed_at.replace(tzinfo=timezone.utc)
+                    last_performed_at = last_performed_at.replace(tzinfo=UTC)
                 days_since = (now - last_performed_at).total_seconds() / 86400.0
             else:
                 # Never performed - consider it due
@@ -386,7 +386,7 @@ async def _get_printer_maintenance_internal(
             # Calculate days for reference
             if last_performed_at:
                 if last_performed_at.tzinfo is None:
-                    last_performed_at = last_performed_at.replace(tzinfo=timezone.utc)
+                    last_performed_at = last_performed_at.replace(tzinfo=UTC)
                 days_since = (now - last_performed_at).total_seconds() / 86400.0
             else:
                 days_since = None
@@ -608,7 +608,7 @@ async def perform_maintenance(
     db.add(history)
 
     # Update item
-    item.last_performed_at = datetime.now(timezone.utc)
+    item.last_performed_at = datetime.now(UTC)
     item.last_performed_hours = current_hours
 
     await db.commit()

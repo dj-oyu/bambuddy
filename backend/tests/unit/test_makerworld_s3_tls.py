@@ -15,7 +15,7 @@ URL reaching the transport byte-for-byte.
 from __future__ import annotations
 
 import ssl
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import certifi
@@ -49,7 +49,7 @@ def _write_test_ca(path) -> str:
     key = ec.generate_private_key(ec.SECP256R1())
     common_name = "Bambuddy Test Root CA"
     subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cert = (
         x509.CertificateBuilder()
         .subject_name(subject)

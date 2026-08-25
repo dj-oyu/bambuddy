@@ -13,7 +13,7 @@ from __future__ import annotations
 import base64
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import jwt as pyjwt
@@ -134,7 +134,7 @@ async def _trigger_oidc_callback(
             provider_id=provider_id,
             nonce=nonce,
             code_verifier=code_verifier,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            expires_at=datetime.now(UTC) + timedelta(minutes=5),
         )
     )
     await db_session.commit()

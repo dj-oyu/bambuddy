@@ -12,7 +12,7 @@ provided session is genuinely reused (no second checkout), while the no-session
 call still opens its own — the behaviour older callers rely on.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -26,7 +26,7 @@ def _revoked_row(token: str) -> AuthEphemeralToken:
     return AuthEphemeralToken(
         token=token,
         token_type="revoked_jti",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
     )
 
 

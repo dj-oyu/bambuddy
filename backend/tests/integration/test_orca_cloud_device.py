@@ -7,7 +7,7 @@ Settings-table fallback), with the service's network calls patched out.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -90,7 +90,7 @@ class TestDevicePoll:
             assert device_code == "DEV-SECRET-1"  # the stored secret is used
             self.access_token = "oc_ext_new"
             self.refresh_token = "oc_ext_rt_new"
-            self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=86400)
+            self.token_expiry = datetime.now(UTC) + timedelta(seconds=86400)
             return DevicePoll.COMPLETE, {"access_token": "oc_ext_new"}
 
         with (
@@ -159,7 +159,7 @@ class TestLogout:
         async def fake_complete(self, device_code):
             self.access_token = "oc_ext_new"
             self.refresh_token = "oc_ext_rt_new"
-            self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=86400)
+            self.token_expiry = datetime.now(UTC) + timedelta(seconds=86400)
             return DevicePoll.COMPLETE, {"access_token": "oc_ext_new"}
 
         with (

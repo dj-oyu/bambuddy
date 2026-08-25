@@ -6,6 +6,8 @@ silently drops unknown fields, so PATCH writes never reached the DB and reads
 omitted the field entirely. The fix is purely additive on the schema layer.
 """
 
+from datetime import UTC
+
 import pytest
 from pydantic import ValidationError
 
@@ -50,7 +52,7 @@ class TestStorageLocationRoundtrips:
         on read too — otherwise the inventory table silently always shows '-'."""
         from datetime import datetime, timezone
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         response = SpoolResponse.model_validate(
             {
                 "id": 1,

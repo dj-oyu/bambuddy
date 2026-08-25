@@ -6,6 +6,7 @@ _format_bytes, and _collect_support_info diagnostic sections.
 
 import asyncio
 import tempfile
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -1382,7 +1383,7 @@ class TestSanitizePushStatusValues:
 
         from backend.app.api.routes.support import _sanitize_push_status_values
 
-        raw = {"seen_at": datetime(2026, 7, 29, 23, 12, 40, tzinfo=timezone.utc), "who": object()}
+        raw = {"seen_at": datetime(2026, 7, 29, 23, 12, 40, tzinfo=UTC), "who": object()}
 
         out = _sanitize_push_status_values(raw, {"2026-07-29": "[WHEN]"})
 

@@ -13,7 +13,7 @@ These tests cover the durable ``active_print_sessions`` row that fixes that,
 plus the plate and mapping fallbacks the completion path now applies.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -132,7 +132,7 @@ class TestPersistedSessionRoundTrip:
         return PrintSession(
             printer_id=printer_id,
             print_name="AMS_Rack",
-            started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=timezone.utc),
+            started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=UTC),
             tray_remain_start={(0, 2): 84, (0, 3): 100},
             tray_now_at_start=2,
             spool_assignments={(0, 2): 69, (0, 3): 68},
@@ -496,7 +496,7 @@ class TestRestoreOnRestartRecovery:
         return PrintSession(
             printer_id=printer_id,
             print_name=print_name,
-            started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=timezone.utc),
+            started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=UTC),
             tray_now_at_start=2,
             spool_assignments={(0, 2): 69},
             ams_mapping=[2],
@@ -774,7 +774,7 @@ class TestSpoolmanParity:
             PrintSession(
                 printer_id=printer.id,
                 print_name="AMS_Rack",
-                started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=timezone.utc),
+                started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=UTC),
             ),
             [(2, 0), (3, 675)],
         )
@@ -792,7 +792,7 @@ class TestSpoolmanParity:
         session = PrintSession(
             printer_id=printer.id,
             print_name="AMS_Rack",
-            started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=timezone.utc),
+            started_at=datetime(2026, 8, 11, 9, 25, 6, tzinfo=UTC),
         )
         _active_sessions[printer.id] = session
         await persist_session(db_session, session, [(2, 0)])

@@ -14,7 +14,7 @@ on all three tables and proves idempotency + no-op behaviour on fresh DBs.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import text
@@ -161,7 +161,7 @@ async def test_migration_deletes_orphan_user_totp(engine_with_full_schema):
 
 async def test_migration_deletes_orphan_user_otp_codes(engine_with_full_schema):
     """Orphan rows in user_otp_codes must be removed; rows for real users must stay."""
-    exp = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+    exp = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
     async with engine_with_full_schema.begin() as conn:
         await conn.execute(
             text(
@@ -209,7 +209,7 @@ async def test_migration_deletes_orphan_long_lived_tokens(engine_with_full_schem
     matchable by verify() via lookup_prefix even after the owning user is gone
     (#1295 review feedback extended #1285).
     """
-    exp = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    exp = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     async with engine_with_full_schema.begin() as conn:
         await conn.execute(
             text(
@@ -313,7 +313,7 @@ async def test_migration_is_idempotent(engine_with_full_schema):
 async def test_migration_keeps_rows_for_existing_users(engine_with_full_schema):
     """Belt-and-braces: rows for real users must never be touched even when
     other tables have orphans being cleaned at the same time."""
-    exp = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+    exp = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
     async with engine_with_full_schema.begin() as conn:
         for uid in (1, 2):
             await conn.execute(
@@ -355,7 +355,7 @@ async def test_migration_keeps_rows_for_existing_users(engine_with_full_schema):
             ),
             {"exp": exp},
         )
-        llt_exp = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        llt_exp = (datetime.now(UTC) + timedelta(days=30)).isoformat()
         await conn.execute(
             text(
                 "INSERT INTO long_lived_tokens (id, user_id, name, lookup_prefix, secret_hash, "

@@ -15,7 +15,7 @@ legitimate failure-gated skips.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import text
@@ -85,7 +85,7 @@ async def engine():
     await eng.dispose()
 
 
-BASE_TIME = datetime(2026, 6, 6, 12, 0, 0, tzinfo=timezone.utc)
+BASE_TIME = datetime(2026, 6, 6, 12, 0, 0, tzinfo=UTC)
 
 
 async def _insert_queue_item(

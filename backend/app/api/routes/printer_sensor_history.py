@@ -1,6 +1,6 @@
 """API routes for printer heater (nozzle / bed / chamber) sensor history."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -49,7 +49,7 @@ async def get_printer_sensor_history(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.PRINTER_SENSOR_HISTORY_READ),
 ):
     """Return per-sensor heater history for a printer."""
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
 
     if kinds:
         requested = {k.strip() for k in kinds.split(",") if k.strip()}
@@ -115,7 +115,7 @@ async def delete_old_history(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.PRINTER_SENSOR_HISTORY_READ),
 ):
     """Delete old printer sensor history for a printer."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
 
     result = await db.execute(
         select(func.count(PrinterSensorHistory.id)).where(

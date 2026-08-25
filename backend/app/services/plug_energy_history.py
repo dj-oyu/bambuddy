@@ -25,7 +25,7 @@ Two things this is careful about:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,7 +67,7 @@ async def derive_today_yesterday(
     within an hour of the first boundary the install lives through), Yesterday
     needs one from before the midnight before that.
     """
-    now = now_utc or datetime.now(timezone.utc)
+    now = now_utc or datetime.now(UTC)
     midnight_today = local_day_start(now)
     midnight_yesterday = local_day_start(now, days_ago=1)
 

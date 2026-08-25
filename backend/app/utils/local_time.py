@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone, tzinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def local_zone() -> tzinfo:
     try:
         return ZoneInfo("UTC")
     except ZoneInfoNotFoundError:
-        return timezone.utc
+        return UTC
 
 
 def utcnow_naive() -> datetime:
@@ -59,7 +59,7 @@ def utcnow_naive() -> datetime:
     ``DataError: invalid input for query argument``, so on Postgres the write
     raises. Use this for anything destined for a naive column.
     """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def to_naive_utc(dt: datetime | None) -> datetime | None:
@@ -71,7 +71,7 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
         return None
     if dt.tzinfo is None:
         return dt
-    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.astimezone(UTC).replace(tzinfo=None)
 
 
 def local_day_start(now_utc: datetime, *, days_ago: int = 0) -> datetime:
@@ -95,7 +95,7 @@ def local_day_start(now_utc: datetime, *, days_ago: int = 0) -> datetime:
         local_midnight = (local_midnight - timedelta(days=days_ago)).replace(
             hour=0, minute=0, second=0, microsecond=0, fold=0
         )
-    return local_midnight.astimezone(timezone.utc)
+    return local_midnight.astimezone(UTC)
 
 
 def next_local_hour(now_utc: datetime) -> datetime:
@@ -109,4 +109,4 @@ def next_local_hour(now_utc: datetime) -> datetime:
     tz = local_zone()
     local_now = now_utc.astimezone(tz)
     local_next = (local_now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0, fold=0)
-    return local_next.astimezone(timezone.utc)
+    return local_next.astimezone(UTC)

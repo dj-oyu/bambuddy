@@ -54,7 +54,7 @@ class TestTimezoneStripping:
         """Verify the timezone stripping logic works correctly."""
         import datetime
 
-        aware = datetime.datetime(2026, 4, 3, 10, 0, 0, tzinfo=datetime.timezone.utc)
+        aware = datetime.datetime(2026, 4, 3, 10, 0, 0, tzinfo=datetime.UTC)
         naive = aware.replace(tzinfo=None)
 
         def _strip(val):
@@ -72,7 +72,7 @@ class TestTimezoneStripping:
         """Verify timezone stripping works on dict parameters."""
         import datetime
 
-        aware = datetime.datetime(2026, 4, 3, 10, 0, 0, tzinfo=datetime.timezone.utc)
+        aware = datetime.datetime(2026, 4, 3, 10, 0, 0, tzinfo=datetime.UTC)
 
         def _strip(val):
             if isinstance(val, datetime.datetime) and val.tzinfo is not None:
@@ -89,7 +89,7 @@ class TestTimezoneStripping:
         """Verify timezone stripping works on tuple parameters."""
         import datetime
 
-        aware = datetime.datetime(2026, 4, 3, 10, 0, 0, tzinfo=datetime.timezone.utc)
+        aware = datetime.datetime(2026, 4, 3, 10, 0, 0, tzinfo=datetime.UTC)
 
         def _strip(val):
             if isinstance(val, datetime.datetime) and val.tzinfo is not None:

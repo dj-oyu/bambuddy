@@ -1,7 +1,7 @@
 """Budget validation helpers for finance-aware print dispatch."""
 
 import calendar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
@@ -68,7 +68,7 @@ async def _get_budget_window_start_utc(db: AsyncSession) -> datetime:
         year = now.year
 
     reset_day = min(desired_day, calendar.monthrange(year, month)[1])
-    return datetime(year, month, reset_day, tzinfo=tz).astimezone(timezone.utc)
+    return datetime(year, month, reset_day, tzinfo=tz).astimezone(UTC)
 
 
 async def _cost_center_spend(db: AsyncSession, cost_center_id: int, *, monthly: bool) -> float:
@@ -292,7 +292,7 @@ async def release_budget_reservation(
     reservations = result.scalars().all()
     for reservation in reservations:
         reservation.status = status
-        reservation.released_at = datetime.now(timezone.utc)
+        reservation.released_at = datetime.now(UTC)
     if reservations:
         await db.flush()
     return len(reservations)

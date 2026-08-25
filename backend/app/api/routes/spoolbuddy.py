@@ -5,7 +5,7 @@ import contextlib
 import json
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import httpx
@@ -121,9 +121,7 @@ async def _get_spoolman_client_or_none(db: AsyncSession):
 def _is_online(device: SpoolBuddyDevice) -> bool:
     if not device.last_seen:
         return False
-    return (
-        datetime.now(timezone.utc) - device.last_seen.replace(tzinfo=timezone.utc)
-    ).total_seconds() < OFFLINE_THRESHOLD_SECONDS
+    return (datetime.now(UTC) - device.last_seen.replace(tzinfo=UTC)).total_seconds() < OFFLINE_THRESHOLD_SECONDS
 
 
 def _device_to_response(device: SpoolBuddyDevice) -> DeviceResponse:
@@ -184,7 +182,7 @@ async def register_device(
     result = await db.execute(select(SpoolBuddyDevice).where(SpoolBuddyDevice.device_id == req.device_id))
     device = result.scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if device:
         device.hostname = req.hostname
         device.ip_address = req.ip_address
@@ -291,7 +289,7 @@ async def device_heartbeat(
         raise HTTPException(status_code=404, detail="Device not registered")
 
     was_offline = not _is_online(device)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     device.last_seen = now
     device.nfc_ok = req.nfc_ok
@@ -792,7 +790,7 @@ async def nfc_write_result(
             spool.tag_uid = req.tag_uid.upper()
             spool.tag_type = "ntag"
             spool.data_origin = "opentag3d"
-            spool.encode_time = datetime.now(timezone.utc)
+            spool.encode_time = datetime.now(UTC)
             logger.info("Tag written and linked: spool %d -> tag %s", spool.id, req.tag_uid)
 
             await db.commit()
@@ -892,7 +890,7 @@ async def update_spool_weight(
         net_filament = max(0, req.weight_grams - spool.core_weight)
         spool.weight_used = max(0, spool.label_weight - net_filament)
         spool.last_scale_weight = req.weight_grams
-        spool.last_weighed_at = datetime.now(timezone.utc)
+        spool.last_weighed_at = datetime.now(UTC)
         await db.commit()
         logger.info(
             "SpoolBuddy updated spool %d weight: %.1fg on scale, %.1fg used",
@@ -973,7 +971,7 @@ async def set_tare_offset(
         raise HTTPException(status_code=404, detail="Device not registered")
 
     device.tare_offset = req.tare_offset
-    device.last_calibrated_at = datetime.now(timezone.utc)
+    device.last_calibrated_at = datetime.now(UTC)
     await db.commit()
 
     logger.info("SpoolBuddy %s tare offset set to %d", device_id, req.tare_offset)
@@ -1004,7 +1002,7 @@ async def set_calibration_factor(
     device.calibration_factor = req.known_weight_grams / raw_delta
     if req.tare_raw_adc is not None:
         device.tare_offset = tare
-    device.last_calibrated_at = datetime.now(timezone.utc)
+    device.last_calibrated_at = datetime.now(UTC)
     await db.commit()
 
     logger.info(
@@ -1449,9 +1447,9 @@ async def spoolbuddy_watchdog():
         result = await db.execute(select(SpoolBuddyDevice).where(SpoolBuddyDevice.last_seen.isnot(None)))
         devices = list(result.scalars().all())
 
-        threshold = datetime.now(timezone.utc) - timedelta(seconds=OFFLINE_THRESHOLD_SECONDS)
+        threshold = datetime.now(UTC) - timedelta(seconds=OFFLINE_THRESHOLD_SECONDS)
         for device in devices:
-            last_seen = device.last_seen.replace(tzinfo=timezone.utc) if device.last_seen else None
+            last_seen = device.last_seen.replace(tzinfo=UTC) if device.last_seen else None
             if last_seen and last_seen < threshold:
                 # Only broadcast once — clear last_seen after marking offline
                 await ws_manager.broadcast(

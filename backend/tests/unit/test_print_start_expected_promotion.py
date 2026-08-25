@@ -10,6 +10,7 @@ directly, NOT by calling the full on_print_start callback.
 """
 
 import time
+from datetime import UTC
 
 import pytest
 
@@ -306,7 +307,7 @@ class TestAMSMappingInjection:
         session = PrintSession(
             printer_id=1,
             print_name="Box",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={},
             tray_now_at_start=-1,
             spool_assignments={},
@@ -341,7 +342,7 @@ class TestAMSMappingInjection:
         session = PrintSession(
             printer_id=1,
             print_name="Box",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={},
             tray_now_at_start=-1,
             spool_assignments={},
@@ -380,7 +381,7 @@ class TestPlateIdInjection:
         session = PrintSession(
             printer_id=1,
             print_name="Box",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={},
             tray_now_at_start=-1,
             spool_assignments={},
@@ -416,7 +417,7 @@ class TestPlateIdInjection:
         session = PrintSession(
             printer_id=1,
             print_name="Box",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             tray_remain_start={},
             tray_now_at_start=-1,
             spool_assignments={},

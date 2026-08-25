@@ -13,7 +13,7 @@ import logging
 import secrets
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from sqlalchemy import select
@@ -338,7 +338,7 @@ class ObicoDetectionService:
                 {
                     "printer_id": printer_id,
                     "task_name": task_name,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "current_p": round(current_p, 4),
                     "score": round(score, 4),
                     "class": verdict,

@@ -8,7 +8,7 @@ import json
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import paho.mqtt.client as mqtt
@@ -262,7 +262,7 @@ class MQTTSmartPlugService:
                     self.plug_data[plug_id] = SmartPlugMQTTData(plug_id=plug_id)
 
                 data = self.plug_data[plug_id]
-                data.last_seen = datetime.now(timezone.utc)
+                data.last_seen = datetime.now(UTC)
 
                 # Process based on data type
                 if data_type == "power":
@@ -473,7 +473,7 @@ class MQTTSmartPlugService:
             return False
 
         timeout = timedelta(minutes=self.REACHABLE_TIMEOUT_MINUTES)
-        return datetime.now(timezone.utc) - data.last_seen < timeout
+        return datetime.now(UTC) - data.last_seen < timeout
 
     async def disconnect(self, timeout: float = 0):
         """Disconnect from MQTT broker."""

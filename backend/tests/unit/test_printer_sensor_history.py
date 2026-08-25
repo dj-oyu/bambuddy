@@ -1,6 +1,6 @@
 """Tests for printer heater (nozzle / bed / chamber) sensor history."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -19,7 +19,7 @@ async def test_get_returns_per_sensor_series(async_client: AsyncClient, db_sessi
     await db_session.commit()
     await db_session.refresh(printer)
 
-    base = datetime.now(timezone.utc) - timedelta(hours=1)
+    base = datetime.now(UTC) - timedelta(hours=1)
     samples = [
         ("nozzle", 210.0, 220.0, 0),
         ("nozzle", 215.0, 220.0, 5),
@@ -86,7 +86,7 @@ async def test_get_clamps_to_hours_window(async_client: AsyncClient, db_session:
     await db_session.commit()
     await db_session.refresh(printer)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # One inside the window, one outside.
     db_session.add(
         PrinterSensorHistory(
@@ -125,7 +125,7 @@ async def test_delete_removes_old_rows(async_client: AsyncClient, db_session: As
     await db_session.refresh(keep_printer)
     await db_session.refresh(other_printer)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old = now - timedelta(days=40)
     db_session.add(PrinterSensorHistory(printer_id=keep_printer.id, sensor_kind="bed", value=60.0, recorded_at=old))
     db_session.add(PrinterSensorHistory(printer_id=keep_printer.id, sensor_kind="bed", value=60.0, recorded_at=now))

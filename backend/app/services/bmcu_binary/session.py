@@ -104,7 +104,7 @@ class BinarySession:
             )
             while not self._closed:
                 await self._handle(await asyncio.wait_for(self._next_frame(), self.idle_timeout))
-        except (EOFError, asyncio.TimeoutError, ConnectionError, BinaryProtocolError) as error:
+        except (TimeoutError, EOFError, ConnectionError, BinaryProtocolError) as error:
             self.close_reason = str(error) or type(error).__name__
             if self.device_id is None:
                 logger.warning("BMCU binary session rejected before authentication: %s", self.close_reason)

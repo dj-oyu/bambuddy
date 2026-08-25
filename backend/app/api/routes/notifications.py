@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete, desc, func, select
@@ -218,11 +218,11 @@ async def test_all_notification_providers(
 
         # Update provider status
         if success:
-            provider.last_success = datetime.now(timezone.utc)
+            provider.last_success = datetime.now(UTC)
             success_count += 1
         else:
             provider.last_error = message
-            provider.last_error_at = datetime.now(timezone.utc)
+            provider.last_error_at = datetime.now(UTC)
             failed_count += 1
 
         results.append(
@@ -272,7 +272,7 @@ async def get_notification_logs(
     if success is not None:
         query = query.where(NotificationLog.success == success)
     if days is not None:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         query = query.where(NotificationLog.created_at >= cutoff)
 
     query = query.offset(offset).limit(limit)
@@ -319,7 +319,7 @@ async def get_notification_log_stats(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.NOTIFICATIONS_READ),
 ):
     """Get notification log statistics."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
 
     # Total counts
     total_result = await db.execute(select(func.count(NotificationLog.id)).where(NotificationLog.created_at >= cutoff))
@@ -365,7 +365,7 @@ async def clear_notification_logs(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.NOTIFICATIONS_DELETE),
 ):
     """Clear old notification logs."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
 
     result = await db.execute(delete(NotificationLog).where(NotificationLog.created_at < cutoff))
     await db.commit()
@@ -470,10 +470,10 @@ async def test_notification_provider(
 
     # Update provider status
     if success:
-        provider.last_success = datetime.now(timezone.utc)
+        provider.last_success = datetime.now(UTC)
     else:
         provider.last_error = message
-        provider.last_error_at = datetime.now(timezone.utc)
+        provider.last_error_at = datetime.now(UTC)
 
     await db.commit()
 

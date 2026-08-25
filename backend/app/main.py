@@ -6,7 +6,7 @@ import posixpath
 import secrets
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
@@ -1510,7 +1510,7 @@ async def _bump_library_file_usage_if_completed(db, item, queue_status: str) -> 
     if lib_file is None:
         return
     lib_file.print_count = (lib_file.print_count or 0) + 1
-    lib_file.last_printed_at = datetime.now(timezone.utc)
+    lib_file.last_printed_at = datetime.now(UTC)
 
 
 def mark_printer_stopped_by_user(printer_id: int) -> None:
@@ -3414,7 +3414,7 @@ async def on_print_start(printer_id: int, data: dict):
             if archive:
                 # Update archive status to printing
                 archive.status = "printing"
-                archive.started_at = datetime.now(timezone.utc)
+                archive.started_at = datetime.now(UTC)
 
                 # Reprint of an archive reuses the source row. Without resetting
                 # ``timelapse_path`` _scan_for_timelapse_with_retries early-returns
@@ -3658,7 +3658,7 @@ async def on_print_start(printer_id: int, data: dict):
             # shows a different, freshly-started print: near-0% progress on an
             # archive far too old to still be at 0%. Unknown progress (printer
             # not connected) never cancels — resuming is the safe default.
-            archive_age = datetime.now(timezone.utc) - existing_archive.created_at.replace(tzinfo=timezone.utc)
+            archive_age = datetime.now(UTC) - existing_archive.created_at.replace(tzinfo=UTC)
             live_status = printer_manager.get_status(printer_id)
             live_progress = getattr(live_status, "progress", None) if live_status else None
             looks_stale = (
@@ -4080,7 +4080,7 @@ async def on_print_start(printer_id: int, data: dict):
                     print_name=print_name,
                     print_time_seconds=fallback_print_time,
                     status="printing",
-                    started_at=datetime.now(timezone.utc),
+                    started_at=datetime.now(UTC),
                     subtask_id=subtask_id,
                     filament_type=mqtt_filament_meta.get("filament_type"),
                     filament_color=mqtt_filament_meta.get("filament_color"),
@@ -5115,7 +5115,7 @@ _QUEUE_STUCK_IGNORE_AMS_BUSY = os.environ.get("BAMBUDDY_QUEUE_STUCK_IGNORE_AMS_B
 async def reconcile_stuck_queue_items(printer_id: int) -> int:
     """Flip queue items stuck in 'printing' back to 'pending' when the printer
     is demonstrably idle and the item is old enough. Returns requeued count."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from backend.app.models.print_queue import PrintQueueItem
     from backend.app.services import printer_lifecycle
@@ -5132,7 +5132,7 @@ async def reconcile_stuck_queue_items(printer_id: int) -> int:
     if not verdict:
         return 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     requeued = 0
     async with async_session() as db:
         result = await db.execute(
@@ -5146,7 +5146,7 @@ async def reconcile_stuck_queue_items(printer_id: int) -> int:
             if started is None:
                 continue
             if started.tzinfo is None:
-                started = started.replace(tzinfo=timezone.utc)
+                started = started.replace(tzinfo=UTC)
             age = (now - started).total_seconds()
             if age < _QUEUE_STUCK_REQUEUE_AFTER_S:
                 continue
@@ -6802,7 +6802,7 @@ async def on_print_complete(printer_id: int, data: dict):
                 # "cancelled" so it matches the queue schema Literal.
                 if queue_status == "aborted":
                     queue_status = "cancelled"
-                extra = {"completed_at": datetime.now(timezone.utc)}
+                extra = {"completed_at": datetime.now(UTC)}
                 if queue_status == "failed" and not item.error_message:
                     extra["error_message"] = _format_hms_error_summary(data.get("hms_errors") or [])
                 # lifecycle-polarity: CAS on ("printing",). commit=False keeps
@@ -6881,7 +6881,7 @@ async def on_print_complete(printer_id: int, data: dict):
                     pending_count = count_result.scalar() or 0
 
                     if pending_count == 0:
-                        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
                         completed_result = await db.execute(
                             select(sa_func.count(PrintQueueItem.id)).where(
                                 PrintQueueItem.status.in_(["completed", "failed", "skipped"]),
@@ -7077,7 +7077,7 @@ async def on_print_complete(printer_id: int, data: dict):
                     # we look for recently-completed items (within the last 5 minutes).
                     no_archive_data: dict | None = None
                     try:
-                        cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+                        cutoff = datetime.now(UTC) - timedelta(minutes=5)
                         q_result = await db.execute(
                             select(PrintQueueItem)
                             .where(PrintQueueItem.printer_id == printer_id)
@@ -7173,9 +7173,7 @@ async def on_print_complete(printer_id: int, data: dict):
             await service.update_archive_status(
                 archive_id,
                 status=status,
-                completed_at=(
-                    datetime.now(timezone.utc) if status in ("completed", "failed", "aborted", "cancelled") else None
-                ),
+                completed_at=(datetime.now(UTC) if status in ("completed", "failed", "aborted", "cancelled") else None),
                 failure_reason=failure_reason,
             )
             logger.info(
@@ -7562,7 +7560,7 @@ async def on_print_complete(printer_id: int, data: dict):
                 if in_flight is not None:
                     try:
                         await asyncio.wait_for(in_flight.wait(), timeout=_FINISH_PHOTO_PRODUCER_WAIT_SECONDS)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         logger.warning(
                             "[PHOTO-BG] timed out waiting for stage-22 producer for printer %s — proceeding to fallback",
                             printer_id,
@@ -8199,7 +8197,7 @@ async def record_ams_history():
                         if humidity is not None and humidity > effective_humidity_threshold:
                             cooldown_key = f"{printer.id}:{ams_id}:humidity"
                             last_alarm = _ams_alarm_cooldown.get(cooldown_key)
-                            now = datetime.now(timezone.utc)
+                            now = datetime.now(UTC)
                             if (
                                 last_alarm is None
                                 or (now - last_alarm).total_seconds() >= AMS_ALARM_COOLDOWN_MINUTES * 60
@@ -8235,7 +8233,7 @@ async def record_ams_history():
                         if temperature is not None and temperature > temp_threshold:
                             cooldown_key = f"{printer.id}:{ams_id}:temperature"
                             last_alarm = _ams_alarm_cooldown.get(cooldown_key)
-                            now = datetime.now(timezone.utc)
+                            now = datetime.now(UTC)
                             if (
                                 last_alarm is None
                                 or (now - last_alarm).total_seconds() >= AMS_ALARM_COOLDOWN_MINUTES * 60
@@ -8466,7 +8464,7 @@ async def track_printer_runtime():
                 )
                 printer_rows = result.all()
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             updated_count = 0
 
             # Update each printer in its own short session to minimise write-lock
@@ -8487,7 +8485,7 @@ async def track_printer_runtime():
 
                 if state.state == "RUNNING":
                     if last_update:
-                        lu = last_update if last_update.tzinfo else last_update.replace(tzinfo=timezone.utc)
+                        lu = last_update if last_update.tzinfo else last_update.replace(tzinfo=UTC)
                         elapsed = (now - lu).total_seconds()
                         if elapsed > 0:
                             new_runtime = runtime_secs + int(elapsed)
@@ -8825,7 +8823,7 @@ async def _run_auth_cleanup() -> None:
     from backend.app.models.auth_ephemeral import AuthEphemeralToken, AuthRateLimitEvent
     from backend.app.models.user_totp import UserTOTP
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Remove unconfirmed (is_enabled=False) TOTP records older than 1 hour.
     try:

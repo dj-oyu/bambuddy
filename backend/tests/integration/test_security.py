@@ -15,7 +15,7 @@ from __future__ import annotations
 import base64
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt as pyjwt
@@ -366,7 +366,7 @@ class TestJWTRevocation:
         from backend.app.core.auth import is_jti_revoked, revoke_jti
 
         test_jti = secrets.token_urlsafe(16)
-        expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
 
         assert not await is_jti_revoked(test_jti)
         await revoke_jti(test_jti, expires, username="testuser")
@@ -379,7 +379,7 @@ class TestJWTRevocation:
         from backend.app.core.auth import is_jti_revoked, revoke_jti
 
         jti = secrets.token_urlsafe(16)
-        expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
         await revoke_jti(jti, expires)
         await revoke_jti(jti, expires)  # must not raise
         assert await is_jti_revoked(jti)
@@ -396,7 +396,7 @@ class TestJWTRevocation:
         """_is_token_fresh returns False when iat predates password_changed_at."""
         from backend.app.core.auth import _is_token_fresh
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user = MagicMock()
         user.password_changed_at = now
         old_iat = (now - timedelta(hours=1)).timestamp()
@@ -406,7 +406,7 @@ class TestJWTRevocation:
         """_is_token_fresh returns True when iat is after password_changed_at."""
         from backend.app.core.auth import _is_token_fresh
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user = MagicMock()
         user.password_changed_at = now - timedelta(hours=1)
         recent_iat = now.timestamp()
@@ -457,7 +457,7 @@ class TestOIDCExchangeReplay:
                 token=exchange_token,
                 token_type="oidc_exchange",
                 username="oidc_replay_user",
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -557,7 +557,7 @@ class TestOIDCEmailVerified:
                 provider_id=provider_id,
                 nonce=nonce,
                 code_verifier=code_verifier,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
             )
         )
         await db_session.commit()
@@ -659,7 +659,7 @@ class TestEmailOTPMaxAttempts:
                 token_type="email_otp_setup",
                 username="otp_max_admin",
                 nonce=_pwd_ctx.hash(setup_code),
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         await db_session.commit()
@@ -682,7 +682,7 @@ class TestEmailOTPMaxAttempts:
             code_hash=_pwd_ctx.hash(real_code),
             attempts=0,
             used=False,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
         )
         db_session.add(otp)
         await db_session.commit()
@@ -2824,7 +2824,7 @@ class TestTOTPDecryptionBroken:
             token=raw_token,
             token_type="pre_auth",
             username=admin_username,
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            expires_at=datetime.now(UTC) + timedelta(minutes=5),
         )
         db_session.add(ephemeral)
         await db_session.commit()

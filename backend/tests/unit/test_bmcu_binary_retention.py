@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
@@ -18,7 +18,7 @@ from backend.app.services.bmcu_binary.storage_keys import u64_decimal
 
 
 def _now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 @pytest_asyncio.fixture

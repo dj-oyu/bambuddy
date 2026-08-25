@@ -5,7 +5,7 @@ Handles scheduled and on-demand backups of K-profiles and cloud profiles to GitH
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import desc, or_, select
@@ -141,19 +141,19 @@ class GitHubBackupService:
             )
             configs = result.scalars().all()
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             for config in configs:
                 # Handle both naive (from DB) and aware datetimes
                 next_run = config.next_scheduled_run
                 if next_run and next_run.tzinfo is None:
-                    next_run = next_run.replace(tzinfo=timezone.utc)
+                    next_run = next_run.replace(tzinfo=UTC)
                 if next_run and next_run <= now:
                     logger.info("Running scheduled backup for config %s", config.id)
                     await self.run_backup(config.id, trigger="scheduled")
 
     def calculate_next_run(self, schedule_type: str, from_time: datetime | None = None) -> datetime:
         """Calculate the next scheduled run time."""
-        now = from_time or datetime.now(timezone.utc)
+        now = from_time or datetime.now(UTC)
         interval = SCHEDULE_INTERVALS.get(schedule_type, SCHEDULE_INTERVALS["daily"])
         return now + timedelta(seconds=interval)
 
@@ -236,11 +236,11 @@ class GitHubBackupService:
                         config_id=config_id,
                         status="failed",
                         trigger=trigger,
-                        completed_at=datetime.now(timezone.utc),
+                        completed_at=datetime.now(UTC),
                         error_message=abort_message,
                     )
                     db.add(log)
-                    config.last_backup_at = datetime.now(timezone.utc)
+                    config.last_backup_at = datetime.now(UTC)
                     config.last_backup_status = "failed"
                     config.last_backup_message = abort_message
                     if config.schedule_enabled:
@@ -274,9 +274,9 @@ class GitHubBackupService:
                     if not backup_data:
                         # No data to backup
                         log.status = "skipped"
-                        log.completed_at = datetime.now(timezone.utc)
+                        log.completed_at = datetime.now(UTC)
                         log.error_message = "No data to backup"
-                        config.last_backup_at = datetime.now(timezone.utc)
+                        config.last_backup_at = datetime.now(UTC)
                         config.last_backup_status = "skipped"
                         config.last_backup_message = "No data to backup"
                         if config.schedule_enabled:
@@ -296,12 +296,12 @@ class GitHubBackupService:
 
                     # Update log and config
                     log.status = push_result["status"]
-                    log.completed_at = datetime.now(timezone.utc)
+                    log.completed_at = datetime.now(UTC)
                     log.commit_sha = push_result.get("commit_sha")
                     log.files_changed = push_result.get("files_changed", 0)
                     log.error_message = push_result.get("error")
 
-                    config.last_backup_at = datetime.now(timezone.utc)
+                    config.last_backup_at = datetime.now(UTC)
                     config.last_backup_status = push_result["status"]
                     config.last_backup_message = push_result.get("message", "")
                     config.last_backup_commit_sha = push_result.get("commit_sha")
@@ -322,10 +322,10 @@ class GitHubBackupService:
                 except Exception as e:
                     logger.exception("Backup failed")
                     log.status = "failed"
-                    log.completed_at = datetime.now(timezone.utc)
+                    log.completed_at = datetime.now(UTC)
                     log.error_message = str(e)
 
-                    config.last_backup_at = datetime.now(timezone.utc)
+                    config.last_backup_at = datetime.now(UTC)
                     config.last_backup_status = "failed"
                     config.last_backup_message = str(e)
 

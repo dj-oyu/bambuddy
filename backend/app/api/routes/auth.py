@@ -1,7 +1,7 @@
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt as _jwt
@@ -771,7 +771,7 @@ async def logout(
             exp = verified.get("exp")
             username: str | None = verified.get("sub")
             if jti and exp:
-                expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+                expires_at = datetime.fromtimestamp(exp, tz=UTC)
                 try:
                     await revoke_jti(jti, expires_at, username)
                 except Exception as exc:  # SEC-AUTH-EXC: JTI-revoke failure on logout is logged only; logout removes access, never grants it (token stays valid until natural expiry — degraded but never escalation)
@@ -1068,7 +1068,7 @@ async def forgot_password(
     # Apply unconditionally (before the user lookup) so unknown emails are also
     # throttled — this prevents both flooding and timing-based enumeration.
     identifier = request.email.lower()
-    cutoff = datetime.now(timezone.utc) - _PWD_RESET_SEND_WINDOW
+    cutoff = datetime.now(UTC) - _PWD_RESET_SEND_WINDOW
     rate_result = await db.execute(
         select(AuthRateLimitEvent).where(
             AuthRateLimitEvent.username == identifier,
@@ -1123,7 +1123,7 @@ async def forgot_password(
             # the reset email (Nit7: don't waste the user's quota for LDAP/OIDC no-ops).
             db.add(AuthRateLimitEvent(username=identifier, event_type=EventType.PASSWORD_RESET_SEND))
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             # Prune any outstanding reset tokens for this user before issuing a new one.
             await db.execute(
                 delete(AuthEphemeralToken).where(
@@ -1181,7 +1181,7 @@ async def forgot_password_confirm(request: ForgotPasswordConfirmRequest, db: Asy
     the new password.  Expired or already-used tokens are silently rejected with
     the same response to prevent oracle attacks.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         delete(AuthEphemeralToken)
         .where(
@@ -1198,7 +1198,7 @@ async def forgot_password_confirm(request: ForgotPasswordConfirmRequest, db: Asy
     username, expires_at = row
     # SQLite returns naive datetimes; treat them as UTC.
     if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
+        expires_at = expires_at.replace(tzinfo=UTC)
     if now > expires_at:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired password reset token")
 
@@ -1274,7 +1274,7 @@ async def reset_user_password(
     try:
         # H-B: Issue a single-use reset link instead of generating a plaintext password.
         # The admin never sees the credential — the user sets their own password.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await db.execute(
             delete(AuthEphemeralToken).where(
                 AuthEphemeralToken.token_type == TokenType.PASSWORD_RESET,

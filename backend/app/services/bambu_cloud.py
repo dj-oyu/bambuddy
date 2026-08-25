@@ -8,7 +8,7 @@ import hashlib
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -326,7 +326,7 @@ class BambuCloudService:
         """
         if not self.access_token:
             return False
-        return not (self.token_expiry and datetime.now(timezone.utc) > self.token_expiry)
+        return not (self.token_expiry and datetime.now(UTC) > self.token_expiry)
 
     async def _note_response(self, response: httpx.Response) -> bool:
         """Record Bambu's genuine token-expiry 401 as "this credential is dead".

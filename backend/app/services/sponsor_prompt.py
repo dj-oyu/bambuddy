@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -75,10 +75,10 @@ async def _get_or_create_state(db: AsyncSession, user_id: int | None) -> Sponsor
 def _within_cooldown(state: SponsorToastState) -> bool:
     if state.last_shown_at is None:
         return False
-    cutoff = datetime.now(timezone.utc) - timedelta(days=COOLDOWN_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=COOLDOWN_DAYS)
     last = state.last_shown_at
     if last.tzinfo is None:
-        last = last.replace(tzinfo=timezone.utc)
+        last = last.replace(tzinfo=UTC)
     return last >= cutoff
 
 
@@ -119,8 +119,8 @@ async def _check_anniversary(
     if anchor is None:
         return None
     if anchor.tzinfo is None:
-        anchor = anchor.replace(tzinfo=timezone.utc)
-    if datetime.now(timezone.utc) - anchor < timedelta(days=365 * ANNIVERSARY_YEARS):
+        anchor = anchor.replace(tzinfo=UTC)
+    if datetime.now(UTC) - anchor < timedelta(days=365 * ANNIVERSARY_YEARS):
         return None
     return Trigger(milestone=milestone, family="anniversary")
 
@@ -252,5 +252,5 @@ async def dismiss(db: AsyncSession, user_id: int | None, milestone: str) -> None
         if milestone not in seen:
             seen.add(milestone)
             state.milestones_seen = json.dumps(sorted(seen))
-    state.last_shown_at = datetime.now(timezone.utc)
+    state.last_shown_at = datetime.now(UTC)
     await db.flush()

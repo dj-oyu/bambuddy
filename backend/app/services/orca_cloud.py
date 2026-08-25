@@ -37,7 +37,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -177,7 +177,7 @@ class OrcaCloudService:
             # No expiry recorded — pessimistically treat as expired so the
             # caller refreshes before use.
             return False
-        return datetime.now(timezone.utc) + _REFRESH_LEEWAY < self.token_expiry
+        return datetime.now(UTC) + _REFRESH_LEEWAY < self.token_expiry
 
     def set_tokens(
         self,
@@ -193,7 +193,7 @@ class OrcaCloudService:
         # naive datetimes from a ``TIMESTAMP WITHOUT TIME ZONE`` column —
         # we treat naive values as UTC since that's how we stored them.
         if expires_at is not None and expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
+            expires_at = expires_at.replace(tzinfo=UTC)
         self.token_expiry = expires_at
 
     def clear_tokens(self) -> None:
@@ -345,7 +345,7 @@ class OrcaCloudService:
         if refresh:
             self.refresh_token = refresh
         if isinstance(expires_in, (int, float)) and expires_in > 0:
-            self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
+            self.token_expiry = datetime.now(UTC) + timedelta(seconds=int(expires_in))
         else:
             self.token_expiry = None
 

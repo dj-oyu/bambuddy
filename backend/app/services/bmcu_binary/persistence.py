@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 
@@ -88,7 +88,7 @@ _MERGE_LOSS_RANGES = os.getenv("BAMBUDDY_BMCU_MERGE_LOSS_RANGES", "1") != "0"
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class BinaryPersistence:

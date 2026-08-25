@@ -24,7 +24,7 @@ from __future__ import annotations
 import secrets
 from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,7 +114,7 @@ def _parse_token(token: str) -> tuple[str, str] | None:
 def _is_expired(record: LongLivedToken, now: datetime) -> bool:
     expires = record.expires_at
     if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
+        expires = expires.replace(tzinfo=UTC)
     return expires <= now
 
 
@@ -145,7 +145,7 @@ async def create_token(
         raise ValueError("name must be 100 chars or fewer")
 
     plaintext, lookup_prefix, hash_input = _generate_token_parts()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     record = LongLivedToken(
         user_id=user_id,
         name=name,
@@ -183,7 +183,7 @@ async def verify_token(
     lookup_prefix, full_token = parsed
     scopes = (scope,) if isinstance(scope, str) else tuple(scope)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         select(LongLivedToken).where(
             LongLivedToken.lookup_prefix == lookup_prefix,
@@ -207,7 +207,7 @@ async def verify_token(
 
 
 def _coerce_utc(dt: datetime) -> datetime:
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt
 
 
 async def list_user_tokens(db: AsyncSession, user_id: int) -> list[LongLivedToken]:
@@ -238,6 +238,6 @@ async def revoke_token(db: AsyncSession, token_id: int) -> bool:
     record = result.scalar_one_or_none()
     if record is None or record.revoked_at is not None:
         return False
-    record.revoked_at = datetime.now(timezone.utc)
+    record.revoked_at = datetime.now(UTC)
     await db.commit()
     return True

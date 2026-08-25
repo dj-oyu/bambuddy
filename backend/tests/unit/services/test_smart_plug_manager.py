@@ -5,7 +5,7 @@ that were identified as common regression points.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -514,7 +514,7 @@ class TestAutoOffPersistent:
         mock_plug.auto_off_persistent = False
         mock_plug.auto_off_executed = False
         mock_plug.auto_off_pending = True
-        mock_plug.auto_off_pending_since = datetime.now(timezone.utc)
+        mock_plug.auto_off_pending_since = datetime.now(UTC)
 
         with patch("backend.app.core.database.async_session") as mock_session_ctx:
             mock_db = AsyncMock()
@@ -542,7 +542,7 @@ class TestAutoOffPersistent:
         mock_plug.auto_off_persistent = True
         mock_plug.auto_off_executed = False
         mock_plug.auto_off_pending = True
-        mock_plug.auto_off_pending_since = datetime.now(timezone.utc)
+        mock_plug.auto_off_pending_since = datetime.now(UTC)
 
         with patch("backend.app.core.database.async_session") as mock_session_ctx:
             mock_db = AsyncMock()
@@ -666,7 +666,7 @@ class TestScheduleLoop:
             mock_now = MagicMock()
             mock_now.strftime.return_value = "08:00"
             mock_datetime.now.return_value = mock_now
-            mock_datetime.utcnow.return_value = datetime.now(timezone.utc)
+            mock_datetime.utcnow.return_value = datetime.now(UTC)
 
             # Set up async session mock
             mock_db = AsyncMock()
@@ -707,7 +707,7 @@ class TestScheduleLoop:
             mock_now = MagicMock()
             mock_now.strftime.return_value = "22:00"
             mock_datetime.now.return_value = mock_now
-            mock_datetime.utcnow.return_value = datetime.now(timezone.utc)
+            mock_datetime.utcnow.return_value = datetime.now(UTC)
 
             # Set up async session mock
             mock_db = AsyncMock()
@@ -778,7 +778,7 @@ class TestPendingAutoOffPersistence:
         mock_plug.password = None
         mock_plug.printer_id = 1
         mock_plug.auto_off_pending = True
-        mock_plug.auto_off_pending_since = datetime.now(timezone.utc)
+        mock_plug.auto_off_pending_since = datetime.now(UTC)
         mock_plug.off_delay_mode = "temperature"
         mock_plug.off_temp_threshold = 70
 
@@ -809,7 +809,7 @@ class TestPendingAutoOffPersistence:
         mock_plug.password = None
         mock_plug.printer_id = 1
         mock_plug.auto_off_pending = True
-        mock_plug.auto_off_pending_since = datetime.now(timezone.utc)
+        mock_plug.auto_off_pending_since = datetime.now(UTC)
         mock_plug.off_delay_mode = "time"
 
         with (
@@ -843,7 +843,7 @@ class TestPendingAutoOffPersistence:
         mock_plug.name = "Test Plug"
         mock_plug.printer_id = 1
         mock_plug.auto_off_pending = True
-        mock_plug.auto_off_pending_since = datetime.now(timezone.utc)
+        mock_plug.auto_off_pending_since = datetime.now(UTC)
         mock_plug.off_delay_mode = "time"
 
         with (

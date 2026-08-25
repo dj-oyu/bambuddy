@@ -5,6 +5,8 @@ import (only valid rows persisted, atomically), and Color Catalog resolution
 of brand + color_name → rgba.
 """
 
+from datetime import UTC
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -52,7 +54,7 @@ class TestInventoryCsvExport:
                 brand="Archived",
                 color_name="B",
                 rgba="000000ff",
-                archived_at=datetime.now(timezone.utc),
+                archived_at=datetime.now(UTC),
             )
         )
         await db_session.commit()
@@ -387,7 +389,7 @@ class TestInventoryCsvUsageColumns:
                 rgba="ffffffff",
                 label_weight=1000,
                 weight_used=300,
-                last_used=datetime(2026, 6, 1, 12, 30, tzinfo=timezone.utc),
+                last_used=datetime(2026, 6, 1, 12, 30, tzinfo=UTC),
             )
         )
         await db_session.commit()

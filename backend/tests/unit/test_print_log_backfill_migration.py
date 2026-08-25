@@ -24,7 +24,7 @@ double-count.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import text
@@ -133,7 +133,7 @@ async def engine_with_legacy_data():
         # Three log entries for cube.3mf (two early reprints + a latest run),
         # one for gear.3mf. All with archive_id and cost NULL — exactly the
         # state the column-add migration leaves on pre-#1378 installs.
-        base = datetime.now(timezone.utc) - timedelta(days=10)
+        base = datetime.now(UTC) - timedelta(days=10)
         for i, (delta_days, status, print_name) in enumerate(
             [
                 (0, "failed", "cube.3mf"),

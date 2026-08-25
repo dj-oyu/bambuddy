@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import UTC
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -1137,7 +1138,7 @@ async def export_spools_csv(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_READ),
 ):
     """Export the active inventory as CSV (same schema the importer accepts)."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     query = select(Spool).where(Spool.archived_at.is_(None)).order_by(Spool.material, Spool.brand, Spool.color_name)
     result = await db.execute(query)
@@ -1145,7 +1146,7 @@ async def export_spools_csv(
     content = serialize(spools)
     # Date-stamp the filename so repeat exports don't overwrite each other in
     # the browser's default download folder.
-    filename = f"bambuddy_inventory_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+    filename = f"bambuddy_inventory_{datetime.now(UTC).strftime('%Y%m%d')}.csv"
     return Response(
         content=content,
         media_type="text/csv",
@@ -1369,14 +1370,14 @@ async def archive_spool(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_UPDATE),
 ):
     """Soft-delete a spool by setting archived_at."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     result = await db.execute(select(Spool).where(Spool.id == spool_id))
     spool = result.scalar_one_or_none()
     if not spool:
         raise HTTPException(404, "Spool not found")
 
-    spool.archived_at = datetime.now(timezone.utc)
+    spool.archived_at = datetime.now(UTC)
     await db.commit()
     result = await db.execute(select(Spool).options(selectinload(Spool.k_profiles)).where(Spool.id == spool_id))
     await ws_manager.broadcast({"type": "inventory_changed"})
@@ -1536,7 +1537,7 @@ async def bulk_archive_spools(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.INVENTORY_UPDATE),
 ):
     """Soft-archive every listed spool (sets archived_at). Already-archived spools are left alone and counted in already_archived."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     result = await db.execute(select(Spool).where(Spool.id.in_(payload.ids)))
     spools = list(result.scalars().all())
@@ -1544,7 +1545,7 @@ async def bulk_archive_spools(
     not_found = [sid for sid in payload.ids if sid not in found_ids]
     archived: list[int] = []
     already: list[int] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for spool in spools:
         if spool.archived_at is not None:
             already.append(spool.id)
@@ -2389,7 +2390,7 @@ async def update_shopping_list_status(
     ),
 ):
     """Update the purchase status of a shopping list item."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from backend.app.models.shopping_list import ShoppingListItem
 
@@ -2403,7 +2404,7 @@ async def update_shopping_list_status(
 
     item.status = data.status
     if data.status in ("purchased", "received") and item.purchased_at is None:
-        item.purchased_at = datetime.now(timezone.utc)
+        item.purchased_at = datetime.now(UTC)
     elif data.status == "pending":
         item.purchased_at = None
 

@@ -9,7 +9,7 @@ Endpoints under test:
 The Spoolman-mode equivalents live in test_spoolman_inventory_api.py.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -180,7 +180,7 @@ class TestBulkArchiveRestore:
     @pytest.mark.integration
     async def test_bulk_archive_skips_already_archived(self, async_client: AsyncClient, spool_factory, db_session):
         active = await spool_factory()
-        already = await spool_factory(archived_at=datetime.now(timezone.utc))
+        already = await spool_factory(archived_at=datetime.now(UTC))
 
         resp = await async_client.post(
             "/api/v1/inventory/spools/bulk-archive",
@@ -195,7 +195,7 @@ class TestBulkArchiveRestore:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_bulk_restore_clears_archived_at(self, async_client: AsyncClient, spool_factory, db_session):
-        archived = await spool_factory(archived_at=datetime.now(timezone.utc))
+        archived = await spool_factory(archived_at=datetime.now(UTC))
         active = await spool_factory(archived_at=None)
 
         resp = await async_client.post(

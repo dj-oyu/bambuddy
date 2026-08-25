@@ -7,7 +7,7 @@ ships with FK enforcement off — without explicit DELETEs in the endpoint,
 orphan rows would block SSO re-login and leak MFA secrets.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -158,7 +158,7 @@ class TestDeleteUserCleansAuthRows:
                 lookup_prefix="abcd1234",
                 secret_hash="$2b$12$dummybcrypthashabcdefghij1234567890",
                 scope="camera_stream",
-                expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
             )
         )
         await db_session.commit()
@@ -197,7 +197,7 @@ class TestDeleteUserCleansAuthRows:
                 UserOTPCode(
                     user_id=user_id,
                     code_hash="$pbkdf2-sha256$dummy",
-                    expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                    expires_at=datetime.now(UTC) + timedelta(minutes=10),
                 )
             )
         await db_session.commit()
@@ -257,7 +257,7 @@ class TestDeleteUserCleansAuthRows:
             UserOTPCode(
                 user_id=user_id,
                 code_hash="$pbkdf2-sha256$dummy",
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
             )
         )
         db_session.add(
@@ -267,7 +267,7 @@ class TestDeleteUserCleansAuthRows:
                 lookup_prefix="zz999999",
                 secret_hash="$2b$12$dummybcrypthashabcdefghij1234567890",
                 scope="camera_stream",
-                expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
             )
         )
         await db_session.commit()
