@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum as PyEnum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint, func
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from backend.app.models.user import User
 
 
-class TransactionType(str, PyEnum):
+class TransactionType(StrEnum):
     PRINT_CHARGE = "print_charge"
     DEPOSIT = "deposit"
     WITHDRAW = "withdraw"
