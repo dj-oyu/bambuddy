@@ -94,6 +94,11 @@ Both docs repos can be edited directly in the browser, no `git clone` required:
    git remote add upstream https://github.com/maziggy/bambuddy.git
    ```
 
+`upstream` is a fetch-and-merge source only. Pull requests must target this
+fork's `main` branch; never submit a PR to `maziggy/bambuddy`. Before creating a
+PR with GitHub CLI, verify that `gh repo set-default --view` reports
+`dj-oyu/bambuddy`, then run `gh pr create` without an explicit `--repo`.
+
 ## Development Setup
 
 ### Prerequisites
@@ -339,6 +344,13 @@ pytest backend/tests/ -v           # All tests
 pytest backend/tests/unit/         # Unit tests only
 pytest backend/tests/ --cov=backend  # With coverage
 ```
+
+`conftest.py` redirects `DATABASE_URL` to a throwaway SQLite file before any app
+module is imported, and aborts the run if that redirect did not take. Your `.env`
+is ignored for the duration, so the suite cannot reach the database you develop
+against — it exercises code paths that open their own sessions, and some of those
+write. Don't undo that override to "test against real data": point `DATABASE_URL`
+at a copy instead.
 
 **Frontend** — tests use [Vitest](https://vitest.dev/) and are in `frontend/src/__tests__/`:
 

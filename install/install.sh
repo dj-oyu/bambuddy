@@ -222,35 +222,25 @@ detect_os() {
 }
 
 detect_python() {
-    # Try python3 first, then python
-    if command -v python3 &>/dev/null; then
-        PYTHON_CMD="python3"
-    elif command -v python &>/dev/null; then
-        local version
-        version=$(python --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1)
-        if [[ "$version" -ge 3 ]]; then
-            PYTHON_CMD="python"
+    local candidate version major minor
+    for candidate in python3.14 python3.13 python3.12 python3.11 python3 python; do
+        if ! command -v "$candidate" &>/dev/null; then
+            continue
         fi
-    fi
 
-    if [[ -z "$PYTHON_CMD" ]]; then
-        return 1
-    fi
+        version=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        major=$(echo "$version" | cut -d'.' -f1)
+        minor=$(echo "$version" | cut -d'.' -f2)
 
-    # Check version >= 3.10
-    local version
-    version=$($PYTHON_CMD -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    local major minor
-    major=$(echo "$version" | cut -d'.' -f1)
-    minor=$(echo "$version" | cut -d'.' -f2)
+        if [[ "$major" -gt 3 ]] || { [[ "$major" -eq 3 ]] && [[ "$minor" -ge 11 ]]; }; then
+            PYTHON_CMD="$candidate"
+            log_success "Found Python $version"
+            return 0
+        fi
+    done
 
-    if [[ "$major" -lt 3 ]] || { [[ "$major" -eq 3 ]] && [[ "$minor" -lt 10 ]]; }; then
-        log_warn "Python $version found, but 3.10 or newer is required"
-        return 1
-    fi
-
-    log_success "Found Python $version"
-    return 0
+    log_warn "Python 3.11 or newer is required"
+    return 1
 }
 
 detect_timezone() {
@@ -958,7 +948,7 @@ main() {
 
     # Check/install Python
     if ! detect_python; then
-        log_info "Python 3.10+ not found, will install..."
+        log_info "Python 3.11+ not found, will install..."
     fi
 
     # Gather configuration
