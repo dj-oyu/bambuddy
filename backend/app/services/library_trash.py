@@ -452,6 +452,10 @@ async def release_queue_references(db: AsyncSession, file_ids: list[int]) -> int
             await db.execute(
                 PrintQueueItem.__table__.update()
                 .where(PrintQueueItem.id.in_(item_ids))
+                # Recheck the selected states in the UPDATE: a concurrent
+                # dispatch/cancel must not be clobbered by a stale file-delete
+                # sweep.
+                .where(PrintQueueItem.status.in_(("pending", "skipped")))
                 .values(
                     status="cancelled",
                     completed_at=now,

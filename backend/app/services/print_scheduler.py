@@ -790,8 +790,23 @@ class PrintScheduler:
                     if now - since < _STRANDED_PRINTING_GRACE_SECONDS:
                         continue
 
-                    item.status = status
-                    item.completed_at = datetime.now(UTC)
+                    # The selection above is only a snapshot. A completion or
+                    # cancellation can win while this sweep awaits, so close
+                    # the row with the lifecycle CAS rather than overwriting a
+                    # newer terminal state from Python.
+                    result = await printer_lifecycle.transition(
+                        db,
+                        item.id,
+                        to_status=status,
+                        from_states=("printing",),
+                        reason=f"stranded printer state {getattr(state, 'state', None)}",
+                        caller="print_scheduler._close_stranded_printing_items",
+                        extra={"completed_at": datetime.now(UTC)},
+                        item=item,
+                        commit=False,
+                    )
+                    if not result:
+                        continue
                     closed = True
                     logger.warning(
                         "Queue item %s was still 'printing' after printer %s reported %s for %.0fs — "
@@ -5692,11 +5707,9 @@ class PrintScheduler:
             )
             await db.commit()
         except HTTPException as exc:
-            item.status = "failed"
-            item.error_message = str(exc.detail)
-            item.completed_at = datetime.now(UTC)
-            await db.commit()
-            logger.error("Queue item %s: Budget check failed: %s", item.id, item.error_message)
+            error_message = str(exc.detail)
+            await self._fail_queue_item(db, item, error_message, reason="budget check failed")
+            logger.error("Queue item %s: Budget check failed: %s", item.id, error_message)
             await self._power_off_if_needed(db, item)
             return
 
@@ -6257,10 +6270,9 @@ class PrintScheduler:
             except Exception:
                 pass
             return
-        # Sync the in-memory item so subsequent code that reads item.status /
-        # item.started_at sees the values we just persisted.
-        item.status = "printing"
-        item.started_at = now_utc
+        # transition() already mirrors status and started_at on the in-memory
+        # item. Keep only the dispatch billing identity here; it is not a
+        # lifecycle status write.
         item.billing_run_id = billing_run_id
         if archive is not None:
             archive.billing_run_id = billing_run_id
@@ -6364,13 +6376,16 @@ class PrintScheduler:
                     # how a plate gets levelled on one nozzle and drawn with
                     # another, millimetres above the bed. Nothing has been sent
                     # to the printer yet, so failing here costs only the upload.
-                    item.status = "failed"
-                    item.error_message = (
+                    rack_error_message = (
                         f"Nozzle rack pick no longer fits the printer: {rack_error}. "
                         "Edit the item to choose another position."
                     )
-                    item.completed_at = datetime.now(UTC)
-                    await db.commit()
+                    await self._fail_queue_item(
+                        db,
+                        item,
+                        rack_error_message,
+                        reason="nozzle rack pick no longer fits",
+                    )
                     logger.warning(
                         "Queue item %s: refusing to dispatch to %s — %s (chose %s, rack %s)",
                         item.id,
@@ -6383,7 +6398,7 @@ class PrintScheduler:
                         job_name=filename.replace(".gcode.3mf", "").replace(".3mf", ""),
                         printer_id=printer.id,
                         printer_name=printer.name,
-                        reason=item.error_message,
+                        reason=rack_error_message,
                         db=db,
                     )
                     try:

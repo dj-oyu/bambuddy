@@ -308,6 +308,11 @@ ALLOWED_PQ_STATUS_WRITES = {
     # --- other creators ---
     ("api/routes/library.py", "add_files_to_queue", "ctor", "'pending'"): (1, "CREATE"),
     ("services/virtual_printer/manager.py", "_add_to_print_queue", "ctor", "'pending'"): (1, "CREATE"),
+    # library_trash rechecks the selected pending/skipped states in the bulk
+    # UPDATE, so a concurrent dispatch/cancel cannot be clobbered.
+    ("services/library_trash.py", "release_queue_references", "bulk", "'cancelled'"): (1, "CAS(sql-scoped)"),
+    # Batch clones are fresh rows; pending is their initial lifecycle state.
+    ("services/print_batch.py", "_clone_queue_item", "ctor", "'pending'"): (1, "CREATE"),
     # --- services/printer_lifecycle.py (the facade itself) ---
     # single UPDATE serving both transition() (WHERE status IN + rowcount)
     # and force_transition() (no status predicate); the only writer that is

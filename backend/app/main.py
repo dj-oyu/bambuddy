@@ -2044,7 +2044,7 @@ def _tray_report_is_transient_empty(tray_data: dict) -> bool:
     tray_uuid is all zeros). filament_spoof_engine already ignores the same
     boot flap (_note_identity_mismatch); this closes the asymmetry for slot
     assignments. Fail-safe: keep the assignment. Explicit firmware empty
-    states (9/10) remain authoritative. Disable the protection with
+    states (9/10/26) remain authoritative. Disable the protection with
     BAMBUDDY_KEEP_ASSIGNMENTS_ON_EMPTY_TRAY=0 to restore upstream behaviour.
     """
     if os.environ.get("BAMBUDDY_KEEP_ASSIGNMENTS_ON_EMPTY_TRAY", "1") == "0":
@@ -2053,7 +2053,7 @@ def _tray_report_is_transient_empty(tray_data: dict) -> bool:
         state = int(tray_data.get("state"))
     except (TypeError, ValueError):
         state = None
-    if state in (9, 10):
+    if state in (9, 10, 26):
         return False
     return not (tray_data.get("tray_type") or "").strip()
 
@@ -2091,6 +2091,7 @@ async def on_ams_change(printer_id: int, ams_data: list):
 
     # Snapshot BEFORE any await: if a print is active, skip weight sync later.
     # on_print_complete may pop _active_sessions during our awaits (#880).
+    from backend.app.services import printer_lifecycle
     from backend.app.services.usage_tracker import _active_sessions
 
     _print_active = printer_id in _active_sessions
@@ -2102,7 +2103,7 @@ async def on_ams_change(printer_id: int, ams_data: list):
     # charge the runout segment to anything. Both cleanup passes below consult
     # this; computed once, up front, so neither depends on the other having run.
     _unlink_state = printer_manager.get_status(printer_id)
-    printing_now = (getattr(_unlink_state, "state", "") or "").upper() in ("RUNNING", "PAUSE")
+    printing_now = printer_lifecycle.print_process_active(_unlink_state)
 
     # MQTT relay - publish AMS change
     try:
@@ -2245,14 +2246,14 @@ async def on_ams_change(printer_id: int, ams_data: list):
                     # The "loaded" signal is state == 11 (Bambu's "filament fed to
                     # extruder" code) OR, on firmwares that don't use the state
                     # enum meaningfully, a non-empty tray_type when state is
-                    # NOT one of the firmware's explicit empty signals (9, 10).
+                    # NOT one of the firmware's explicit empty signals (9, 10, 26).
                     # state-only was wrong for firmwares that never set 11 — A1
                     # Mini BMCU 01.07.02.00 and P1S Standard AMS 00.00.06.75 both
                     # always report state=3 — so the replay never fired for them
-                    # (#1322). The state ∉ {9,10} guard keeps the firmware's
+                    # (#1322). The state ∉ {9,10,26} guard keeps the firmware's
                     # explicit "empty" signals authoritative over any stale
                     # tray_type that might survive the relay's auto-clearing.
-                    loaded = cur_state == 11 or (cur_state not in (9, 10) and cur_type.strip())
+                    loaded = cur_state == 11 or (cur_state not in (9, 10, 26) and cur_type.strip())
                     if not fp_type.strip() and loaded and assignment.spool:
                         try:
                             from backend.app.api.routes.inventory import (
