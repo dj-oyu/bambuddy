@@ -196,6 +196,7 @@ def _reject_inconsistent_ams_mapping(
             },
         )
 
+
 def _assert_can_queue_archive(archive: PrintArchive, current_user: User | None) -> None:
     """Gate turning *archive* into a print. Raises rather than returning a verdict.
 
@@ -305,6 +306,8 @@ async def _assert_can_dispatch_batch_sources(db: AsyncSession, batch_id: int, cu
         ).scalar_one_or_none()
         if library_file is not None:
             _assert_can_queue_library_file(library_file, current_user)
+
+
 async def _resolve_source_path(db: AsyncSession, item: PrintQueueItem) -> Path | None:
     """Resolve an existing queue item's source 3MF on disk, or None."""
     if item.archive_id:

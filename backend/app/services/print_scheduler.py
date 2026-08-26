@@ -2861,6 +2861,7 @@ class PrintScheduler:
             await db.commit()
         logger.warning("Queue item %s: dispatch held — %s", item.id, reason_json)
         return False
+
     def _apply_filament_overrides(self, item: PrintQueueItem, filament_reqs: list[dict]) -> None:
         """Rewrite ``filament_reqs`` in place with the item's per-slot overrides.
 
@@ -3110,6 +3111,7 @@ class PrintScheduler:
         (translucent) no longer equals either (#5).
         """
         return color_match.normalize_for_compare(color)
+
     def _color_distance(self, color1: str | None, color2: str | None) -> float | None:
         """Perceptual (CIEDE2000) distance, or None when either colour is unusable.
 

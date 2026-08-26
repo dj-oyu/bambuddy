@@ -387,6 +387,7 @@ class TestCollectSupportInfo:
     @pytest.fixture(autouse=True)
     def mock_expensive_collectors(self):
         """Keep section tests from starting background collectors."""
+
         async def run_inline(func, *args, **kwargs):
             return func(*args, **kwargs)
 
