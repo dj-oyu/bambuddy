@@ -10,8 +10,7 @@ name: Cleanup GHCR untagged images
 # versions of user-owned packages (only org-owned).
 
 on:
-  schedule:
-    - cron: '0 3 * * 0'  # Sundays at 03:00 UTC
+  # Disabled for the fork: the GHCR package belongs to the upstream owner.
   workflow_dispatch:
     inputs:
       dry_run:

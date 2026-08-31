@@ -1,8 +1,7 @@
 name: GitHub Repo Stats
 
 on:
-  schedule:
-    - cron: "0 23 * * *"
+  # Disabled for the fork: the upstream-only stats token is not inherited.
   workflow_dispatch:
 
 permissions:
