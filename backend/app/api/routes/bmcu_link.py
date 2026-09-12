@@ -2,11 +2,12 @@
 
 import json
 import time
+from dataclasses import asdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import Integer, func, select
+from sqlalchemy import Integer, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import RequirePermissionIfAuthEnabled
@@ -15,12 +16,14 @@ from backend.app.core.database import get_db
 from backend.app.core.permissions import Permission
 from backend.app.models.bmcu_binary import (
     BMCUBinaryDevice,
+    BMCUBinaryLink,
     BMCUBinaryLog,
     BMCUBinaryLossRange,
     BMCUBinaryRecord,
 )
 from backend.app.models.user import User
-from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus
+from backend.app.services.bmcu_binary.bmcu_decoder import BMCUEvent, BMCUStatus, decode_semantic, decode_wire_frame
+from backend.app.services.bmcu_binary.constants import MessageType, RecordType
 from backend.app.services.bmcu_binary.provisioning import (
     generate_device_key,
     key_file_path,
@@ -213,41 +216,95 @@ async def events(
     db: AsyncSession = Depends(get_db),
     _: User | None = ReadAccess,
 ):
-    query = select(BMCUBinaryLog).where(BMCUBinaryLog.device_id == device_id)
-    if kind:
-        query = query.where(BMCUBinaryLog.component == kind)
-    rows = (
+    # Page across both streams before loading payloads. BMCU EVENTs are stored
+    # as binary records, separately from the bridge's optional PICO_LOG stream.
+    event_query = select(
+        BMCUBinaryRecord.id.label("id"),
+        BMCUBinaryRecord.server_received_at.label("at"),
+        literal("event").label("kind"),
+    ).where(
+        BMCUBinaryRecord.device_id == device_id,
+        BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
+        BMCUBinaryRecord.bmcu_kind == 3,
+    )
+    log_query = select(
+        BMCUBinaryLog.id.label("id"),
+        BMCUBinaryLog.recorded_at.label("at"),
+        literal("pico_log").label("kind"),
+    ).where(BMCUBinaryLog.device_id == device_id)
+    if kind == "event":
+        stream = event_query.subquery()
+    elif kind == "pico_log":
+        stream = log_query.subquery()
+    elif kind:
+        # Retain support for callers filtering Pico logs by component.
+        stream = log_query.where(BMCUBinaryLog.component == kind).subquery()
+    else:
+        stream = union_all(event_query, log_query).subquery()
+    page = (
         await db.execute(
-            query.order_by(BMCUBinaryLog.recorded_at.desc(), BMCUBinaryLog.id.desc()).offset(offset).limit(limit)
+            select(stream).order_by(stream.c.at.desc(), stream.c.kind, stream.c.id.desc()).offset(offset).limit(limit)
         )
-    ).scalars()
-    return [
-        {
-            "id": row.id,
-            "device_id": row.device_id,
-            "link_id": "monitor",
-            "pico_boot_session": row.pico_boot_id,
-            "bmcu_boot_session": 0,
-            "uart_sequence": 0,
-            "transport_sequence": int(row.transport_sequence),
-            "kind": "pico_log",
-            "kind_id": 20,
-            "protocol": 1,
-            "received_at_us": int(row.uptime_ms) * 1000,
-            "received_at": None,
-            "server_received_at": row.recorded_at,
-            "transaction_id": None,
-            "data": json.dumps(
-                {
-                    "severity": row.severity,
-                    "component": row.component,
-                    "message": row.message,
-                    "detail_hex": row.detail.hex(),
-                }
-            ),
-        }
-        for row in rows
-    ]
+    ).all()
+    records = {}
+    for name, model in (("event", BMCUBinaryRecord), ("pico_log", BMCUBinaryLog)):
+        ids = [item.id for item in page if item.kind == name]
+        if ids:
+            rows = (await db.execute(select(model).where(model.id.in_(ids)))).scalars()
+            records.update({(name, row.id): row for row in rows})
+    links = dict(
+        (
+            await db.execute(
+                select(BMCUBinaryLink.link_index, BMCUBinaryLink.link_id).where(BMCUBinaryLink.device_id == device_id)
+            )
+        ).all()
+    )
+    output = []
+    for item in page:
+        row = records[(item.kind, item.id)]
+        if item.kind == "event":
+            semantic = decode_semantic(decode_wire_frame(row.raw_bmcu_frame)) if row.raw_bmcu_frame else None
+            if isinstance(semantic, BMCUEvent):
+                data = asdict(semantic)
+                data["payload"] = semantic.payload.hex()
+                try:
+                    data["event_name"] = RecordType(semantic.record_type).name.lower()
+                except ValueError:
+                    data["event_name"] = f"record_{semantic.record_type}"
+            else:
+                data = {"raw_frame_hex": (row.raw_bmcu_frame or b"").hex()}
+            link_id = links.get(row.link_index, str(row.link_index))
+            received_at_us = int(row.received_at_us or 0)
+        else:
+            data = {
+                "severity": row.severity,
+                "component": row.component,
+                "message": row.message,
+                "detail_hex": row.detail.hex(),
+            }
+            link_id = "monitor"
+            received_at_us = int(row.uptime_ms) * 1000
+        output.append(
+            {
+                # Separate numeric ID namespaces so React keys cannot collide.
+                "id": -row.id if item.kind == "event" else row.id,
+                "device_id": row.device_id,
+                "link_id": link_id,
+                "pico_boot_session": row.pico_boot_id,
+                "bmcu_boot_session": 0,
+                "uart_sequence": (row.bmcu_sequence or 0) if item.kind == "event" else 0,
+                "transport_sequence": int(row.transport_sequence),
+                "kind": item.kind,
+                "kind_id": 3 if item.kind == "event" else 20,
+                "protocol": (row.bmcu_version or 1) if item.kind == "event" else 1,
+                "received_at_us": received_at_us,
+                "received_at": None,
+                "server_received_at": item.at,
+                "transaction_id": None,
+                "data": json.dumps(data),
+            }
+        )
+    return output
 
 
 @router.get("/devices/{device_id}/transactions")
@@ -257,4 +314,4 @@ async def transactions(device_id: str, _: User | None = ReadAccess):
 
 @router.get("/enums")
 async def enums(_: User | None = ReadAccess):
-    return {"registry_version": 1}
+    return {"registry_version": 1, "kind": {"3": "event", "20": "pico_log"}}
