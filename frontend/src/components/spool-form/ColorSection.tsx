@@ -7,6 +7,21 @@ import { FilamentSwatch } from '../FilamentSwatch';
 import { buildFilamentBackground, FILAMENT_EFFECT_OPTIONS } from '../filamentSwatchHelpers';
 import { getSwatchStyle } from '../../utils/colors';
 
+function toCatalogDisplayColor(
+  color: ColorSectionProps['catalogColors'][number],
+): CatalogDisplayColor {
+  // Keep RRGGBBAA intact. In particular, a transparent catalog entry must
+  // remain distinguishable from opaque black after it is selected (#1545).
+  return {
+    name: color.color_name,
+    hex: color.hex_color.replace(/^#/, '').trim(),
+    manufacturer: color.manufacturer,
+    material: typeof color.material === 'string' ? color.material : undefined,
+    extra_colors: color.extra_colors ?? null,
+    effect_type: color.effect_type ?? null,
+  };
+}
+
 /** Parse user paste from 3dfilamentprofiles.com etc.: split on commas/whitespace,
  *  drop the leading `#`, accept 6/8-char hex, lowercase. Returns null when no
  *  valid stops are found. Mirrors the server-side validator output. */
@@ -130,14 +145,7 @@ export function ColorSection({
     if (brand && !material) {
       const byBrand = catalogColors.filter(c => brandMatches(c.manufacturer));
       if (byBrand.length > 0) {
-        return byBrand.map(c => ({
-          name: c.color_name,
-          hex: c.hex_color.replace('#', '').substring(0, 6),
-          manufacturer: c.manufacturer,
-          material: typeof c.material === 'string' ? c.material : undefined,
-          extra_colors: c.extra_colors ?? null,
-          effect_type: c.effect_type ?? null,
-        }));
+        return byBrand.map(toCatalogDisplayColor);
       }
     }
 
@@ -151,14 +159,7 @@ export function ColorSection({
         c.material?.toLowerCase() === fullMaterial,
       );
       if (exact.length > 0) {
-        return exact.map(c => ({
-          name: c.color_name,
-          hex: c.hex_color.replace('#', '').substring(0, 6),
-          manufacturer: c.manufacturer,
-          material: typeof c.material === 'string' ? c.material : undefined,
-          extra_colors: c.extra_colors ?? null,
-          effect_type: c.effect_type ?? null,
-        }));
+        return exact.map(toCatalogDisplayColor);
       }
       // Try without trailing "+" (e.g. "PLA Silk+" -> "PLA Silk")
       const normalized = fullMaterial.replace(/\+$/, '');
@@ -168,12 +169,7 @@ export function ColorSection({
           c.material?.toLowerCase() === normalized,
         );
         if (normMatch.length > 0) {
-          return normMatch.map(c => ({
-            name: c.color_name,
-            hex: c.hex_color.replace('#', '').substring(0, 6),
-            manufacturer: c.manufacturer,
-            material: typeof c.material === 'string' ? c.material : undefined,
-          }));
+          return normMatch.map(toCatalogDisplayColor);
         }
       }
     }
@@ -185,14 +181,7 @@ export function ColorSection({
         (!c.material || c.material.toLowerCase().startsWith(material)),
       );
       if (byMaterial.length > 0) {
-        return byMaterial.map(c => ({
-          name: c.color_name,
-          hex: c.hex_color.replace('#', '').substring(0, 6),
-          manufacturer: c.manufacturer,
-          material: typeof c.material === 'string' ? c.material : undefined,
-          extra_colors: c.extra_colors ?? null,
-          effect_type: c.effect_type ?? null,
-        }));
+        return byMaterial.map(toCatalogDisplayColor);
       }
     }
 
@@ -213,6 +202,14 @@ export function ColorSection({
 
   // Only show catalog section if there are matched catalog colors
   const showCatalogSection = matchedCatalogColors.length > 0;
+  // Clear is a semantic filament state (transparent), not a manufacturer
+  // colour. Keep it available even when catalog filtering replaces the common
+  // fallback palette, otherwise PETG Translucent/Clear spools cannot be entered.
+  const clearPreset = QUICK_COLORS.find(color => color.name === 'Clear');
+  const clearSearchTerms = ['clear', 'transparent', 'クリア', '透明'];
+  const showClearPreset = !!clearPreset && (
+    !colorSearch || clearSearchTerms.some(term => term.includes(colorSearch.toLowerCase()))
+  );
 
   // Fallback hardcoded colors for search/expand
   const filteredFallbackColors = useMemo(() => {
@@ -326,6 +323,25 @@ export function ColorSection({
             {colorSearch ? t('inventory.searchResults') : `${formData.brand}${formData.material ? ` ${formData.material}` : ''}`}
           </span>
           <div className="flex flex-wrap gap-1.5">
+            {showClearPreset && clearPreset && (
+              <button
+                key="common-clear"
+                type="button"
+                onClick={() => selectColor(clearPreset.hex, clearPreset.name)}
+                className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 hover:z-20 relative group ${
+                  isSelected(clearPreset.hex)
+                    ? 'border-bambu-green ring-1 ring-bambu-green/30 scale-110'
+                    : 'border-bambu-dark-tertiary'
+                }`}
+                style={swatchStyle(clearPreset.hex)}
+                title={`${clearPreset.name} / クリア`}
+                aria-label={`${clearPreset.name} / クリア`}
+              >
+                <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg text-white">
+                  {clearPreset.name}
+                </span>
+              </button>
+            )}
             {catalogSearchResults.map(color => (
               <button
                 key={`${color.hex}-${color.name}-${color.manufacturer ?? ''}`}
@@ -354,7 +370,7 @@ export function ColorSection({
                 </span>
               </button>
             ))}
-            {catalogSearchResults.length === 0 && (
+            {catalogSearchResults.length === 0 && !showClearPreset && (
               <p className="text-sm text-bambu-gray py-1">{t('inventory.noColorsFound')}</p>
             )}
           </div>

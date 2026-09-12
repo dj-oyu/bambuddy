@@ -113,4 +113,42 @@ describe('ColorSection — catalog color picker (#1340)', () => {
     expect(calledKeys).not.toContain('extra_colors');
     expect(calledKeys).not.toContain('effect_type');
   });
+
+  it('keeps Clear available when catalog colors replace the common palette', () => {
+    const { updateField } = renderColorSection({
+      catalogColors: [
+        {
+          manufacturer: 'Bambu Lab',
+          color_name: 'Translucent White',
+          hex_color: '#ffffff',
+          material: 'PETG Translucent',
+        },
+      ],
+      formData: { material: 'PETG', subtype: 'Translucent' },
+    });
+
+    fireEvent.click(screen.getByTitle(/Clear \/ クリア/));
+
+    expect(updateField).toHaveBeenCalledWith('rgba', '00000000');
+    expect(updateField).toHaveBeenCalledWith('color_name', 'Clear');
+  });
+
+  it('preserves alpha when selecting a catalog color', () => {
+    const { updateField } = renderColorSection({
+      catalogColors: [
+        {
+          manufacturer: 'Bambu Lab',
+          color_name: 'Clear',
+          hex_color: '#11223300',
+          material: 'PETG Translucent',
+        },
+      ],
+      formData: { material: 'PETG', subtype: 'Translucent' },
+    });
+
+    const swatch = screen.getByTitle(/Clear \(Bambu Lab/);
+    fireEvent.click(swatch);
+
+    expect(updateField).toHaveBeenCalledWith('rgba', '11223300');
+  });
 });

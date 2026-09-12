@@ -1,9 +1,9 @@
 import type { AMSUnit, AMSTray } from '../../api/client';
 import { getFillBarColor } from '../../utils/amsHelpers';
+import { spoolColorString } from '../../utils/colors';
 
 function trayColorToCSS(color: string | null): string {
-  if (!color) return '#808080';
-  return `#${color.slice(0, 6)}`;
+  return spoolColorString(color);
 }
 
 function isTrayEmpty(tray: AMSTray): boolean {

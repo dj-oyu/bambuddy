@@ -192,7 +192,8 @@ const COLOR_NAME_MAP: Record<string, string> = {
   'chocolate': 'D2691E',
   'charcoal': '36454F',
   'slate': '708090',
-  'transparent': '000000', // Will need special handling
+  'clear': '00000000',
+  'transparent': '00000000',
   'natural': 'F5F5DC',
   'wood': 'DEB887',
 };
@@ -200,6 +201,7 @@ const COLOR_NAME_MAP: Record<string, string> = {
 // Quick-select color presets (common filament colors)
 // Basic colors shown by default
 const QUICK_COLORS_BASIC = [
+  { name: 'Clear', hex: '00000000' },
   { name: 'White', hex: 'FFFFFF' },
   { name: 'Black', hex: '000000' },
   { name: 'Red', hex: 'FF0000' },
@@ -244,6 +246,25 @@ function colorNameToHex(name: string): string | null {
   return COLOR_NAME_MAP[normalized] || null;
 }
 
+/** Return a valid RGB/RGBA value while preserving alpha=00 for Clear. */
+function normalizeColorHex(value: string): string {
+  const cleaned = value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+  if (cleaned.length === 3) return cleaned.split('').map(c => c + c).join('');
+  if (cleaned.length === 6 || cleaned.length === 8) return cleaned;
+  return '';
+}
+
+/** Treat semantic Clear/Transparent catalog entries as transparent even when
+ * their imported HEX value is an opaque placeholder (for example green).
+ */
+function catalogColorHex(entry: { color_name: string; hex_color: string }): string {
+  const name = entry.color_name.trim().toLowerCase();
+  if (name === 'clear' || name === 'transparent' || name === 'クリア' || name === '透明') {
+    return '00000000';
+  }
+  return normalizeColorHex(entry.hex_color);
+}
+
 // Escape regex metacharacters and turn whitespace into ``\s+`` so a literal
 export function ConfigureAmsSlotModal({
   isOpen,
@@ -268,7 +289,7 @@ export function ConfigureAmsSlotModal({
   // here would inherit the very flush ordering this exists to escape.
   const selectedKProfileRef = useRef<KProfile | null>(null);
   selectedKProfileRef.current = selectedKProfile;
-  const [colorHex, setColorHex] = useState<string>(''); // Just the 6-char hex, no alpha
+  const [colorHex, setColorHex] = useState<string>(''); // RRGGBB or RRGGBBAA
   const [colorInput, setColorInput] = useState<string>(''); // User's text input (name or hex)
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -428,7 +449,8 @@ export function ConfigureAmsSlotModal({
       const caliIdx = selectedKProfileRef.current?.slot_id ?? -1;
 
       // Use custom color if set, otherwise use current slot color or default
-      const color = colorHex || slotInfo.trayColor?.slice(0, 6) || 'FFFFFF';
+      const color = normalizeColorHex(colorHex || slotInfo.trayColor || 'FFFFFF') || 'FFFFFF';
+      const rgbaColor = color.length === 8 ? color : `${color}FF`;
 
       // Create the tray_sub_brands from preset name (without printer/nozzle suffix)
       const traySubBrands = presetName.replace(/@.+$/, '').trim();
@@ -558,7 +580,7 @@ export function ConfigureAmsSlotModal({
         tray_info_idx: trayInfoIdx,
         tray_type: trayType,
         tray_sub_brands: traySubBrands,
-        tray_color: color + 'FF', // Add alpha
+        tray_color: rgbaColor,
         nozzle_temp_min: tempMin,
         nozzle_temp_max: tempMax,
         cali_idx: caliIdx,
@@ -1044,7 +1066,7 @@ export function ConfigureAmsSlotModal({
 
       // Pre-populate color from current slot (black is valid — empty slots don't pass trayColor)
       if (slotInfo.trayColor) {
-        const hex = slotInfo.trayColor.slice(0, 6);
+        const hex = normalizeColorHex(slotInfo.trayColor);
         if (hex) {
           setColorHex(hex);
         }
@@ -1149,9 +1171,8 @@ export function ConfigureAmsSlotModal({
 
   // Get display color (custom or slot default)
   // Not sliced to six: a clear tray reports RRGGBB00, and cutting the alpha off
-  // here previewed it as solid black. `colorHex` is the edited form value and is
-  // always six characters, so only the tray fallback ever carries an alpha (#2912).
-  const displayColor = colorHex || slotInfo.trayColor || 'FFFFFF';
+  // here previewed it as solid black. Preserve alpha in both edited and saved colors (#2912).
+  const displayColor = normalizeColorHex(colorHex || slotInfo.trayColor || 'FFFFFF') || 'FFFFFF';
 
   return (
     <div className={`fixed inset-0 z-50 flex ${fullScreen ? '' : 'items-center justify-center'}`}>
@@ -1371,12 +1392,12 @@ export function ConfigureAmsSlotModal({
                           <button
                             key={entry.id}
                             onClick={() => {
-                              const hex = entry.hex_color.replace('#', '').toUpperCase();
+                              const hex = catalogColorHex(entry);
                               setColorHex(hex);
                               setColorInput(entry.color_name);
                             }}
                             className={`h-7 px-2 rounded-md border-2 transition-all flex items-center gap-1.5 ${
-                              colorHex === entry.hex_color.replace('#', '').toUpperCase()
+                              colorHex === catalogColorHex(entry)
                                 ? 'border-bambu-green scale-105'
                                 : 'border-white/20 hover:border-white/40'
                             }`}
@@ -1384,7 +1405,7 @@ export function ConfigureAmsSlotModal({
                           >
                             <span
                               className="w-4 h-4 rounded-full border border-black/20 flex-shrink-0"
-                              style={{ backgroundColor: entry.hex_color }}
+                              style={getSwatchStyle(catalogColorHex(entry))}
                             />
                             <span className="text-xs text-white/80 whitespace-nowrap">{entry.color_name}</span>
                           </button>
@@ -1405,7 +1426,7 @@ export function ConfigureAmsSlotModal({
                             ? 'border-bambu-green scale-110'
                             : 'border-white/20 hover:border-white/40'
                         }`}
-                        style={{ backgroundColor: `#${color.hex}` }}
+                        style={getSwatchStyle(color.hex)}
                         title={color.name}
                       />
                     ))}
@@ -1431,7 +1452,7 @@ export function ConfigureAmsSlotModal({
                               ? 'border-bambu-green scale-110'
                               : 'border-white/20 hover:border-white/40'
                           }`}
-                          style={{ backgroundColor: `#${color.hex}` }}
+                            style={getSwatchStyle(color.hex)}
                           title={color.name}
                         />
                       ))}
@@ -1455,6 +1476,8 @@ export function ConfigureAmsSlotModal({
                         } else {
                           const cleaned = input.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
                           if (cleaned.length === 6) {
+                            setColorHex(cleaned);
+                          } else if (cleaned.length === 8) {
                             setColorHex(cleaned);
                           } else if (cleaned.length === 3) {
                             setColorHex(cleaned.split('').map(c => c + c).join(''));
@@ -1617,12 +1640,12 @@ export function ConfigureAmsSlotModal({
                         <button
                           key={entry.id}
                           onClick={() => {
-                            const hex = entry.hex_color.replace('#', '').toUpperCase();
+                            const hex = catalogColorHex(entry);
                             setColorHex(hex);
                             setColorInput(entry.color_name);
                           }}
                           className={`h-7 px-2 rounded-md border-2 transition-all flex items-center gap-1.5 ${
-                            colorHex === entry.hex_color.replace('#', '').toUpperCase()
+                            colorHex === catalogColorHex(entry)
                               ? 'border-bambu-green scale-105'
                               : 'border-white/20 hover:border-white/40'
                           }`}
@@ -1630,7 +1653,7 @@ export function ConfigureAmsSlotModal({
                         >
                           <span
                             className="w-4 h-4 rounded-full border border-black/20 flex-shrink-0"
-                            style={{ backgroundColor: entry.hex_color }}
+                            style={getSwatchStyle(catalogColorHex(entry))}
                           />
                           <span className="text-xs text-white/80 whitespace-nowrap">{entry.color_name}</span>
                         </button>
@@ -1652,7 +1675,7 @@ export function ConfigureAmsSlotModal({
                           ? 'border-bambu-green scale-110'
                           : 'border-white/20 hover:border-white/40'
                       }`}
-                      style={{ backgroundColor: `#${color.hex}` }}
+                      style={getSwatchStyle(color.hex)}
                       title={color.name}
                     />
                   ))}
@@ -1679,7 +1702,7 @@ export function ConfigureAmsSlotModal({
                             ? 'border-bambu-green scale-110'
                             : 'border-white/20 hover:border-white/40'
                         }`}
-                        style={{ backgroundColor: `#${color.hex}` }}
+                          style={getSwatchStyle(color.hex)}
                         title={color.name}
                       />
                     ))}
@@ -1707,6 +1730,8 @@ export function ConfigureAmsSlotModal({
                         // Try to parse as hex code
                         const cleaned = input.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
                         if (cleaned.length === 6) {
+                          setColorHex(cleaned);
+                        } else if (cleaned.length === 8) {
                           setColorHex(cleaned);
                         } else if (cleaned.length === 3) {
                           // Expand shorthand hex (e.g., F00 -> FF0000)

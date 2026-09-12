@@ -7,7 +7,7 @@ import type { SpoolBuddyOutletContext } from '../../components/spoolbuddy/SpoolB
 import { api } from '../../api/client';
 import type { PrinterStatus, AMSTray, SpoolAssignment } from '../../api/client';
 import { getGlobalTrayId, getFillBarColor, getSpoolmanFillLevel, getFallbackSpoolTag, formatSlotLabel, isBambuLabSpool, resolveSlotNozzleDiameter } from '../../utils/amsHelpers';
-import { getSwatchStyle } from '../../utils/colors';
+import { getSwatchStyle, spoolColorString } from '../../utils/colors';
 import { AmsUnitCard, HumidityIndicator, TemperatureIndicator, NozzleBadge } from '../../components/spoolbuddy/AmsUnitCard';
 import type { AmsThresholds } from '../../components/spoolbuddy/AmsUnitCard';
 import { ConfigureAmsSlotModal } from '../../components/ConfigureAmsSlotModal';
@@ -41,8 +41,7 @@ function isTrayEmpty(tray: AMSTray): boolean {
 }
 
 function trayColorToCSS(color: string | null): string {
-  if (!color) return '#808080';
-  return `#${color.slice(0, 6)}`;
+  return spoolColorString(color);
 }
 
 export function SpoolBuddyAmsPage() {
@@ -727,7 +726,7 @@ export function SpoolBuddyAmsPage() {
                   {slotActionPicker.trayColor && (
                     <span
                       className="w-4 h-4 rounded-full border border-black/20"
-                      style={{ backgroundColor: `#${slotActionPicker.trayColor.slice(0, 6)}` }}
+                      style={getSwatchStyle(slotActionPicker.trayColor)}
                     />
                   )}
                   <h2 className="text-lg font-semibold text-white">{slotActionPicker.location}</h2>

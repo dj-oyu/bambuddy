@@ -206,6 +206,82 @@ describe('ConfigureAmsSlotModal', () => {
     expect(colorInput).toHaveValue('Red');
   });
 
+  it('supports Clear and preserves alpha=00 when configuring an AMS slot', async () => {
+    const slotInfo = {
+      ...defaultProps.slotInfo,
+      savedPresetId: 'GFSL05_09',
+    };
+    render(<ConfigureAmsSlotModal {...defaultProps} slotInfo={slotInfo} />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Clear')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle('Clear'));
+    expect(screen.getByPlaceholderText(/Color name or hex/)).toHaveValue('Clear');
+
+    fireEvent.click(screen.getByRole('button', { name: /Configure Slot/i }));
+    await waitFor(() => {
+      expect(api.configureAmsSlot).toHaveBeenCalled();
+    });
+
+    const payload = (api.configureAmsSlot as ReturnType<typeof vi.fn>).mock.calls[0][3];
+    expect(payload.tray_color).toBe('00000000');
+  });
+
+  it('keeps a catalog Clear swatch and its saved hex transparent even if catalog hex is green', async () => {
+    (api.getColorCatalog as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        id: 'catalog-clear',
+        material: 'PLA Basic',
+        manufacturer: 'Bambu Lab',
+        color_name: 'Clear',
+        hex_color: '#00AA55',
+      },
+    ]);
+    const slotInfo = {
+      ...defaultProps.slotInfo,
+      savedPresetId: 'GFSL05_09',
+    };
+    render(<ConfigureAmsSlotModal {...defaultProps} slotInfo={slotInfo} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTitle('Clear')).toHaveLength(2);
+    });
+
+    const catalogClear = screen.getAllByTitle('Clear')[0];
+    fireEvent.click(catalogClear);
+    expect(screen.getByPlaceholderText(/Color name or hex/)).toHaveValue('Clear');
+    expect(catalogClear.querySelector('span')?.style.backgroundImage).toContain('repeating-conic-gradient');
+
+    fireEvent.click(screen.getByRole('button', { name: /Configure Slot/i }));
+    await waitFor(() => {
+      expect(api.configureAmsSlot).toHaveBeenCalled();
+    });
+
+    const payload = (api.configureAmsSlot as ReturnType<typeof vi.fn>).mock.calls[0][3];
+    expect(payload.tray_color).toBe('00000000');
+  });
+
+  it('accepts an eight-digit transparent hex value', async () => {
+    const slotInfo = {
+      ...defaultProps.slotInfo,
+      savedPresetId: 'GFSL05_09',
+    };
+    render(<ConfigureAmsSlotModal {...defaultProps} slotInfo={slotInfo} />);
+
+    const colorInput = await screen.findByPlaceholderText(/Color name or hex/);
+    fireEvent.change(colorInput, { target: { value: '#00000000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Configure Slot/i }));
+
+    await waitFor(() => {
+      expect(api.configureAmsSlot).toHaveBeenCalled();
+    });
+
+    const payload = (api.configureAmsSlot as ReturnType<typeof vi.fn>).mock.calls[0][3];
+    expect(payload.tray_color).toBe('00000000');
+  });
+
   it('sends PFUS setting_id as tray_info_idx when cloud detail has filament_id: null (#1053)', async () => {
     // Cloud returns a user preset that inherits from a generic Bambu base and
     // has no distinct filament_id of its own — this is how Bambu Cloud responds
