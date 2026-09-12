@@ -43,7 +43,7 @@ class RotateProvisioningKey(BaseModel):
 
 def _connection_endpoints() -> list[dict[str, str]]:
     host = settings.bmcu_binary_host
-    if host not in ("0.0.0.0", "::"):
+    if host not in ("0.0.0.0", "::"):  # nosec B104 - comparison against the configured listen address, not a bind
         addresses = [host]
     else:
         addresses = []

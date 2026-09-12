@@ -93,7 +93,7 @@ class TestInjectWithStrip:
             zf.writestr("Metadata/plate_1.gcode", gcode)
             import hashlib
 
-            md5 = hashlib.md5(gcode.encode()).hexdigest().upper()
+            md5 = hashlib.md5(gcode.encode(), usedforsecurity=False).hexdigest().upper()
             zf.writestr("Metadata/plate_1.gcode.md5", md5)
         return path
 
@@ -110,7 +110,7 @@ class TestInjectWithStrip:
                 data = zf.read("Metadata/plate_1.gcode")
                 sidecar = zf.read("Metadata/plate_1.gcode.md5").decode()
             assert b"T255" not in data
-            assert hashlib.md5(data).hexdigest().upper() == sidecar
+            assert hashlib.md5(data, usedforsecurity=False).hexdigest().upper() == sidecar
             out.unlink()
         finally:
             src.unlink()
