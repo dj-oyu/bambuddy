@@ -23,8 +23,9 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "Deploying $BRANCH @ ${REV:0:8} -> $DEST"
 
 sudo rsync -a --delete \
-    --exclude venv --exclude data --exclude logs \
-    --exclude .env --exclude .git --exclude node_modules \
+    --exclude venv --exclude .venv --exclude 'venv-py*' --exclude uv-python \
+    --exclude data --exclude logs --exclude .env --exclude .git \
+    --exclude node_modules --exclude .deployed-rev --exclude handover.md \
     "$REPO/" "$DEST/"
 echo "$BRANCH $REV $(date -Iseconds)" | sudo tee "$DEST/.deployed-rev" >/dev/null
 sudo chown -R bambuddy:bambuddy "$DEST"
