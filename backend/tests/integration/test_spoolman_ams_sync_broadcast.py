@@ -31,6 +31,9 @@ def _status(ams_data):
     status = MagicMock()
     status.raw_data = {"ams": ams_data, "vt_tray": []}
     status.gcode_state = "IDLE"
+    # Keep the serializer-facing fixture faithful to PrinterState.  An
+    # unspecified MagicMock attribute cannot be range-checked as a stage.
+    status.stg_cur = -1
     return status
 
 
