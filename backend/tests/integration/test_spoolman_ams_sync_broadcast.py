@@ -133,7 +133,9 @@ async def test_an_emptied_slot_is_broadcast(async_client: AsyncClient, printer_f
 
     broadcast, _ = await _run_ams_change(
         printer.id,
-        [{"id": 0, "tray": [{"id": 1}]}],
+        # A bare/blank tray report can be a transient BMCU boot state.  State
+        # 9 is the firmware's explicit empty signal and is authoritative.
+        [{"id": 0, "tray": [{"id": 1, "state": 9}]}],
         parsed={(0, 1): None},
     )
 
