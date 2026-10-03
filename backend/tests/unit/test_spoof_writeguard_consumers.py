@@ -54,6 +54,11 @@ async def test_inventory_guarded_write_skips_cali_and_persist(monkeypatch):
     monkeypatch.setattr(pm_mod.printer_manager, "get_client", lambda pid: client)
     monkeypatch.setattr(pm_mod.printer_manager, "get_status", lambda pid: None)
 
+    monkeypatch.setattr(
+        inv_mod,
+        "resolve_spool_preset",
+        AsyncMock(return_value=("GFL99", "PLA Basic")),
+    )
     # Short-circuit the slicer-filament resolver (async) with a fixed result.
     monkeypatch.setattr(
         inv_mod,
@@ -92,6 +97,11 @@ async def test_inventory_successful_write_still_persists(monkeypatch):
 
     monkeypatch.setattr(pm_mod.printer_manager, "get_client", lambda pid: client)
     monkeypatch.setattr(pm_mod.printer_manager, "get_status", lambda pid: None)
+    monkeypatch.setattr(
+        inv_mod,
+        "resolve_spool_preset",
+        AsyncMock(return_value=("GFL99", "PLA Basic")),
+    )
     monkeypatch.setattr(
         inv_mod,
         "resolve_slicer_filament",

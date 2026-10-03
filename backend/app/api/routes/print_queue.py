@@ -2177,8 +2177,24 @@ async def delete_queue_item(
         status="released",
     )
     if keep_as_cancelled:
-        item.status = "cancelled"
-        await db.flush()
+        # lifecycle-polarity: CAS on the status selected above. A concurrent
+        # dispatch must win rather than letting this delete request rewrite a
+        # now-printing row as cancelled.
+        cas = await printer_lifecycle.transition(
+            db,
+            item.id,
+            to_status="cancelled",
+            from_states=(item.status,),
+            reason="last batch-order source deleted by user",
+            caller="print_queue.delete_queue_item",
+            item=item,
+            commit=False,
+        )
+        if not cas:
+            raise HTTPException(
+                409,
+                f"Queue item changed to '{cas.observed_status or 'removed'}' while it was being deleted",
+            )
         # The order may have been sitting on "completed" if this run's target
         # was met by it; cancelling reopens it.
         await refresh_batch_status_for_item(db, item.id)

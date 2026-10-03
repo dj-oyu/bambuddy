@@ -60,7 +60,10 @@ UPLOAD_SECONDS = 0.15
 @pytest.fixture
 async def farm(tmp_path):
     """Build a farm of N printers, each with one pending queue item."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    # A memory SQLite URL uses one shared connection. The scheduler deliberately
+    # commits from concurrent sessions, so sharing that connection makes the
+    # test harness itself race (notably on Python 3.13).
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'farm.db'}", echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -529,7 +532,7 @@ class TestSharedLibraryRow:
 
         Nothing here mutates the library row, so all four must upload at once.
         """
-        engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'plain-library.db'}", echo=False)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -551,7 +554,7 @@ class TestSharedLibraryRow:
         Each of these deletes the library row and unlinks the 3MF when done.
         Exactly one may go per pass; the rest stay pending for a later one.
         """
-        engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'cleanup-library.db'}", echo=False)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -583,7 +586,7 @@ async def test_library_print_without_a_parseable_print_time_does_not_crash(tmp_p
     dispatch. Two printers here: if the first one's dispatch blows up, the second
     must still go out.
     """
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'no-library-time.db'}", echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
