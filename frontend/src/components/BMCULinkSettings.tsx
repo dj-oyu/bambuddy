@@ -560,6 +560,13 @@ function JsonFallback({ value }: { value: unknown }) {
   );
 }
 
+const EVENT_SEVERITIES: Record<number, string> = {
+  0: 'debug', 1: 'info', 2: 'notice', 3: 'warning', 4: 'error', 5: 'critical',
+};
+const EVENT_SOURCES: Record<number, string> = {
+  0: 'system', 1: 'printer_bus', 2: 'motion', 3: 'sensor', 4: 'management', 5: 'safety',
+};
+
 /** Human-readable rendering of the event `data` column, per envelope kind
  * (PICO_BAMBUDDY_OUTPUT.md / PICO_BAMBUDDY_ENVELOPE.md). Unknown shapes fall
  * back to collapsed raw JSON. */
@@ -643,10 +650,19 @@ function EventDataCell({
     return <JsonFallback value={parsed} />;
   }
 
+  if (kind === 'pico_log') {
+    const severity = enumName(enums, 'severity', EVENT_SEVERITIES, parsed.severity);
+    return <div className="flex items-center gap-1.5 flex-wrap">
+      <Chip className={SEVERITY_STYLES[severity]}>{severity}</Chip>
+      <Chip>{String(parsed.component ?? '')}</Chip>
+      <span className="text-white">{String(parsed.message ?? '')}</span>
+    </div>;
+  }
+
   if (kind === 'event') {
     const d = parseStatus(parsed.data) ?? parsed;
     const sevName =
-      typeof d.severity === 'number' ? resolveEnum(enums, 'severity', d.severity) : String(d.severity ?? '');
+      typeof d.severity === 'number' ? enumName(enums, 'severity', EVENT_SEVERITIES, d.severity) : String(d.severity ?? '');
     const chips: ReactNode[] = [];
     if (d.severity !== undefined) {
       chips.push(
@@ -657,7 +673,7 @@ function EventDataCell({
     }
     if (d.source !== undefined) {
       chips.push(
-        <Chip key="src">{typeof d.source === 'number' ? resolveEnum(enums, 'source', d.source) : String(d.source)}</Chip>,
+        <Chip key="src">{typeof d.source === 'number' ? enumName(enums, 'source', EVENT_SOURCES, d.source) : String(d.source)}</Chip>,
       );
     }
     const name = typeof d.event_name === 'string' ? d.event_name : null;
@@ -706,16 +722,16 @@ function EventDataCell({
 }
 
 interface DeviceEventsProps {
-  device: BMCULinkDevice;
-  enums: BMCULinkEnums | undefined;
+  device: Pick<BMCULinkDevice, 'device_id'>;
+  enums?: BMCULinkEnums;
 }
 
-function DeviceEvents({ device, enums }: DeviceEventsProps) {
+export function BMCUDeviceEvents({ device, enums }: DeviceEventsProps) {
   const { t } = useTranslation();
   const [kindFilter, setKindFilter] = useState('');
   const [page, setPage] = useState(0);
 
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading, error } = useQuery({
     queryKey: ['bmcu-link-events', device.device_id, kindFilter, page],
     queryFn: () =>
       bmcuLinkApi.getEvents(device.device_id, {
@@ -726,7 +742,7 @@ function DeviceEvents({ device, enums }: DeviceEventsProps) {
     refetchInterval: 15000,
   });
 
-  const kindTable = enums?.kind;
+  const kindTable = enums?.kind ?? { '3': 'event', '20': 'pico_log' };
   const kindOptions =
     kindTable && typeof kindTable === 'object' ? Object.values(kindTable as Record<string, string>) : [];
 
@@ -758,6 +774,8 @@ function DeviceEvents({ device, enums }: DeviceEventsProps) {
         <div className="py-4 flex justify-center">
           <Loader2 className="w-4 h-4 animate-spin text-bambu-green" />
         </div>
+      ) : error ? (
+        <p role="alert" className="text-xs text-red-400">{error.message}</p>
       ) : !events || events.length === 0 ? (
         <p className="text-xs text-bambu-gray py-2">{t('settings.bmcuLink.noEvents')}</p>
       ) : (
@@ -900,7 +918,7 @@ function DeviceCard({ device, enums }: DeviceCardProps) {
           </div>
         )}
 
-        <DeviceEvents device={device} enums={enums} />
+        <BMCUDeviceEvents device={device} enums={enums} />
       </CardContent>
     </Card>
   );

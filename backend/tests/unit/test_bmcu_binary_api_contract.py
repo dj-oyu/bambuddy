@@ -617,3 +617,55 @@ async def test_timeline_response_carries_the_state_change_field(bmcu_db) -> None
     assert len(anomalies) == 1
     assert anomalies[0]["anomaly"] is True
     assert anomalies[0]["severity"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_settings_events_include_bmcu_events_without_pico_logs(bmcu_db):
+    frame = IncrementalFrameParser().feed((FIXTURES / "bmcu_event.bin").read_bytes())[0]
+    wire = decode_bmcu_frame(frame.payload, validate_alpha3_wire_frame).wire_bytes
+    bmcu_db.add(
+        BMCUBinaryRecord(
+            device_id="pico-bmcu-bridge",
+            pico_boot_id="0000000000000001",
+            transport_sequence=u64_decimal(1),
+            link_index=0,
+            flags=0,
+            message_type=MessageType.BMCU_FRAME,
+            received_at_us=u64_decimal(1234),
+            server_received_at=datetime(2026, 8, 3),
+            bmcu_kind=3,
+            raw_payload=frame.payload,
+            raw_bmcu_frame=wire,
+        )
+    )
+    await bmcu_db.commit()
+    rows = await bmcu_link.events("pico-bmcu-bridge", kind=None, limit=50, offset=0, db=bmcu_db, _=None)
+    assert len(rows) == 1
+    assert rows[0]["kind"] == "event"
+    assert rows[0]["link_id"] == "bmcu-a"
+    assert json.loads(rows[0]["data"])["record_type"] == _event().record_type
+    assert await bmcu_link.events("other", kind=None, limit=50, offset=0, db=bmcu_db, _=None) == []
+
+    from backend.app.models.bmcu_binary import BMCUBinaryLog
+
+    bmcu_db.add(
+        BMCUBinaryLog(
+            device_id="pico-bmcu-bridge",
+            pico_boot_id="0000000000000001",
+            transport_sequence=u64_decimal(2),
+            log_sequence=u64_decimal(1),
+            uptime_ms=u64_decimal(2),
+            severity=3,
+            component="wifi",
+            message="Connection lost",
+            detail=b"",
+            recorded_at=datetime(2026, 8, 4),
+        )
+    )
+    await bmcu_db.commit()
+    all_rows = await bmcu_link.events("pico-bmcu-bridge", kind=None, limit=50, offset=0, db=bmcu_db, _=None)
+    assert [row["kind"] for row in all_rows] == ["pico_log", "event"]
+    assert len({row["id"] for row in all_rows}) == 2
+    assert await bmcu_link.events("pico-bmcu-bridge", kind=None, limit=1, offset=1, db=bmcu_db, _=None) == all_rows[1:]
+    for kind, expected in (("event", all_rows[1:]), ("pico_log", all_rows[:1]), ("wifi", all_rows[:1]), ("status", [])):
+        assert await bmcu_link.events("pico-bmcu-bridge", kind=kind, limit=50, offset=0, db=bmcu_db, _=None) == expected

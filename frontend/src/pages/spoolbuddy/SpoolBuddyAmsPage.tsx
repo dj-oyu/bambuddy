@@ -7,7 +7,7 @@ import type { SpoolBuddyOutletContext } from '../../components/spoolbuddy/SpoolB
 import { api } from '../../api/client';
 import type { PrinterStatus, AMSTray, SpoolAssignment } from '../../api/client';
 import { getGlobalTrayId, getFillBarColor, getSpoolmanFillLevel, getFallbackSpoolTag, formatSlotLabel, isBambuLabSpool, resolveSlotNozzleDiameter } from '../../utils/amsHelpers';
-import { getSwatchStyle } from '../../utils/colors';
+import { getSwatchStyle, spoolColorString } from '../../utils/colors';
 import { AmsUnitCard, HumidityIndicator, TemperatureIndicator, NozzleBadge } from '../../components/spoolbuddy/AmsUnitCard';
 import type { AmsThresholds } from '../../components/spoolbuddy/AmsUnitCard';
 import { ConfigureAmsSlotModal } from '../../components/ConfigureAmsSlotModal';
@@ -41,8 +41,7 @@ function isTrayEmpty(tray: AMSTray): boolean {
 }
 
 function trayColorToCSS(color: string | null): string {
-  if (!color) return '#808080';
-  return `#${color.slice(0, 6)}`;
+  return spoolColorString(color);
 }
 
 export function SpoolBuddyAmsPage() {
@@ -727,7 +726,7 @@ export function SpoolBuddyAmsPage() {
                   {slotActionPicker.trayColor && (
                     <span
                       className="w-4 h-4 rounded-full border border-black/20"
-                      style={{ backgroundColor: `#${slotActionPicker.trayColor.slice(0, 6)}` }}
+                      style={getSwatchStyle(slotActionPicker.trayColor)}
                     />
                   )}
                   <h2 className="text-lg font-semibold text-white">{slotActionPicker.location}</h2>
@@ -756,6 +755,7 @@ export function SpoolBuddyAmsPage() {
                       )}
                       <span className="text-sm text-white">
                         {assignment.spool.brand ? `${assignment.spool.brand} ` : ''}{assignment.spool.material}
+                        {assignment.spool.subtype ? ` ${assignment.spool.subtype}` : ''}
                         {assignment.spool.color_name ? ` - ${assignment.spool.color_name}` : ''}
                       </span>
                       <span className="text-[10px] font-mono text-zinc-500 shrink-0 ml-auto">#{assignment.spool.id}</span>
@@ -789,6 +789,7 @@ export function SpoolBuddyAmsPage() {
                       )}
                       <span className="text-sm text-white">
                         {spoolmanAssignedSpool.brand ? `${spoolmanAssignedSpool.brand} ` : ''}{spoolmanAssignedSpool.material}
+                        {spoolmanAssignedSpool.subtype ? ` ${spoolmanAssignedSpool.subtype}` : ''}
                         {spoolmanAssignedSpool.color_name ? ` - ${spoolmanAssignedSpool.color_name}` : ''}
                       </span>
                     </div>

@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { X, Loader2, Settings2, ChevronDown, CheckCircle2, RotateCcw } from 'lucide-react';
 import { api } from '../api/client';
 import type { KProfile } from '../api/client';
-import { matchesPrinterModelSuffix, presetCompatibility, buildCompatibilityIndex } from '../utils/slicerPrinterMatch';
+import { matchesPrinterModelSuffix, presetCompatibility, buildCompatibilityIndex, extractPresetModel } from '../utils/slicerPrinterMatch';
 import { toFilamentId } from './spool-form/utils';
 import { Button } from './Button';
 import { getAmsLabel } from '../utils/amsHelpers';
+import { getSwatchStyle } from '../utils/colors';
 import { useCancellableTimeout } from '../hooks/useCancellableTimeout';
 
 interface SlotInfo {
@@ -103,8 +104,41 @@ function parsePresetName(name: string): { material: string; brand: string; varia
 // Identity of a K-profile inside the picker. Both profile lists are
 // deduplicated on name+k_value, so this is unique across the whole option set
 // — unlike the bare name, which two profiles can share (#2710).
+// Option identity. The extruder has to be in here: the printer's calibration
+// table is numbered per nozzle, so one filament calibrated on both hotends gives
+// two profiles with the same name — and on a Filament Track Switch machine they
+// are both offered, because such a slot can reach either nozzle. Keying on
+// name+K alone made the two indistinguishable and, when their K happened to
+// match, silently collapsed them into whichever came first.
 function kProfileOptionValue(profile: KProfile): string {
-  return `${profile.name}|${profile.k_value}`;
+  return `${profile.extruder_id ?? 0}|${profile.name}|${profile.k_value}`;
+}
+
+/**
+ * The profile a slot's `cali_idx` points at.
+ *
+ * An index is only meaningful together with a nozzle: the printer numbers its
+ * calibration table per hotend, so entry 16 exists on both and means a
+ * different profile on each. On the maintainer's H2C, index 16 is the left
+ * hotend's black PLA at K=0.018 and index 15 is the right's at K=0.020.
+ * Matching on the index alone returns whichever the printer listed first.
+ */
+function findProfileByCaliIdx(
+  profiles: KProfile[],
+  caliIdx: number,
+  extruderId: number | undefined
+): KProfile | undefined {
+  if (extruderId !== undefined) {
+    return profiles.find(p => p.slot_id === caliIdx && (p.extruder_id ?? 0) === extruderId);
+  }
+  return profiles.find(p => p.slot_id === caliIdx);
+}
+
+// Suffix naming the hotend a profile was calibrated on, for printers that have
+// more than one. Empty on single-nozzle machines, where it would be noise.
+function kProfileNozzleSuffix(profile: KProfile, isDualNozzle: boolean, t: (k: string) => string): string {
+  if (!isDualNozzle) return '';
+  return ` \u00b7 ${profile.extruder_id === 1 ? t('common.left') : t('common.right')}`;
 }
 
 // Check if a preset is a user preset (not built-in)
@@ -158,7 +192,8 @@ const COLOR_NAME_MAP: Record<string, string> = {
   'chocolate': 'D2691E',
   'charcoal': '36454F',
   'slate': '708090',
-  'transparent': '000000', // Will need special handling
+  'clear': '00000000',
+  'transparent': '00000000',
   'natural': 'F5F5DC',
   'wood': 'DEB887',
 };
@@ -166,6 +201,7 @@ const COLOR_NAME_MAP: Record<string, string> = {
 // Quick-select color presets (common filament colors)
 // Basic colors shown by default
 const QUICK_COLORS_BASIC = [
+  { name: 'Clear', hex: '00000000' },
   { name: 'White', hex: 'FFFFFF' },
   { name: 'Black', hex: '000000' },
   { name: 'Red', hex: 'FF0000' },
@@ -210,83 +246,26 @@ function colorNameToHex(name: string): string | null {
   return COLOR_NAME_MAP[normalized] || null;
 }
 
+/** Return a valid RGB/RGBA value while preserving alpha=00 for Clear. */
+function normalizeColorHex(value: string): string {
+  const cleaned = value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+  if (cleaned.length === 3) return cleaned.split('').map(c => c + c).join('');
+  if (cleaned.length === 6 || cleaned.length === 8) return cleaned;
+  return '';
+}
+
+/** Treat semantic Clear/Transparent catalog entries as transparent even when
+ * their imported HEX value is an opaque placeholder (for example green).
+ */
+function catalogColorHex(entry: { color_name: string; hex_color: string }): string {
+  const name = entry.color_name.trim().toLowerCase();
+  if (name === 'clear' || name === 'transparent' || name === 'クリア' || name === '透明') {
+    return '00000000';
+  }
+  return normalizeColorHex(entry.hex_color);
+}
+
 // Escape regex metacharacters and turn whitespace into ``\s+`` so a literal
-// model token compiles to a flexible-whitespace word-boundary regex.
-function _tokenToRegex(token: string): RegExp {
-  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-  return new RegExp(`\\b${escaped}\\b`, 'i');
-}
-
-// Extract printer model from a preset name → normalized short code
-// (e.g. "X1C", "H2D"). Two strategies in order:
-//
-// (1) ``@`` suffix — the BambuStudio naming convention. Two shapes:
-//   - "@BBL X1C 0.4 nozzle"               → "X1C"  (short-code form,
-//      Bambu Cloud system presets)
-//   - "@Bambu Lab X1 Carbon 0.4 nozzle"   → "X1C"  (long-form, used by
-//      user-renamed Bambu Cloud presets and most Orca Cloud profiles —
-//      reverse-looked-up via the backend printer-model registry)
-//
-// (2) Body scan — many user-authored / Orca Cloud presets put the printer
-// model at the START of the name with no @ suffix at all (the literal
-// shape that surfaced #1623: "X1C eSUN PETG-Basic Filament"). Scan the
-// name for any known model token (every long-name fragment + every short
-// code from the registry) and return the first match. Long-first sort
-// keeps "A1 Mini" / "X1 Carbon" / "H2D Pro" from being eaten by their
-// shorter sibling ("A1" / "X1" / "H2D"). Word-boundary regex prevents
-// false-positives on partial substrings (e.g. "PA1" doesn't match "A1",
-// "X1Box" doesn't match "X1").
-//
-// Returns null when neither strategy resolves; the caller keeps such
-// presets visible (can't filter what we can't classify).
-//
-// ``printerModelsLongToShort`` is the backend's PRINTER_MODEL_MAP shape:
-// keys are "Bambu Lab <long>", values are short codes.
-function extractPresetModel(
-  name: string,
-  printerModelsLongToShort: Record<string, string>,
-): string | null {
-  const atIdx = name.indexOf('@');
-  if (atIdx >= 0) {
-    const suffix = name.slice(atIdx + 1).trim();
-    const bblMatch = suffix.match(/^BBL\s+(.+?)(?:\s+[\d.]+\s*nozzle)?$/i);
-    if (bblMatch) return bblMatch[1].trim();
-    const longMatch = suffix.match(/^Bambu Lab\s+(.+?)(?:\s+[\d.]+\s*nozzle)?$/i);
-    if (longMatch) {
-      const longFragment = longMatch[1].trim();
-      const fullKey = `Bambu Lab ${longFragment}`;
-      if (printerModelsLongToShort[fullKey]) return printerModelsLongToShort[fullKey];
-      const lower = fullKey.toLowerCase();
-      for (const [k, v] of Object.entries(printerModelsLongToShort)) {
-        if (k.toLowerCase() === lower) return v;
-      }
-      return longFragment;
-    }
-  }
-
-  // Body scan — accumulate {token, short} pairs and try long-first.
-  const tokens: Array<{ token: string; short: string }> = [];
-  const seen = new Set<string>();
-  for (const [longName, short] of Object.entries(printerModelsLongToShort)) {
-    const fragment = longName.replace(/^Bambu Lab\s+/, '');
-    const key = fragment.toLowerCase();
-    if (!seen.has(key)) {
-      tokens.push({ token: fragment, short });
-      seen.add(key);
-    }
-    const shortKey = short.toLowerCase();
-    if (!seen.has(shortKey)) {
-      tokens.push({ token: short, short });
-      seen.add(shortKey);
-    }
-  }
-  tokens.sort((a, b) => b.token.length - a.token.length);
-  for (const { token, short } of tokens) {
-    if (_tokenToRegex(token).test(name)) return short;
-  }
-  return null;
-}
-
 export function ConfigureAmsSlotModal({
   isOpen,
   onClose,
@@ -300,7 +279,17 @@ export function ConfigureAmsSlotModal({
   const { t } = useTranslation();
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [selectedKProfile, setSelectedKProfile] = useState<KProfile | null>(null);
-  const [colorHex, setColorHex] = useState<string>(''); // Just the 6-char hex, no alpha
+  // The same value, readable at mutation-execute time rather than at
+  // closure-capture time. useMutation hands its options to the observer from an
+  // *effect*, so a click that lands between a commit and that effect flushing
+  // runs the previous render's mutationFn — one that closed over the profile as
+  // it was before the K-profile query resolved. The picker showed the right
+  // profile and the printer was sent cali_idx -1, binding the default 0.020
+  // instead of the calibrated K. Written during render on purpose: an effect
+  // here would inherit the very flush ordering this exists to escape.
+  const selectedKProfileRef = useRef<KProfile | null>(null);
+  selectedKProfileRef.current = selectedKProfile;
+  const [colorHex, setColorHex] = useState<string>(''); // RRGGBB or RRGGBBAA
   const [colorInput, setColorInput] = useState<string>(''); // User's text input (name or hex)
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -369,6 +358,19 @@ export function ConfigureAmsSlotModal({
     queryFn: api.getSlicerPrinterModels,
     enabled: isOpen,
     staleTime: Infinity,
+  });
+
+  // What the spool in this slot is configured to use here: its filament preset
+  // for this printer's MODEL and its K profile for this slot's hotend. Those
+  // are the values the user set on the spool, so they are the right defaults
+  // for a dialog that configures the slot that spool sits in -- the slot's own
+  // last manual configuration and the tray's RFID data are the fallbacks, not
+  // the other way round.
+  const { data: slotSpoolDefaults } = useQuery({
+    queryKey: ['slot-spool-defaults', printerId, slotInfo.amsId, slotInfo.trayId],
+    queryFn: () => api.getSlotSpoolDefaults(printerId, slotInfo.amsId, slotInfo.trayId),
+    enabled: isOpen,
+    staleTime: 0,
   });
 
   const compatIndex = useMemo(
@@ -444,10 +446,11 @@ export function ConfigureAmsSlotModal({
       const parsed = parsePresetName(presetName);
 
       // Get cali_idx from selected K profile's slot_id (-1 = use default 0.020)
-      const caliIdx = selectedKProfile?.slot_id ?? -1;
+      const caliIdx = selectedKProfileRef.current?.slot_id ?? -1;
 
       // Use custom color if set, otherwise use current slot color or default
-      const color = colorHex || slotInfo.trayColor?.slice(0, 6) || 'FFFFFF';
+      const color = normalizeColorHex(colorHex || slotInfo.trayColor || 'FFFFFF') || 'FFFFFF';
+      const rgbaColor = color.length === 8 ? color : `${color}FF`;
 
       // Create the tray_sub_brands from preset name (without printer/nozzle suffix)
       const traySubBrands = presetName.replace(/@.+$/, '').trim();
@@ -560,7 +563,9 @@ export function ConfigureAmsSlotModal({
       }
 
       // Parse K value from selected profile
-      const kValue = selectedKProfile?.k_value ? parseFloat(selectedKProfile.k_value) : 0;
+      const kValue = selectedKProfileRef.current?.k_value
+        ? parseFloat(selectedKProfileRef.current.k_value)
+        : 0;
 
       // Determine tray_type: prefer parsed material from preset name (handles "Support for"
       // patterns correctly) over stored filament_type which may have been parsed with old logic.
@@ -575,15 +580,15 @@ export function ConfigureAmsSlotModal({
         tray_info_idx: trayInfoIdx,
         tray_type: trayType,
         tray_sub_brands: traySubBrands,
-        tray_color: color + 'FF', // Add alpha
+        tray_color: rgbaColor,
         nozzle_temp_min: tempMin,
         nozzle_temp_max: tempMax,
         cali_idx: caliIdx,
         nozzle_diameter: nozzleDiameter,
         setting_id: settingId, // Full setting ID for slicer compatibility (empty for local)
         // Pass K profile's filament_id and setting_id for proper linking
-        kprofile_filament_id: selectedKProfile?.filament_id,
-        kprofile_setting_id: selectedKProfile?.setting_id || undefined,
+        kprofile_filament_id: selectedKProfileRef.current?.filament_id,
+        kprofile_setting_id: selectedKProfileRef.current?.setting_id || undefined,
         // Also pass the K value directly for extrusion_cali_set command
         k_value: kValue,
       });
@@ -858,6 +863,14 @@ export function ConfigureAmsSlotModal({
     });
   }, [colorCatalog, selectedPresetInfo]);
 
+  // Dual-nozzle if the printer reported calibration profiles for more than one
+  // extruder. Self-contained, and exactly the condition under which naming the
+  // hotend on each option is worth the space.
+  const isDualNozzleProfiles = useMemo(
+    () => new Set((kprofilesData?.profiles ?? []).map(p => p.extruder_id ?? 0)).size > 1,
+    [kprofilesData?.profiles]
+  );
+
   const matchingKProfiles = useMemo(() => {
     if (!kprofilesData?.profiles) return [];
     if (!selectedPresetInfo) {
@@ -869,10 +882,7 @@ export function ConfigureAmsSlotModal({
       // instead of dropping to default 0.020 (#1689 follow-up).
       const activeIdx = slotInfo.caliIdx;
       if (activeIdx != null && activeIdx > 0) {
-        const active = kprofilesData.profiles.find(
-          p => p.slot_id === activeIdx
-            && (slotInfo.extruderId === undefined || p.extruder_id === slotInfo.extruderId),
-        );
+        const active = findProfileByCaliIdx(kprofilesData.profiles, activeIdx, slotInfo.extruderId);
         if (active) return [active];
       }
       return [];
@@ -955,18 +965,19 @@ export function ConfigureAmsSlotModal({
       return false;
     });
 
-    // Deduplicate profiles with same name and k_value (multi-nozzle printers have duplicates)
-    // Prefer the profile matching the slot's extruder (e.g. ext-R uses extruder 0, ext-L uses extruder 1)
+    // Scope to the slot's own nozzle when it is known: a K-profile calibrated on
+    // the other hotend is not a match for this slot, and offering it as one is
+    // how the wrong K got bound. Those profiles are still reachable below under
+    // "Other", where the option label names the hotend.
+    const onThisNozzle = slotInfo.extruderId === undefined
+      ? filtered
+      : filtered.filter(p => (p.extruder_id ?? 0) === slotInfo.extruderId);
+
+    // Deduplicate genuine duplicates — same nozzle, same name, same K.
     const seen = new Map<string, KProfile>();
-    for (const profile of filtered) {
-      const key = `${profile.name}|${profile.k_value}`;
-      const existing = seen.get(key);
-      if (!existing) {
-        seen.set(key, profile);
-      } else if (slotInfo.extruderId !== undefined && profile.extruder_id === slotInfo.extruderId && existing.extruder_id !== slotInfo.extruderId) {
-        // Replace with profile matching slot's extruder
-        seen.set(key, profile);
-      }
+    for (const profile of onThisNozzle) {
+      const key = kProfileOptionValue(profile);
+      if (!seen.has(key)) seen.set(key, profile);
     }
 
     const result = Array.from(seen.values());
@@ -979,10 +990,7 @@ export function ConfigureAmsSlotModal({
     // card's hover-card correctly shows the active profile.
     const activeIdx = slotInfo.caliIdx;
     if (activeIdx != null && activeIdx > 0 && !result.some(p => p.slot_id === activeIdx)) {
-      const active = kprofilesData.profiles.find(
-        p => p.slot_id === activeIdx
-          && (slotInfo.extruderId === undefined || p.extruder_id === slotInfo.extruderId),
-      );
+      const active = findProfileByCaliIdx(kprofilesData.profiles, activeIdx, slotInfo.extruderId);
       if (active) result.unshift(active);
     }
 
@@ -1006,15 +1014,10 @@ export function ConfigureAmsSlotModal({
     for (const profile of kprofilesData.profiles) {
       const key = kProfileOptionValue(profile);
       if (matched.has(key)) continue;
-      const existing = seen.get(key);
-      if (!existing) {
-        seen.set(key, profile);
-      } else if (slotInfo.extruderId !== undefined && profile.extruder_id === slotInfo.extruderId && existing.extruder_id !== slotInfo.extruderId) {
-        seen.set(key, profile);
-      }
+      if (!seen.has(key)) seen.set(key, profile);
     }
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [kprofilesData?.profiles, matchingKProfiles, slotInfo.extruderId]);
+  }, [kprofilesData?.profiles, matchingKProfiles]);
 
   const hasAnyKProfile = matchingKProfiles.length > 0 || otherKProfiles.length > 0;
 
@@ -1032,8 +1035,10 @@ export function ConfigureAmsSlotModal({
   // Pre-select current profile when modal opens, reset when closes
   useEffect(() => {
     if (isOpen) {
-      // Pre-populate from saved preset mapping (most reliable)
-      if (slotInfo.savedPresetId) {
+      // The spool's own per-model preset first -- see the query above.
+      if (slotSpoolDefaults?.slicer_filament) {
+        setSelectedPresetId(slotSpoolDefaults.slicer_filament);
+      } else if (slotInfo.savedPresetId) {
         setSelectedPresetId(slotInfo.savedPresetId);
       } else if (slotInfo.trayInfoIdx && cloudSettings?.filament) {
         // Fallback: try to match by tray_info_idx in cloud presets
@@ -1061,7 +1066,7 @@ export function ConfigureAmsSlotModal({
 
       // Pre-populate color from current slot (black is valid — empty slots don't pass trayColor)
       if (slotInfo.trayColor) {
-        const hex = slotInfo.trayColor.slice(0, 6);
+        const hex = normalizeColorHex(slotInfo.trayColor);
         if (hex) {
           setColorHex(hex);
         }
@@ -1076,25 +1081,57 @@ export function ConfigureAmsSlotModal({
       setShowSuccess(false);
       scrolledToRef.current = '';
     }
-  }, [isOpen, slotInfo.savedPresetId, slotInfo.trayInfoIdx, slotInfo.trayColor, cloudSettings?.filament, builtinFilaments]);
+  }, [
+    isOpen,
+    slotSpoolDefaults?.slicer_filament,
+    slotInfo.savedPresetId,
+    slotInfo.trayInfoIdx,
+    slotInfo.trayColor,
+    cloudSettings?.filament,
+    builtinFilaments,
+  ]);
 
   // Auto-select best matching K profile when preset changes
   useEffect(() => {
     if (matchingKProfiles.length > 0) {
-      // Prefer the currently-active K-profile (by cali_idx) if available
+      // The profile the spool is configured with for THIS hotend, if it still
+      // exists on the printer. Ahead of the slot's live cali_idx, which is
+      // whatever was selected last rather than what the spool is set to.
+      if (slotSpoolDefaults?.cali_idx != null) {
+        const configured = findProfileByCaliIdx(
+          matchingKProfiles,
+          slotSpoolDefaults.cali_idx,
+          slotSpoolDefaults.extruder ?? slotInfo.extruderId,
+        );
+        if (configured) {
+          setSelectedKProfile(configured);
+          return;
+        }
+      }
+      // Prefer the currently-active K-profile, resolved against this slot's own
+      // nozzle — the index alone is ambiguous across hotends.
       if (slotInfo.caliIdx != null && slotInfo.caliIdx > 0) {
-        const active = matchingKProfiles.find(p => p.slot_id === slotInfo.caliIdx);
+        const active = findProfileByCaliIdx(matchingKProfiles, slotInfo.caliIdx, slotInfo.extruderId);
         if (active) {
           setSelectedKProfile(active);
           return;
         }
       }
-      // Fallback: first matching profile
+      // Fallback: the first match. matchingKProfiles is already scoped to this
+      // slot's nozzle when we know which one it is, so this cannot hand over a
+      // profile calibrated on the other hotend.
       setSelectedKProfile(matchingKProfiles[0]);
     } else {
       setSelectedKProfile(null);
     }
-  }, [selectedPresetId, matchingKProfiles, slotInfo.caliIdx]);
+  }, [
+    selectedPresetId,
+    matchingKProfiles,
+    slotSpoolDefaults?.cali_idx,
+    slotSpoolDefaults?.extruder,
+    slotInfo.caliIdx,
+    slotInfo.extruderId,
+  ]);
 
   // Escape key handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -1133,7 +1170,9 @@ export function ConfigureAmsSlotModal({
   const canSave = selectedPresetId && !configureMutation.isPending;
 
   // Get display color (custom or slot default)
-  const displayColor = colorHex || slotInfo.trayColor?.slice(0, 6) || 'FFFFFF';
+  // Not sliced to six: a clear tray reports RRGGBB00, and cutting the alpha off
+  // here previewed it as solid black. Preserve alpha in both edited and saved colors (#2912).
+  const displayColor = normalizeColorHex(colorHex || slotInfo.trayColor || 'FFFFFF') || 'FFFFFF';
 
   return (
     <div className={`fixed inset-0 z-50 flex ${fullScreen ? '' : 'items-center justify-center'}`}>
@@ -1162,7 +1201,7 @@ export function ConfigureAmsSlotModal({
                 {slotInfo.trayColor && (
                   <span
                     className="w-4 h-4 rounded-full border border-black/20"
-                    style={{ backgroundColor: `#${slotInfo.trayColor.slice(0, 6)}` }}
+                    style={getSwatchStyle(slotInfo.trayColor)}
                   />
                 )}
                 <span className="text-white/70">
@@ -1203,7 +1242,7 @@ export function ConfigureAmsSlotModal({
                 {slotInfo.trayColor && (
                   <span
                     className="w-4 h-4 rounded-full border border-black/20"
-                    style={{ backgroundColor: `#${slotInfo.trayColor.slice(0, 6)}` }}
+                    style={getSwatchStyle(slotInfo.trayColor)}
                   />
                 )}
                 <span className="text-white font-medium">
@@ -1307,14 +1346,14 @@ export function ConfigureAmsSlotModal({
                         <option value="">{t('configureAmsSlot.noKProfile')}</option>
                         {matchingKProfiles.map((profile) => (
                           <option key={kProfileOptionValue(profile)} value={kProfileOptionValue(profile)}>
-                            {profile.name} (K={profile.k_value})
+                            {profile.name} (K={profile.k_value}){kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}{kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}
                           </option>
                         ))}
                         {otherKProfiles.length > 0 && (
                           <optgroup label={t('configureAmsSlot.otherKProfiles')}>
                             {otherKProfiles.map((profile) => (
                               <option key={kProfileOptionValue(profile)} value={kProfileOptionValue(profile)}>
-                                {profile.name} (K={profile.k_value})
+                                {profile.name} (K={profile.k_value}){kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}{kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}{kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}
                               </option>
                             ))}
                           </optgroup>
@@ -1353,12 +1392,12 @@ export function ConfigureAmsSlotModal({
                           <button
                             key={entry.id}
                             onClick={() => {
-                              const hex = entry.hex_color.replace('#', '').toUpperCase();
+                              const hex = catalogColorHex(entry);
                               setColorHex(hex);
                               setColorInput(entry.color_name);
                             }}
                             className={`h-7 px-2 rounded-md border-2 transition-all flex items-center gap-1.5 ${
-                              colorHex === entry.hex_color.replace('#', '').toUpperCase()
+                              colorHex === catalogColorHex(entry)
                                 ? 'border-bambu-green scale-105'
                                 : 'border-white/20 hover:border-white/40'
                             }`}
@@ -1366,7 +1405,7 @@ export function ConfigureAmsSlotModal({
                           >
                             <span
                               className="w-4 h-4 rounded-full border border-black/20 flex-shrink-0"
-                              style={{ backgroundColor: entry.hex_color }}
+                              style={getSwatchStyle(catalogColorHex(entry))}
                             />
                             <span className="text-xs text-white/80 whitespace-nowrap">{entry.color_name}</span>
                           </button>
@@ -1387,7 +1426,7 @@ export function ConfigureAmsSlotModal({
                             ? 'border-bambu-green scale-110'
                             : 'border-white/20 hover:border-white/40'
                         }`}
-                        style={{ backgroundColor: `#${color.hex}` }}
+                        style={getSwatchStyle(color.hex)}
                         title={color.name}
                       />
                     ))}
@@ -1413,7 +1452,7 @@ export function ConfigureAmsSlotModal({
                               ? 'border-bambu-green scale-110'
                               : 'border-white/20 hover:border-white/40'
                           }`}
-                          style={{ backgroundColor: `#${color.hex}` }}
+                            style={getSwatchStyle(color.hex)}
                           title={color.name}
                         />
                       ))}
@@ -1422,7 +1461,7 @@ export function ConfigureAmsSlotModal({
                   <div className="flex gap-2 items-center">
                     <div
                       className="w-10 h-10 rounded-lg border-2 border-white/20 flex-shrink-0"
-                      style={{ backgroundColor: `#${displayColor}` }}
+                      style={getSwatchStyle(displayColor)}
                     />
                     <input
                       type="text"
@@ -1437,6 +1476,8 @@ export function ConfigureAmsSlotModal({
                         } else {
                           const cleaned = input.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
                           if (cleaned.length === 6) {
+                            setColorHex(cleaned);
+                          } else if (cleaned.length === 8) {
                             setColorHex(cleaned);
                           } else if (cleaned.length === 3) {
                             setColorHex(cleaned.split('').map(c => c + c).join(''));
@@ -1552,14 +1593,14 @@ export function ConfigureAmsSlotModal({
                       <option value="">{t('configureAmsSlot.noKProfile')}</option>
                       {matchingKProfiles.map((profile) => (
                         <option key={kProfileOptionValue(profile)} value={kProfileOptionValue(profile)}>
-                          {profile.name} (K={profile.k_value})
+                          {profile.name} (K={profile.k_value}){kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}
                         </option>
                       ))}
                       {otherKProfiles.length > 0 && (
                         <optgroup label={t('configureAmsSlot.otherKProfiles')}>
                           {otherKProfiles.map((profile) => (
                             <option key={kProfileOptionValue(profile)} value={kProfileOptionValue(profile)}>
-                              {profile.name} (K={profile.k_value})
+                              {profile.name} (K={profile.k_value}){kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}{kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}{kProfileNozzleSuffix(profile, isDualNozzleProfiles, t)}
                             </option>
                           ))}
                         </optgroup>
@@ -1599,12 +1640,12 @@ export function ConfigureAmsSlotModal({
                         <button
                           key={entry.id}
                           onClick={() => {
-                            const hex = entry.hex_color.replace('#', '').toUpperCase();
+                            const hex = catalogColorHex(entry);
                             setColorHex(hex);
                             setColorInput(entry.color_name);
                           }}
                           className={`h-7 px-2 rounded-md border-2 transition-all flex items-center gap-1.5 ${
-                            colorHex === entry.hex_color.replace('#', '').toUpperCase()
+                            colorHex === catalogColorHex(entry)
                               ? 'border-bambu-green scale-105'
                               : 'border-white/20 hover:border-white/40'
                           }`}
@@ -1612,7 +1653,7 @@ export function ConfigureAmsSlotModal({
                         >
                           <span
                             className="w-4 h-4 rounded-full border border-black/20 flex-shrink-0"
-                            style={{ backgroundColor: entry.hex_color }}
+                            style={getSwatchStyle(catalogColorHex(entry))}
                           />
                           <span className="text-xs text-white/80 whitespace-nowrap">{entry.color_name}</span>
                         </button>
@@ -1634,7 +1675,7 @@ export function ConfigureAmsSlotModal({
                           ? 'border-bambu-green scale-110'
                           : 'border-white/20 hover:border-white/40'
                       }`}
-                      style={{ backgroundColor: `#${color.hex}` }}
+                      style={getSwatchStyle(color.hex)}
                       title={color.name}
                     />
                   ))}
@@ -1661,7 +1702,7 @@ export function ConfigureAmsSlotModal({
                             ? 'border-bambu-green scale-110'
                             : 'border-white/20 hover:border-white/40'
                         }`}
-                        style={{ backgroundColor: `#${color.hex}` }}
+                          style={getSwatchStyle(color.hex)}
                         title={color.name}
                       />
                     ))}
@@ -1671,7 +1712,7 @@ export function ConfigureAmsSlotModal({
                 <div className="flex gap-2 items-center">
                   <div
                     className="w-10 h-10 rounded-lg border-2 border-white/20 flex-shrink-0"
-                    style={{ backgroundColor: `#${displayColor}` }}
+                    style={getSwatchStyle(displayColor)}
                   />
                   <input
                     type="text"
@@ -1689,6 +1730,8 @@ export function ConfigureAmsSlotModal({
                         // Try to parse as hex code
                         const cleaned = input.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
                         if (cleaned.length === 6) {
+                          setColorHex(cleaned);
+                        } else if (cleaned.length === 8) {
                           setColorHex(cleaned);
                         } else if (cleaned.length === 3) {
                           // Expand shorthand hex (e.g., F00 -> FF0000)

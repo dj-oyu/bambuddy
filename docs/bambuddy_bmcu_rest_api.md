@@ -143,9 +143,9 @@ the binary transport and are kept for the existing Settings UI.
 | POST | `/api/v1/bmcu-link/provisioning/rotate` | `{device_id}` (1–63 chars) | `{device_id, key_hex, rotated}` |
 | GET | `/api/v1/bmcu-link/devices` | — | `{enabled, devices[Device]}` |
 | GET | `/api/v1/bmcu-link/devices/{device_id}` | — | `Device` (404 when unknown) |
-| GET | `/api/v1/bmcu-link/devices/{device_id}/events` | `kind`, `limit` (1–500, default 50), `offset` | legacy event rows |
+| GET | `/api/v1/bmcu-link/devices/{device_id}/events` | `kind`, `limit` (1–500, default 50), `offset` | BMCU EVENT and PICO_LOG rows, newest first |
 | GET | `/api/v1/bmcu-link/devices/{device_id}/transactions` | — | `[]` |
-| GET | `/api/v1/bmcu-link/enums` | — | `{"registry_version": 1}` |
+| GET | `/api/v1/bmcu-link/enums` | — | `registry_version` and supported `kind` labels |
 
 `Device` carries `device_id`, `name`, `firmware`, `protocol_min`/`protocol_max`,
 `capabilities`, `mode` (`production_monitor`), `link_state`,
@@ -208,12 +208,15 @@ is currently a placeholder.
 - **`onlineLinks` equals `linkCount` whenever the device is connected**; it is
   not a per-link liveness count. Per-link staleness is only in
   `LinkSnapshot.state`, which goes `stale` after 15 s without a STATUS.
-- **`/bmcu-link/enums` returns only `registry_version`.** The enum tables in
-  `bmcu_binary_registry.json` are not served, so the Settings UI falls back to
-  the label tables hardcoded in `BMCULinkSettings.tsx`.
-- **`/bmcu-link/devices/{id}/transactions` always returns `[]`**, and `/events`
-  returns `PICO_LOG` rows dressed in the legacy envelope shape
-  (`kind: "pico_log"`, `uart_sequence: 0`, `bmcu_boot_session: 0`).
+- **`/bmcu-link/enums` serves the supported event kinds**, while other enum
+  labels still use the Settings UI fallback tables.
+- **`/bmcu-link/devices/{id}/transactions` always returns `[]`.** `/events`
+  combines retained BMCU EVENT frames and PICO_LOG rows in the legacy envelope,
+  paginating both streams together by receive time (newest first). `kind=event`
+  and `kind=pico_log` select streams; Pico component filters remain supported.
+  Event IDs are negative and Pico log IDs positive to avoid collisions.
+  BMCU state changes include decoded field, slot, and before/after values.
+  `bmcu_boot_session` remains 0 in this compatibility response.
 - The plan's `/bmcu-monitors/{id}/diagnostics` and `/history` routes were never
   added; their content is served by `/metrics` and `/timeline`. `POST /control`
   is not in the plan but shipped.
