@@ -2446,6 +2446,11 @@ class BambuMQTTClient:
                     self.state.ams_status_sub,
                 )
 
+            # Command acknowledgements generally do not carry status telemetry.
+            # In particular, feeding an RFID-refresh ack through _update_state
+            # can trigger unrelated RUNNING-state fallbacks such as pushall.
+            is_rfid_refresh_response = False
+
             # Check for command responses
             if "command" in print_data:
                 cmd = print_data.get("command")
@@ -2523,6 +2528,7 @@ class BambuMQTTClient:
                     and ack_seq in self._pending_rfid_acks
                     and "result" in print_data
                 ):
+                    is_rfid_refresh_response = True
                     logger.info(
                         "[%s] %s response: result=%s reason=%s seq=%s",
                         self.serial_number,
@@ -2566,7 +2572,7 @@ class BambuMQTTClient:
             # which then failed the #1899 dispatch guard. The response carries no
             # status telemetry, so skip it; the true nozzle comes from pushall.
             # (Same reasoning as get_accessories in _handle_system_response.)
-            if not is_kprofile_response:
+            if not is_kprofile_response and not is_rfid_refresh_response:
                 self._update_state(print_data)
 
     def _handle_system_response(self, data: dict):

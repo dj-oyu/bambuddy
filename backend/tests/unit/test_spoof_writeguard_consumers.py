@@ -197,7 +197,7 @@ async def _call_configure(client, monkeypatch):
         kprofile_setting_id="",
         k_value=0.0,
         db=MagicMock(),
-        _=None,
+        current_user=None,
     )
 
 
