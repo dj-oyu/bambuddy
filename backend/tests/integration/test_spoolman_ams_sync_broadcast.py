@@ -124,20 +124,29 @@ async def test_a_synced_slot_is_broadcast(async_client: AsyncClient, printer_fac
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_an_emptied_slot_is_broadcast(async_client: AsyncClient, printer_factory, db_session: AsyncSession):
-    """The row is deleted here; a card still drawing the removed spool is the
-    same bug seen from the other side."""
+    """The row is deleted here -- once the slot has stayed empty for the grace
+    period (#3186) -- and a card still drawing the removed spool is the same
+    bug seen from the other side."""
+    from backend.app.services import slot_unlink_grace
+
     printer = await printer_factory(name="H2C")
     await _enable_spoolman(db_session)
     db_session.add(SpoolmanSlotAssignment(printer_id=printer.id, ams_id=0, tray_id=1, spoolman_spool_id=7))
     await db_session.commit()
 
-    broadcast, _ = await _run_ams_change(
-        printer.id,
-        # A bare/blank tray report can be a transient BMCU boot state.  State
-        # 9 is the firmware's explicit empty signal and is authoritative.
-        [{"id": 0, "tray": [{"id": 1, "state": 9}]}],
-        parsed={(0, 1): None},
-    )
+    clock = [1000.0]
+    with patch.object(slot_unlink_grace, "_now", lambda: clock[0]):
+        # A bare/blank report can be a transient BMCU boot state. State 9 is
+        # the firmware's explicit empty signal; it still observes the unlink
+        # grace period before becoming authoritative.
+        empty_report = [{"id": 0, "tray": [{"id": 1, "state": 9}]}]
+        await _run_ams_change(printer.id, empty_report, parsed={(0, 1): None})
+        clock[0] += slot_unlink_grace.GRACE_SECONDS
+        broadcast, _ = await _run_ams_change(
+            printer.id,
+            empty_report,
+            parsed={(0, 1): None},
+        )
 
     assert (0, 1) in _slot_events(broadcast)
 
