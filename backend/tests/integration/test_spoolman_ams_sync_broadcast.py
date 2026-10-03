@@ -25,17 +25,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.settings import Settings
 from backend.app.models.spoolman_slot_assignment import SpoolmanSlotAssignment
+from backend.app.services.bambu_mqtt import PrinterState
 
 
 def _status(ams_data):
-    status = MagicMock()
-    status.raw_data = {"ams": ams_data, "vt_tray": []}
-    status.gcode_state = "IDLE"
-    # Keep serializer-facing fields faithful to PrinterState.  Unspecified
-    # MagicMock attributes cannot be range-checked or version-compared.
-    status.stg_cur = -1
-    status.firmware_version = ""
-    return status
+    # This state is serialized for the WebSocket broadcast. Using the real
+    # dataclass keeps every serializer-facing field at its production default.
+    return PrinterState(state="IDLE", raw_data={"ams": ams_data, "vt_tray": []})
 
 
 def _tray(ams_id: int, tray_id: int):

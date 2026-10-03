@@ -63,7 +63,7 @@ async def test_inventory_guarded_write_skips_cali_and_persist(monkeypatch):
     monkeypatch.setattr(
         inv_mod,
         "resolve_slicer_filament",
-        AsyncMock(return_value=("GFL99", "GFL99_setting", None)),
+        AsyncMock(return_value=("GFL99", "GFL99_setting", None, None)),
     )
 
     upsert = AsyncMock()
@@ -105,7 +105,7 @@ async def test_inventory_successful_write_still_persists(monkeypatch):
     monkeypatch.setattr(
         inv_mod,
         "resolve_slicer_filament",
-        AsyncMock(return_value=("GFL99", "GFL99_setting", None)),
+        AsyncMock(return_value=("GFL99", "GFL99_setting", None, None)),
     )
     upsert = AsyncMock()
     monkeypatch.setattr(spw_mod, "upsert_slot_preset_for_spool", upsert)
