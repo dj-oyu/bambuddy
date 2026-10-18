@@ -2,6 +2,13 @@
 
 All notable changes to Bambuddy will be documented in this file.
 
+## [1.2.5.8] - 2026-10-19
+
+### Changed
+- Merge upstream main through `0d4275107`.
+- Document the Notify! notification provider, including iOS Live Activities and Lock Screen widgets.
+- Reduce Windows installer artifact retention to 1 day for unsigned installers and 7 days for signed installers.
+
 ## [1.2.5.7] - 2026-10-02
 
 ### Added
