@@ -6,6 +6,8 @@ import type { FilamentPlanItem, FilamentPlanWarning, PrintQueueItem, Printer } f
 import { compareQueueOrder, queueLaneKey } from '../utils/queueOrder';
 import { isBusyOnlyWaitingReason } from '../utils/waitingReason';
 import { api } from '../api/client';
+import type { PrintQueueItem, Printer } from '../api/client';
+import { queueItemThumbnailUrl } from '../utils/queueItemThumbnail';
 import { Button } from './Button';
 import { HotendLane, UnloadModePopover } from './QueueFilamentLane';
 import {
@@ -573,11 +575,7 @@ export function QueueTimelineView({
                       const displayName = ev.item.archive_name
                         || ev.item.library_file_name
                         || `#${ev.item.id}`;
-                      const thumbnailUrl = ev.item.archive_thumbnail
-                        ? api.getArchiveThumbnail(ev.item.archive_id!)
-                        : ev.item.library_file_thumbnail
-                          ? api.getLibraryFileThumbnailUrl(ev.item.library_file_id!)
-                          : null;
+                      const thumbnailUrl = queueItemThumbnailUrl(ev.item);
                       const isPrinting = ev.type === 'printing';
                       const isBatched = ev.item.batch_id != null;
                       const tooltipParts = [

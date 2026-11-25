@@ -54,4 +54,13 @@ def test_both_serializers_use_the_shared_helper():
         "backend/app/services/printer_manager.py",
     ):
         src = (repository_root / path).read_text()
-        assert "spoof_status_fields(" in src, f"{path} must use the shared helper"
+        assert "ams_units_to_dicts(" in src, f"{path} must use the shared serializer"
+
+    from backend.app.services.printer_manager import ams_units_to_dicts
+
+    pending = {(0, 2): {"ams_id": 0, "tray_id": 0}}
+    units = ams_units_to_dicts([{"id": 0, "tray": [{"id": 2}]}], lambda *_: None, spoof_pending=pending)
+    tray = units[0]["tray"][0]
+    assert tray["is_spoofed_backup"] is True
+    assert tray["spoof_state"] == "pending"
+    assert tray["spoof_primary"] == pending[(0, 2)]

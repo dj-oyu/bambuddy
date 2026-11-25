@@ -222,24 +222,32 @@ detect_os() {
 }
 
 detect_python() {
-    local candidate version major minor
-    for candidate in python3.14 python3.13 python3.12 python3.11 python3 python; do
-        if ! command -v "$candidate" &>/dev/null; then
-            continue
-        fi
-
-        version=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    # The distribution's python3 first, then a newer one next to it (Ubuntu
+    # 22.04 ships 3.10 but has a python3.11 package). A candidate needs 3.11+
+    # and a working venv module: Debian splits ensurepip into a -venv package,
+    # and an interpreter without it cannot create the virtual environment.
+    PYTHON_CMD=""
+    local candidate version major minor found=""
+    for candidate in python3 python3.14 python3.13 python3.12 python3.11 python; do
+        command -v "$candidate" &>/dev/null || continue
+        version=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null) || continue
         major=$(echo "$version" | cut -d'.' -f1)
         minor=$(echo "$version" | cut -d'.' -f2)
-
-        if [[ "$major" -gt 3 ]] || { [[ "$major" -eq 3 ]] && [[ "$minor" -ge 11 ]]; }; then
-            PYTHON_CMD="$candidate"
-            log_success "Found Python $version"
-            return 0
+        if [[ "$major" -eq 3 ]] && [[ "$minor" -ge 11 ]]; then
+            if "$candidate" -c 'import ensurepip, venv' &>/dev/null; then
+                PYTHON_CMD="$candidate"
+                log_success "Found Python $version ($candidate)"
+                return 0
+            fi
+            found="$version (without the venv module)"
+            continue
         fi
+        [[ -n "$found" ]] || found="$version"
     done
 
-    log_warn "Python 3.11 or newer is required"
+    if [[ -n "$found" ]]; then
+        log_warn "Python $found found, but 3.11 or newer with venv support is required"
+    fi
     return 1
 }
 
@@ -280,15 +288,27 @@ install_dependencies() {
         apt)
             sudo apt-get update
             sudo apt-get install -y python3 python3-pip python3-venv git curl ffmpeg
+            # Ubuntu 22.04's python3 is 3.10; its python3.11 package is enough.
+            if ! detect_python >/dev/null 2>&1; then
+                sudo apt-get install -y python3.11 python3.11-venv || true
+            fi
             ;;
         dnf|yum)
             sudo $PKG_MANAGER install -y python3 python3-pip git curl ffmpeg
+            # RHEL/Rocky 9's python3 is 3.9; their python3.11 package is enough.
+            if ! detect_python >/dev/null 2>&1; then
+                sudo $PKG_MANAGER install -y python3.11 python3.11-pip || true
+            fi
             ;;
         pacman)
             sudo pacman -Sy --noconfirm python python-pip git curl ffmpeg
             ;;
         zypper)
             sudo zypper install -y python3 python3-pip git curl ffmpeg
+            # openSUSE Leap's python3 is 3.6; its python311 package is enough.
+            if ! detect_python >/dev/null 2>&1; then
+                sudo zypper install -y python311 || true
+            fi
             ;;
         brew)
             # Check if Homebrew is installed
@@ -397,17 +417,25 @@ setup_virtualenv() {
 
     cd "$INSTALL_PATH"
 
+    # A venv from an older Python (an install from before 3.11 was required)
+    # must be rebuilt: creating a venv over it keeps its old bin/python.
+    local venv_args=""
+    if [[ -x venv/bin/python ]] && ! venv/bin/python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+        log_info "Rebuilding the virtual environment with Python 3.11+..."
+        venv_args="--clear"
+    fi
+
     if [[ "$OS_TYPE" == "macos" ]]; then
-        $PYTHON_CMD -m venv venv
+        $PYTHON_CMD -m venv $venv_args venv
         "$INSTALL_PATH/venv/bin/pip" install --upgrade pip
-        "$INSTALL_PATH/venv/bin/pip" install -r requirements.txt
+        "$INSTALL_PATH/venv/bin/pip" install -r requirements.lock
     else
         # Venv is owned by the service user, so pip must also run as that user —
         # otherwise `pip install --upgrade pip` fails trying to rewrite its own
         # binary inside the venv it doesn't own.
-        sudo -u "$SERVICE_USER" $PYTHON_CMD -m venv venv 2>/dev/null || $PYTHON_CMD -m venv venv
+        sudo -u "$SERVICE_USER" $PYTHON_CMD -m venv $venv_args venv 2>/dev/null || $PYTHON_CMD -m venv $venv_args venv
         sudo -u "$SERVICE_USER" "$INSTALL_PATH/venv/bin/pip" install --upgrade pip
-        sudo -u "$SERVICE_USER" "$INSTALL_PATH/venv/bin/pip" install -r requirements.txt
+        sudo -u "$SERVICE_USER" "$INSTALL_PATH/venv/bin/pip" install -r requirements.lock
     fi
 
     log_success "Virtual environment configured"
@@ -1100,7 +1128,7 @@ main() {
     echo ""
     echo -e "  ${BOLD}Update BamBuddy:${NC}"
     echo -e "    cd $INSTALL_PATH && git pull && source venv/bin/activate"
-    echo -e "    pip install -r requirements.txt && cd frontend && npm ci && npm run build"
+    echo -e "    pip install -r requirements.lock && cd frontend && npm ci && npm run build"
     if [[ "$OS_TYPE" != "macos" ]]; then
         echo -e "    sudo systemctl restart bambuddy"
     fi

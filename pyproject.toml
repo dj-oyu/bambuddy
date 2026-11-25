@@ -38,6 +38,8 @@ ignore = [
     "SIM108", # ternary operator (readability preference)
     "SIM102", # nested if (readability preference)
     "SIM105", # contextlib.suppress (readability preference)
+    "UP017",  # datetime.UTC alias (style preference: the codebase uses timezone.utc)
+    "UP042",  # (str, Enum) -> StrEnum changes str() of the members; not a mechanical swap
 ]
 
 # Allow autofix for all enabled rules
@@ -65,6 +67,19 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
+[tool.basedpyright]
+# Errors that existed when the check was introduced are recorded in
+# .basedpyright/baseline.json and do not fail; any new one does. A local run
+# without new errors drops fixed errors from the baseline; CI (lock mode) never
+# rewrites it and fails if it still lists a fixed error. Check against the pinned
+# environment in requirements-typecheck.lock -- other library versions report
+# different errors (see requirements-typecheck.txt).
+include = ["backend/app"]
+typeCheckingMode = "standard"
+pythonVersion = "3.11"
+# The baseline was made for Linux; the host OS would otherwise change results.
+pythonPlatform = "Linux"
+
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 python_files = ["test_*.py"]
@@ -75,6 +90,7 @@ filterwarnings = [
 ]
 markers = [
     "docker: marks tests that run in Docker integration environment",
+    "sqlite_only: tests of SQLite-specific behaviour, skipped when the suite runs on PostgreSQL",
 ]
 
 [dependency-groups]

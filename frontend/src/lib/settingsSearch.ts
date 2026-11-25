@@ -15,7 +15,9 @@ export type SettingsSearchTab =
   | 'notifications'
   | 'queue'
   | 'filament'
+  | 'camera'
   | 'network'
+  | 'wled'
   | 'apikeys'
   | 'virtual-printer'
   | 'spoolbuddy'
@@ -24,7 +26,7 @@ export type SettingsSearchTab =
   | 'backup'
   | 'failure-detection';
 
-export type SettingsSearchSubTab = 'users' | 'email' | 'ldap' | 'oidc' | 'twofa' | 'security';
+export type SettingsSearchSubTab = 'users' | 'printer-access' | 'email' | 'ldap' | 'oidc' | 'twofa' | 'security';
 
 export type UsersSubTab = SettingsSearchSubTab;
 

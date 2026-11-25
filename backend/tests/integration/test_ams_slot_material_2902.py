@@ -63,6 +63,9 @@ def _spoolman_spool(material, spool_id=11, slicer_filament=None):
 
 def _spoolman_client(spool):
     client = MagicMock()
+    client.has_tag_api = AsyncMock(return_value=False)
+    client.add_native_tags = AsyncMock(return_value=0)
+    client.unlink_all_native_tags = AsyncMock()
     client.base_url = "http://localhost:7912"
     client.health_check = AsyncMock(return_value=True)
     client.get_spool = AsyncMock(return_value=spool)
@@ -309,10 +312,10 @@ class TestSpoolmanInventoryAssign:
 
         assert sent["tray_type"] == "PLA"
         assert sent["tray_info_idx"] == "GFL99"
-        # Exactly, not just "contains PLA+": the filament's own name is in this
-        # string too, so a substring check would pass even if the material had
-        # been reduced before it was built.
-        assert sent["tray_sub_brands"] == "eSUN PLA+ Cool White"
+        # Exactly, not just "contains PLA+", so a reduced material would show.
+        # The filament's name "Cool White" is its colour (#3561), which is not
+        # part of the sub-brand.
+        assert sent["tray_sub_brands"] == "eSUN PLA+"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -437,7 +440,7 @@ class TestSpoolmanLink:
 
         assert sent["tray_type"] == "PLA"
         assert sent["tray_info_idx"] == "GFL99"
-        assert sent["tray_sub_brands"] == "eSUN PLA+ Cool White"
+        assert sent["tray_sub_brands"] == "eSUN PLA+"  # "Cool White" is the colour (#3561)
         assert (sent["nozzle_temp_min"], sent["nozzle_temp_max"]) == (190, 230)
 
     @pytest.mark.asyncio

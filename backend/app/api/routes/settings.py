@@ -1,4 +1,6 @@
+import asyncio
 import io
+import json
 import logging
 import os
 import zipfile
@@ -12,18 +14,24 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import (
+    RequestPrinterScope,
+    RequireAdminIfAuthEnabled,
     RequirePermissionIfAuthEnabled,
     ScopedCaller,
     caller_is_api_key,
+    is_auth_enabled,
     require_auth_if_enabled,
     require_energy_cost_update,
 )
 from backend.app.core.config import APP_VERSION, settings as app_settings
 from backend.app.core.database import get_db
 from backend.app.core.permissions import Permission
+from backend.app.core.printer_scope import PrinterScope
 from backend.app.models.settings import Settings
 from backend.app.models.user import User
-from backend.app.schemas.settings import AppSettings, AppSettingsUpdate
+from backend.app.schemas.settings import ADMIN_ONLY_SETTING_KEYS, AppSettings, AppSettingsUpdate
+from backend.app.services import camera_light
+from backend.app.services.secret_fields import SETTINGS_SECRETS, SecretConfigError, mask_fields, merge_partial
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +39,9 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 DEFAULT_SETTINGS = AppSettings()
 
-# Sensitive credential fields blanked for API-key callers
-_SENSITIVE_FIELDS_FOR_API_KEY = (
-    "mqtt_password",
-    "ha_token",
-    "prometheus_token",
-    "virtual_printer_access_code",
-    "ldap_bind_password",
-)
+# Sensitive credential fields blanked for API-key callers. Everyone else sees
+# them as the placeholder (write-only secrets, see services/secret_fields).
+_SENSITIVE_FIELDS_FOR_API_KEY = (*SETTINGS_SECRETS, "octoeverywhere_api_key")
 
 
 async def get_setting(db: AsyncSession, key: str) -> str | None:
@@ -188,7 +191,6 @@ _BOOL_SETTING_KEYS = frozenset(
         "include_beta_updates",
         "announcements_enabled",
         "announcements_all_users",
-        "virtual_printer_enabled",
         "ftp_retry_enabled",
         "mqtt_enabled",
         "mqtt_use_tls",
@@ -218,6 +220,8 @@ _BOOL_SETTING_KEYS = frozenset(
         "local_login_enabled",
         "preheat_enabled",
         "queue_keep_bed_warm",
+        "obico_enabled",
+        "octoeverywhere_enabled",
     }
 )
 
@@ -225,11 +229,18 @@ _FLOAT_SETTING_KEYS = frozenset(
     {
         "default_filament_cost",
         "energy_cost_per_kwh",
+        "camera_light_delay",
         "ams_temp_good",
         "ams_temp_fair",
         "library_disk_warning_gb",
         "low_stock_threshold",
     }
+)
+
+# String settings limited to a fixed set of values, which a stored "None"
+# would break when the settings response is built.
+_ENUM_SETTING_KEYS = frozenset(
+    {"energy_price_source", "obico_sensitivity", "obico_action", "octoeverywhere_confidence", "octoeverywhere_action"}
 )
 
 _INT_SETTING_KEYS = frozenset(
@@ -255,12 +266,19 @@ _INT_SETTING_KEYS = frozenset(
         "queue_keep_warm_max_minutes",
         "queue_max_concurrent_uploads",
         "ambient_drying_sustained_minutes",
+        "pause_warning_minutes",
+        "obico_poll_interval",
+        "octoeverywhere_poll_interval",
     }
 )
 
 
-async def _build_settings_response(db: AsyncSession, is_api_key: bool = False) -> AppSettings:
-    """Build the full settings response, scrubbing secrets for API-key callers."""
+async def _build_settings_response(db: AsyncSession, is_api_key: bool = False, mask: bool = True) -> AppSettings:
+    """Build the full settings response.
+
+    Secrets are blank for API-key callers and the placeholder for everyone else;
+    ``mask=False`` is for server-side use only (comparing with an update).
+    """
     settings_dict = DEFAULT_SETTINGS.model_dump()
 
     result = await db.execute(select(Settings))
@@ -301,13 +319,21 @@ async def _build_settings_response(db: AsyncSession, is_api_key: bool = False) -
     ha_settings = await get_homeassistant_settings(db)
     settings_dict.update(ha_settings)
 
-    # ldap_bind_password is never returned to any caller
-    settings_dict["ldap_bind_password"] = ""
+    # ldap_bind_password is never returned to any caller (mask=False is
+    # server-side only)
+    if mask or is_api_key:
+        settings_dict["ldap_bind_password"] = ""
+
+    # The saved key is write-only, including for authenticated administrators.
+    settings_dict["octoeverywhere_api_key_configured"] = bool(settings_dict["octoeverywhere_api_key"].strip())
+    settings_dict["octoeverywhere_api_key"] = ""
 
     if is_api_key:
         for field in _SENSITIVE_FIELDS_FOR_API_KEY:
             if field in settings_dict:
                 settings_dict[field] = ""
+    elif mask:
+        settings_dict = mask_fields(settings_dict, SETTINGS_SECRETS)
 
     return AppSettings(**settings_dict)
 
@@ -315,7 +341,7 @@ async def _build_settings_response(db: AsyncSession, is_api_key: bool = False) -
 @router.get("", response_model=AppSettings)
 @router.get("/", response_model=AppSettings)
 async def get_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
     _is_api_key: bool = Depends(caller_is_api_key),
 ):
@@ -323,24 +349,97 @@ async def get_settings(
     return await _build_settings_response(db, is_api_key=_is_api_key)
 
 
+def _as_stored_setting(value: object) -> str:
+    """The text the settings writer below stores for ``value``."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "None"
+    return str(value)
+
+
+def _same_setting_value(new: object, old: object) -> bool:
+    """Whether saving ``new`` stores exactly what ``old`` is stored as."""
+    return _as_stored_setting(new) == _as_stored_setting(old)
+
+
 @router.put("/", response_model=AppSettings)
 async def update_settings(
     settings_update: AppSettingsUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_user: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE),
 ):
     """Update application settings."""
     update_data = settings_update.model_dump(exclude_unset=True)
 
-    # An explicit null for a boolean or numeric setting has no meaning -- these
-    # are not clearable -- and would be stored as the literal "None".
+    # Write-only secrets: the placeholder keeps the stored value, and a kept
+    # secret does not follow a changed destination.
+    stored = (await _build_settings_response(db, mask=False)).model_dump()
+    secrets = dict(SETTINGS_SECRETS)
+    if stored.get("ha_token_from_env"):
+        # The deployment's own token, not a stored secret to enter again: the
+        # URL may change (the placeholder sent back still writes nothing).
+        secrets["ha_token"] = ()
+    try:
+        update_data = merge_partial(stored, update_data, secrets)
+    except SecretConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    # Omitted/null preserves the saved key; an explicit empty string removes it.
+    if update_data.get("octoeverywhere_api_key") is None:
+        update_data.pop("octoeverywhere_api_key", None)
+
+    # These typed settings are not clearable: null would be stored as "None".
+    # Check before normalizing provider flags so enabling one cannot hide a
+    # null submitted for the other.
     null_keys = sorted(
         key
         for key, value in update_data.items()
-        if value is None and key in (_BOOL_SETTING_KEYS | _FLOAT_SETTING_KEYS | _INT_SETTING_KEYS)
+        if value is None and key in (_BOOL_SETTING_KEYS | _FLOAT_SETTING_KEYS | _INT_SETTING_KEYS | _ENUM_SETTING_KEYS)
     )
     if null_keys:
         raise HTTPException(status_code=422, detail=f"These settings cannot be null: {', '.join(null_keys)}")
+
+    # Only one failure detection provider may control a print at a time.
+    if update_data.get("obico_enabled") and update_data.get("octoeverywhere_enabled"):
+        raise HTTPException(status_code=400, detail="Enable only one AI failure detection provider at a time.")
+    if update_data.get("octoeverywhere_enabled"):
+        update_data["obico_enabled"] = False
+    elif update_data.get("obico_enabled"):
+        update_data["octoeverywhere_enabled"] = False
+
+    # Settings that decide who can sign in are admin-only, like the user routes.
+    # Only a real change counts: the settings page sends every field on each
+    # save, so an unchanged value from a non-admin must pass.
+    if current_user is not None and not current_user.is_admin:
+        changed = sorted(
+            key
+            for key in update_data
+            if key in ADMIN_ONLY_SETTING_KEYS and not _same_setting_value(update_data[key], stored.get(key))
+        )
+        if changed:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Only an administrator can change these settings: {', '.join(changed)}",
+            )
+
+    # Like an API key's or a provider's printers: a page still open from before
+    # a printer delete would save the deleted id, which SQLite gives to the next
+    # printer created (the validator has already checked it is a list of ints).
+    # Only ids not stored yet are checked: the page sends the whole list, and an
+    # id already there must not block every save.
+    for key in ("obico_enabled_printers", "octoeverywhere_enabled_printers"):
+        if not update_data.get(key):
+            continue
+        from backend.app.core.printer_scope import ensure_printers_exist
+
+        try:
+            stored_printers = json.loads(await get_setting(db, key) or "[]")
+        except ValueError:
+            stored_printers = []
+        stored_printers = set(stored_printers) if isinstance(stored_printers, list) else set()
+        added = [i for i in json.loads(update_data[key]) if i not in stored_printers]
+        await ensure_printers_exist(db, added)
 
     # Safety refusals on disabling local login (#1589). Two failure modes
     # would otherwise lock everyone out of the install:
@@ -382,19 +481,47 @@ async def update_settings(
     }
     mqtt_updated = bool(mqtt_keys & set(update_data.keys()))
 
+    # The page saves every field it shows on each change, so compare against
+    # what is stored: only a real change of price source is worth a read.
+    price_source_changed = False
+    for key in ("energy_price_source", "energy_price_ha_entity"):
+        if key in update_data and str(update_data[key]) != (await get_setting(db, key) or ""):
+            price_source_changed = True
+
     for key, value in update_data.items():
         # Convert value to string for storage
-        if isinstance(value, bool):
-            str_value = "true" if value else "false"
-        elif value is None:
-            str_value = "None"
-        else:
-            str_value = str(value)
-        await set_setting(db, key, str_value)
+        await set_setting(db, key, _as_stored_setting(value))
 
     await db.commit()
     # Expire all objects to ensure fresh reads after commit
     db.expire_all()
+
+    if update_data.get("obico_enabled") is False:
+        from backend.app.services.obico_detection import obico_detection_service
+
+        await obico_detection_service.refresh_settings()
+    if any(key.startswith("octoeverywhere_") for key in update_data):
+        from backend.app.services.octoeverywhere_detection import octoeverywhere_detection_service
+
+        await octoeverywhere_detection_service.refresh_settings()
+
+    if {"camera_light_mode", "camera_light_delay"} & set(update_data.keys()):
+        camera_light.invalidate_settings()
+    if "require_plate_clear" in update_data:
+        from backend.app.services.wled import wled_manager
+
+        wled_manager.require_plate_clear = update_data["require_plate_clear"]
+
+    if price_source_changed:
+        # Read a newly chosen price sensor now, so the saved settings show its
+        # price instead of the old one until the next hourly read (#1251).
+        from backend.app.services.energy_price import current_price
+
+        try:
+            await current_price(db, remember=True)
+            await db.commit()
+        except Exception as e:
+            logger.warning("Could not read the electricity price after saving its source: %s", e)
 
     # Reconfigure MQTT relay if any MQTT settings changed
     if mqtt_updated:
@@ -414,7 +541,7 @@ async def update_settings(
         except Exception:
             pass  # Don't fail the settings update if MQTT reconfiguration fails
 
-    # Return updated settings (never scrub secrets on PUT — caller has SETTINGS_UPDATE permission)
+    # Return updated settings, secrets as the placeholder
     return await _build_settings_response(db, is_api_key=False)
 
 
@@ -422,7 +549,7 @@ async def update_settings(
 @router.patch("", response_model=AppSettings)
 async def patch_settings(
     settings_update: AppSettingsUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE),
 ):
     """Partially update application settings (same as PUT, for REST compatibility)."""
@@ -444,7 +571,7 @@ class ElectricityPriceUpdate(BaseModel):
 @router.post("/electricity-price", response_model=AppSettings)
 async def update_electricity_price(
     payload: ElectricityPriceUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: ScopedCaller = Depends(require_energy_cost_update()),
     _is_api_key: bool = Depends(caller_is_api_key),
 ):
@@ -465,7 +592,8 @@ async def update_electricity_price(
 
 @router.post("/reset", response_model=AppSettings)
 async def reset_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User | None = RequireAdminIfAuthEnabled(),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE),
 ):
     """Reset all settings to defaults."""
@@ -475,13 +603,17 @@ async def reset_settings(
         await db.delete(setting)
 
     await db.commit()
+    camera_light.invalidate_settings()
+    from backend.app.services.wled import wled_manager
+
+    wled_manager.require_plate_clear = False
 
     return DEFAULT_SETTINGS
 
 
 @router.get("/default-sidebar-order")
 async def get_default_sidebar_order(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Get the admin-set default sidebar order.
 
@@ -526,7 +658,7 @@ _UI_PREFERENCE_FIELDS: tuple[str, ...] = (
 
 
 @router.get("/ui-preferences")
-async def get_ui_preferences(db: AsyncSession = Depends(get_db)):
+async def get_ui_preferences(db: AsyncSession = Depends(get_db, scope="function")):
     """Get the curated subset of settings that any page needs to render correctly.
 
     Intentionally not gated on SETTINGS_READ — every authenticated user (and
@@ -568,13 +700,54 @@ _UI_FLAG_FIELDS: tuple[str, ...] = (
     # update check ran even where it had been switched off.
     "currency",
     "check_updates",
+    # Read by the print dialog, queue, file manager, inventory and SpoolBuddy
+    # pages, which users without SETTINGS_READ open too: the 403 dropped them
+    # all to their defaults (with billing on, the print dialog hid the cost
+    # centre picker and the print was then refused for lacking one).
+    "queue_shortest_first",
+    "use_slicer_api",
+    "open_in_slicer",
+    "preferred_slicer",
+    "disable_filament_warnings",
+    "prefer_lowest_filament",
+    "per_printer_mapping_expanded",
+    "default_filament_cost",
+    "default_bed_levelling",
+    "default_flow_cali",
+    "default_vibration_cali",
+    "default_layer_inspect",
+    "default_timelapse",
+    "default_nozzle_offset_cali",
+    "default_confirm_outcome",
+    "stagger_group_size",
+    "stagger_interval_minutes",
+    "library_disk_warning_gb",
+    "low_stock_threshold",
+    "location_sensor_poll_interval",
+    "location_sensor_alert_defaults",
+    "pipeline_max_copies",
+    "language",
+    "dark_style",
+    "dark_background",
+    "dark_accent",
+    "light_style",
+    "light_background",
+    "light_accent",
+    # Which inventory a new spool goes to (unknown-tag prompt), and the
+    # forecast's default lead time.
+    "spoolman_enabled",
+    "forecast_global_lead_time_days",
+    # Preselected in the print dialog; withheld below from a caller who may
+    # not use that printer.
+    "default_printer_id",
 )
 
 
 @router.get("/ui-flags")
 async def get_ui_flags(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = Depends(require_auth_if_enabled),
+    printer_scope: PrinterScope = RequestPrinterScope,
 ):
     """Install configuration the app shell needs, for any signed-in user.
 
@@ -591,7 +764,12 @@ async def get_ui_flags(
     """
     full = await _build_settings_response(db, is_api_key=False)
     dumped = full.model_dump()
-    return {key: dumped[key] for key in _UI_FLAG_FIELDS if key in dumped}
+    flags = {key: dumped[key] for key in _UI_FLAG_FIELDS if key in dumped}
+    if flags.get("default_printer_id") is not None and not printer_scope.allows(flags["default_printer_id"]):
+        flags["default_printer_id"] = None
+    # Whether G-code snippets are set up, not the snippets themselves.
+    flags["has_gcode_snippets"] = bool(dumped.get("gcode_snippets"))
+    return flags
 
 
 @router.get("/check-ffmpeg")
@@ -617,7 +795,7 @@ async def check_ffmpeg(
 
 @router.get("/spoolman")
 async def get_spoolman_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
 ):
     """Get Spoolman integration settings."""
@@ -641,7 +819,7 @@ async def get_spoolman_settings(
 @router.put("/spoolman")
 async def update_spoolman_settings(
     settings: dict,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE),
 ):
     """Update Spoolman integration settings.
@@ -736,6 +914,120 @@ async def get_homeassistant_settings(db: AsyncSession) -> dict:
     }
 
 
+# The file steps of a backup and a restore run in a worker thread. On the
+# event loop they froze the whole server for as long as they took -- no page,
+# no websocket, no printer message -- and with a large archive folder that was
+# over half a minute, long enough for the loop watchdog to dump every thread.
+
+
+def _copy_backup_dirs(dirs_to_backup: list[tuple[str, Path]], temp_path: Path) -> None:
+    """Copy each data directory that has anything in it into the backup folder."""
+    import shutil
+
+    for name, src_dir in dirs_to_backup:
+        if src_dir.exists() and any(src_dir.iterdir()):
+            try:
+                shutil.copytree(
+                    src_dir, temp_path / name
+                )  # SEC-PATH-OK: name iterates the dirs_to_backup tuple of constant strings ("archive", "virtual_printer", ...)
+            except shutil.Error as e:
+                logger.warning("Some files in %s could not be copied: %s", name, e)
+            except PermissionError as e:
+                logger.warning("Permission denied copying %s: %s", name, e)
+
+
+def _write_backup_zip(temp_path: Path, zip_file: Path) -> None:
+    """Zip every file under temp_path into zip_file, paths relative to temp_path."""
+    with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path in temp_path.rglob("*"):
+            if file_path.is_file():
+                arcname = file_path.relative_to(temp_path)
+                zf.write(file_path, arcname)
+
+
+def _extract_backup_zip(content: bytes, temp_path: Path) -> None:
+    """Extract a backup ZIP into temp_path, refusing any entry that escapes it.
+
+    Raises HTTPException(400) for an unsafe path or a file that is not a ZIP.
+    """
+    from fastapi import HTTPException
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(content), "r") as zf:
+            for name in zf.namelist():
+                # Reject path-traversal payloads: any entry whose resolved
+                # path escapes temp_path would allow writing arbitrary files
+                # on the host (ZipSlip / CVE-2006-5456).
+                dest = (
+                    temp_path / name
+                ).resolve()  # SEC-PATH-OK: is_relative_to containment check below before extractall
+                # is_relative_to (Python 3.9+) covers both relative
+                # path-traversal (../etc/passwd) and absolute-path overrides
+                # (/etc/passwd) — str.startswith was vulnerable to
+                # prefix-collision attacks (e.g. /tmp/abc_evil/file passing
+                # a /tmp/abc prefix check).
+                if not dest.is_relative_to(temp_path.resolve()):
+                    raise HTTPException(400, f"Invalid backup: unsafe path in ZIP: {name!r}")
+            zf.extractall(temp_path)
+    except zipfile.BadZipFile:
+        raise HTTPException(400, "Invalid backup file: not a valid ZIP")
+
+
+def _restore_data_dirs(dirs_to_restore: list[tuple[str, Path]], temp_path: Path) -> list[str]:
+    """Replace each data directory's contents with the backup's.
+
+    Clears the contents, not the directory itself, which may be a Docker
+    mount. Returns the names of the directories that could not be restored.
+    """
+    import shutil
+
+    skipped_dirs = []
+    for name, dest_dir in dirs_to_restore:
+        src_dir = (
+            temp_path / name
+        )  # SEC-PATH-OK: name iterates the dirs_to_restore tuple of constant strings ("archive", "virtual_printer", ...)
+        if src_dir.exists():
+            logger.info("Restoring %s directory...", name)
+            try:
+                if dest_dir.exists():
+                    for item in dest_dir.iterdir():
+                        try:
+                            if item.is_dir():
+                                shutil.rmtree(item)
+                            else:
+                                item.unlink()
+                        except OSError as e:
+                            logger.warning("Could not delete %s: %s", item, e)
+                else:
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                # Copy contents from backup
+                for item in src_dir.iterdir():
+                    dest_item = dest_dir / item.name
+                    if item.is_dir():
+                        shutil.copytree(item, dest_item)
+                    else:
+                        shutil.copy2(item, dest_item)
+            except OSError as e:
+                logger.warning("Could not restore %s directory: %s", name, e)
+                skipped_dirs.append(name)
+    return skipped_dirs
+
+
+def _restore_sqlite_db(backup_db: Path, db_path: Path) -> None:
+    """Copy the backup into the live SQLite database with the online backup API."""
+    import sqlite3
+
+    src_conn = sqlite3.connect(str(backup_db))
+    try:
+        dst_conn = sqlite3.connect(str(db_path))
+        try:
+            src_conn.backup(dst_conn)
+        finally:
+            dst_conn.close()
+    finally:
+        src_conn.close()
+
+
 async def create_backup_zip(output_path: Path | None = None) -> tuple[Path, str]:
     """Create a complete backup ZIP (database + all data directories).
 
@@ -765,8 +1057,9 @@ async def create_backup_zip(output_path: Path | None = None) -> tuple[Path, str]
             async with engine.begin() as conn:
                 await conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
 
-            # Copy database file
-            shutil.copy2(db_path, temp_path / "bambuddy.db")
+            # Copy database file. Off the event loop, like every file step
+            # below: a large file blocked the whole server while it copied.
+            await asyncio.to_thread(shutil.copy2, db_path, temp_path / "bambuddy.db")
         else:
             # PostgreSQL: export to a portable SQLite file via SQLAlchemy.
             # This makes backups restorable on both SQLite and Postgres installs.
@@ -827,18 +1120,10 @@ async def create_backup_zip(output_path: Path | None = None) -> tuple[Path, str]
             ("plate_calibration", app_settings.plate_calibration_dir),
             ("icons", base_dir / "icons"),
             ("projects", base_dir / "projects"),
+            ("overlay-branding", base_dir / "overlay-branding"),
         ]
 
-        for name, src_dir in dirs_to_backup:
-            if src_dir.exists() and any(src_dir.iterdir()):
-                try:
-                    shutil.copytree(
-                        src_dir, temp_path / name
-                    )  # SEC-PATH-OK: name iterates the dirs_to_backup tuple of constant strings ("archive", "virtual_printer", ...)
-                except shutil.Error as e:
-                    logger.warning("Some files in %s could not be copied: %s", name, e)
-                except PermissionError as e:
-                    logger.warning("Permission denied copying %s: %s", name, e)
+        await asyncio.to_thread(_copy_backup_dirs, dirs_to_backup, temp_path)
 
         # Say which version made this, so a restore that cannot import it can
         # name the versions rather than a list of columns. Backups from before
@@ -882,18 +1167,15 @@ async def create_backup_zip(output_path: Path | None = None) -> tuple[Path, str]
             os.close(fd)
             zip_file = Path(tmp)
 
-        with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file_path in temp_path.rglob("*"):
-                if file_path.is_file():
-                    arcname = file_path.relative_to(temp_path)
-                    zf.write(file_path, arcname)
+        await asyncio.to_thread(_write_backup_zip, temp_path, zip_file)
 
     return zip_file, filename
 
 
 @router.get("/backup")
 async def create_backup(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User | None = RequireAdminIfAuthEnabled(),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_BACKUP),
 ):
     """Create a complete backup (database + all files) as a ZIP download."""
@@ -1028,7 +1310,21 @@ def _read_backup_manifest(temp_path: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
+def _restored_value_fixes(table_name: str) -> dict[str, tuple[tuple[str, ...], str]]:
+    """Columns of ``table_name`` whose backed-up value must be one of a set, with its fallback.
+
+    Older versions stored any project priority or status; one longer than the
+    column fails the whole import on PostgreSQL. The fallbacks are the ones
+    project import and the start-up repair use.
+    """
+    if table_name != "projects":
+        return {}
+    from backend.app.models.project import PROJECT_PRIORITIES, PROJECT_STATUSES
+
+    return {"priority": (PROJECT_PRIORITIES, "normal"), "status": (PROJECT_STATUSES, "active")}
+
+
+async def _import_sqlite_to_postgres(sqlite_path: Path):
     """Import data from a SQLite database file into the current PostgreSQL database.
 
     Used for cross-database restore (SQLite backup → PostgreSQL).
@@ -1038,7 +1334,7 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
 
     from sqlalchemy import text
 
-    from backend.app.core.database import Base, _create_engine
+    from backend.app.core.database import AUTOINCREMENT_TABLES, Base, _create_engine, highest_referenced_id
 
     # Before anything is dropped. The route checks this too, earlier and with
     # the backup's version in the message; this call is what makes the guarantee
@@ -1059,6 +1355,11 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
             "AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'archive_fts%'"
         )
         src_tables = {row["name"] for row in cursor.fetchall()}
+        # Where SQLite's own counters stand: ids freed there are not given out
+        # again on PostgreSQL either (a backup from before they were kept has none).
+        src_counters: dict[str, int] = {}
+        if src.execute("SELECT 1 FROM sqlite_master WHERE name = 'sqlite_sequence'").fetchone():
+            src_counters = {row["name"]: row["seq"] for row in src.execute("SELECT name, seq FROM sqlite_sequence")}
 
         # Get Postgres tables from our ORM models
         metadata = Base.metadata
@@ -1176,7 +1477,7 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
 
                 # Identify columns that need type conversion (SQLite stores booleans
                 # as int and datetimes as str — asyncpg requires native Python types)
-                from datetime import datetime as dt
+                from datetime import datetime as dt, timezone
 
                 bool_columns = set()
                 datetime_columns = set()
@@ -1208,7 +1509,10 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
                                     if sd is not None:
                                         not_null_defaults[col.name] = sd
 
-                now = dt.now()
+                # Naive UTC, as every stored timestamp is: the host's local
+                # time put backfilled rows hours off (DB-C4).
+                now = dt.now(timezone.utc).replace(tzinfo=None)
+                value_fixes = _restored_value_fixes(table_name)
 
                 def _convert_row(
                     row,
@@ -1218,6 +1522,7 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
                     nn_defaults=not_null_defaults,
                     _now=now,
                     inject=injected,
+                    fixes=value_fixes,
                 ):
                     result = dict(inject)
                     for c in cols:
@@ -1233,19 +1538,30 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
                                 except ValueError:
                                     pass
                         result[c] = val
+                    for c, (allowed, fallback) in fixes.items():
+                        if c in result and result[c] not in allowed:
+                            result[c] = fallback
                     return result
 
                 batch = [_convert_row(row) for row in rows]
                 await conn.execute(insert_sql, batch)
                 logger.info("Imported %d rows into %s", len(batch), table_name)
 
-            # Reset sequences to max(id) + 1 for each table with an id column
+            # Reset sequences to max(id) + 1 for each table with an id column;
+            # for AUTOINCREMENT_TABLES past SQLite's counter and every id still
+            # referred to, so a deleted row's id is not given to a new one.
             for table_name in sorted_tables:
                 try:
                     async with conn.begin_nested():
                         result = await conn.execute(text(f"SELECT MAX(id) FROM {table_name}"))  # noqa: S608  # nosec B608
                         max_id = result.scalar()
-                        if max_id is not None:
+                        if table_name in AUTOINCREMENT_TABLES:
+                            max_id = max(
+                                max_id or 0,
+                                src_counters.get(table_name) or 0,
+                                await highest_referenced_id(conn, table_name),
+                            )
+                        if max_id:
                             seq_name = f"{table_name}_id_seq"
                             await conn.execute(text(f"SELECT setval('{seq_name}', {max_id})"))  # noqa: S608
                 except Exception:
@@ -1297,7 +1613,8 @@ async def _import_sqlite_to_postgres(sqlite_path: Path, postgres_url: str):
 @router.post("/restore")
 async def restore_backup(
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User | None = RequireAdminIfAuthEnabled(),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_RESTORE),
 ):
     """Restore from a complete backup ZIP.
@@ -1305,7 +1622,6 @@ async def restore_backup(
     Replaces the database and all data directories from the backup ZIP.
     Requires a restart after restore.
     """
-    import shutil
     import tempfile
 
     from fastapi import HTTPException
@@ -1326,25 +1642,7 @@ async def restore_backup(
         if not file.filename or not file.filename.endswith(".zip"):
             raise HTTPException(400, "Invalid backup file: must be a .zip file")
 
-        try:
-            with zipfile.ZipFile(io.BytesIO(content), "r") as zf:
-                for name in zf.namelist():
-                    # Reject path-traversal payloads: any entry whose resolved
-                    # path escapes temp_path would allow writing arbitrary files
-                    # on the host (ZipSlip / CVE-2006-5456).
-                    dest = (
-                        temp_path / name
-                    ).resolve()  # SEC-PATH-OK: is_relative_to containment check below before extractall
-                    # is_relative_to (Python 3.9+) covers both relative
-                    # path-traversal (../etc/passwd) and absolute-path overrides
-                    # (/etc/passwd) — str.startswith was vulnerable to
-                    # prefix-collision attacks (e.g. /tmp/abc_evil/file passing
-                    # a /tmp/abc prefix check).
-                    if not dest.is_relative_to(temp_path.resolve()):
-                        raise HTTPException(400, f"Invalid backup: unsafe path in ZIP: {name!r}")
-                zf.extractall(temp_path)
-        except zipfile.BadZipFile:
-            raise HTTPException(400, "Invalid backup file: not a valid ZIP")
+        await asyncio.to_thread(_extract_backup_zip, content, temp_path)
 
         # 2. Validate backup
         backup_db = temp_path / "bambuddy.db"
@@ -1376,13 +1674,16 @@ async def restore_backup(
                 raise HTTPException(400, f"Invalid backup: bambuddy.db is not readable ({exc})") from exc
 
         try:
-            import asyncio
-
-            # 3. Stop virtual printer if running (releases file locks)
+            # 3. Stop the virtual printers if running (releases file locks).
+            # stop_all, not the legacy configure(): that ignores its arguments
+            # and re-syncs from the database not yet replaced, so their FTP,
+            # MQTT and SSDP services ran on through the restore (vp-2). Like
+            # the services below, they come back with the restart a
+            # successful restore asks for.
             try:
                 if virtual_printer_manager.is_enabled:
-                    logger.info("Stopping virtual printer for restore...")
-                    await virtual_printer_manager.configure(enabled=False)
+                    logger.info("Stopping virtual printers for restore...")
+                    await virtual_printer_manager.stop_all()
                     await asyncio.sleep(1)
             except Exception as e:
                 logger.warning("Failed to stop virtual printer: %s", e)
@@ -1477,7 +1778,7 @@ async def restore_backup(
                 # checkpointed yet (seed_default_groups + init_db on first
                 # start, plus whatever background heartbeats wrote during
                 # the request window) sits in bambuddy.db-wal with valid
-                # checksums. The route handler's own `db: Depends(get_db)`
+                # checksums. The route handler's own `db: Depends(get_db, scope="function")`
                 # session also keeps a connection checked out across
                 # engine.dispose(), holding fds to the WAL inode. With
                 # `shutil.copy2` SQLite finds the stale WAL on the next
@@ -1491,21 +1792,11 @@ async def restore_backup(
                 # own WAL — so concurrent open sessions see their own
                 # snapshot until they close (transaction isolation) but
                 # can't corrupt the restored state.
-                import sqlite3
-
-                src_conn = sqlite3.connect(str(backup_db))
-                try:
-                    dst_conn = sqlite3.connect(str(db_path))
-                    try:
-                        src_conn.backup(dst_conn)
-                    finally:
-                        dst_conn.close()
-                finally:
-                    src_conn.close()
+                await asyncio.to_thread(_restore_sqlite_db, backup_db, db_path)
             else:
                 # Import SQLite backup into PostgreSQL
                 logger.info("Importing SQLite backup into PostgreSQL...")
-                await _import_sqlite_to_postgres(backup_db, app_settings.database_url)
+                await _import_sqlite_to_postgres(backup_db)
 
             # 6. Replace data directories
             # For Docker compatibility: clear contents then copy (don't delete mount points)
@@ -1515,38 +1806,10 @@ async def restore_backup(
                 ("plate_calibration", app_settings.plate_calibration_dir),
                 ("icons", base_dir / "icons"),
                 ("projects", base_dir / "projects"),
+                ("overlay-branding", base_dir / "overlay-branding"),
             ]
 
-            skipped_dirs = []
-            for name, dest_dir in dirs_to_restore:
-                src_dir = (
-                    temp_path / name
-                )  # SEC-PATH-OK: name iterates the dirs_to_restore tuple of constant strings ("archive", "virtual_printer", ...)
-                if src_dir.exists():
-                    logger.info("Restoring %s directory...", name)
-                    try:
-                        # Clear destination contents (not the dir itself - may be Docker mount)
-                        if dest_dir.exists():
-                            for item in dest_dir.iterdir():
-                                try:
-                                    if item.is_dir():
-                                        shutil.rmtree(item)
-                                    else:
-                                        item.unlink()
-                                except OSError as e:
-                                    logger.warning("Could not delete %s: %s", item, e)
-                        else:
-                            dest_dir.mkdir(parents=True, exist_ok=True)
-                        # Copy contents from backup
-                        for item in src_dir.iterdir():
-                            dest_item = dest_dir / item.name
-                            if item.is_dir():
-                                shutil.copytree(item, dest_item)
-                            else:
-                                shutil.copy2(item, dest_item)
-                    except OSError as e:
-                        logger.warning("Could not restore %s directory: %s", name, e)
-                        skipped_dirs.append(name)
+            skipped_dirs = await asyncio.to_thread(_restore_data_dirs, dirs_to_restore, temp_path)
 
             # 7. Reset the encryption singleton so the migration that runs
             # inside init_db() picks up the restored key file (if a new one
@@ -1563,6 +1826,46 @@ async def restore_backup(
             # immediately, without requiring a manual restart.
             await reinitialize_database()
             await init_db()
+
+            # 8b. A backup from a Windows install stores its paths with
+            # backslashes, which Linux and macOS read as part of a file name
+            # (#3501). After init_db, so the tables are current, and after the
+            # files are copied, so a path that exists as written is kept.
+            from backend.app.core import database as _db_mod
+            from backend.app.services.backup_paths import convert_windows_paths
+
+            try:
+                async with _db_mod.engine.begin() as conn:
+                    await convert_windows_paths(conn, base_dir)
+            except Exception as e:
+                logger.warning("Could not convert Windows file paths from the backup: %s", e, exc_info=True)
+
+            # 9. Sign everyone out. The restored users and auth tokens come from
+            # another point in time, possibly written by older code, so no
+            # session issued before the restore should stay valid.
+            async with _db_mod.engine.begin() as conn:
+                await _db_mod.invalidate_all_sessions(conn)
+            # Open dashboards of signed-in users too: they are never signed in
+            # again. API-key and anonymous ones are not closed outright (nothing
+            # ended theirs), but the restored data decides what they may still see: the anonymous ones
+            # go if the backup turns authentication on, and the refresh closes
+            # those of a key the backup does not have (or has under another key).
+            from backend.app.core.auth import invalidate_auth_enabled_cache
+            from backend.app.core.websocket import ws_manager
+
+            # Read from the restored data: this request has just cached the
+            # setting it had before.
+            invalidate_auth_enabled_cache()
+            # Cloud presets were cached per user of the replaced user table.
+            from backend.app.api.routes.cloud import forget_all_cloud_presets
+
+            forget_all_cloud_presets()
+            async with _db_mod.async_session() as auth_db:
+                auth_on = await is_auth_enabled(auth_db)
+            if auth_on:
+                await ws_manager.close_signed_in()
+                await ws_manager.close_anonymous()
+            await ws_manager.refresh_printer_scopes()
 
             logger.info("Restore complete - restart required")
             message = "Backup restored successfully. Please restart Bambuddy for changes to take effect."
@@ -1614,40 +1917,33 @@ async def get_virtual_printer_models(
     }
 
 
+def _legacy_vp_status(status: dict, printer_scope: PrinterScope) -> dict:
+    """The first virtual printer's status, without what names its target for a limited caller."""
+    if printer_scope.is_unrestricted:
+        return status
+    return {key: value for key, value in status.items() if key not in ("name", "serial", "target_printer_ip", "proxy")}
+
+
 @router.get("/virtual-printer")
 async def get_virtual_printer_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
+    printer_scope: PrinterScope = RequestPrinterScope,
 ):
-    """Get virtual printer settings and status."""
-    from backend.app.services.virtual_printer import (
-        DEFAULT_VIRTUAL_PRINTER_MODEL,
-        virtual_printer_manager,
-    )
+    """Get the settings this route still sets, and the virtual printers' status.
 
-    enabled = await get_setting(db, "virtual_printer_enabled")
-    access_code = await get_setting(db, "virtual_printer_access_code")
-    mode = await get_setting(db, "virtual_printer_mode")
-    model = await get_setting(db, "virtual_printer_model")
-    target_printer_id = await get_setting(db, "virtual_printer_target_printer_id")
-    remote_interface_ip = await get_setting(db, "virtual_printer_remote_interface_ip")
+    Every other virtual printer setting lives on its own row
+    (``GET /virtual-printers``).
+    """
+    from backend.app.services.virtual_printer import virtual_printer_manager
+
     tailscale_disabled_raw = await get_setting(db, "virtual_printer_tailscale_disabled")
     archive_name_source = await get_setting(db, "virtual_printer_archive_name_source")
 
-    from backend.app.models.virtual_printer import VP_MODE_ARCHIVE, normalize_vp_mode
-
     return {
-        "enabled": enabled == "true" if enabled else False,
-        "access_code_set": bool(access_code),
-        # Normalize on read so older settings rows (with `immediate` /
-        # `print_queue`) come out as `archive` / `queue` for the frontend.
-        "mode": normalize_vp_mode(mode) or VP_MODE_ARCHIVE,
-        "model": model or DEFAULT_VIRTUAL_PRINTER_MODEL,
-        "target_printer_id": int(target_printer_id) if target_printer_id else None,
-        "remote_interface_ip": remote_interface_ip or "",
         "tailscale_disabled": tailscale_disabled_raw == "true" if tailscale_disabled_raw else True,
         "archive_name_source": archive_name_source if archive_name_source in ("metadata", "filename") else "metadata",
-        "status": virtual_printer_manager.get_status(),
+        "status": _legacy_vp_status(virtual_printer_manager.get_status(), printer_scope),
     }
 
 
@@ -1661,176 +1957,76 @@ async def update_virtual_printer_settings(
     remote_interface_ip: str = None,
     tailscale_disabled: bool = None,
     archive_name_source: str = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE),
+    printer_scope: PrinterScope = RequestPrinterScope,
 ):
-    """Update virtual printer settings and restart services if needed.
+    """Legacy single-printer settings: the archive name source and the first
+    virtual printer's Tailscale switch.
 
-    For proxy mode with SSDP proxy (dual-homed setup):
-    - remote_interface_ip: IP of interface on slicer's network (LAN B)
-    - Local interface is auto-detected based on target printer IP
+    Every other virtual printer setting lives on its own row, set with
+    ``PUT /virtual-printers/{id}``; the rest of this route's parameters are
+    refused (vp-3).
     """
     from sqlalchemy import select
 
-    from backend.app.models.printer import Printer
-    from backend.app.services.virtual_printer import (
-        DEFAULT_VIRTUAL_PRINTER_MODEL,
-        VIRTUAL_PRINTER_MODELS,
-        virtual_printer_manager,
-    )
+    from backend.app.models.virtual_printer import VirtualPrinter as FirstVP
 
-    # Get current values
-    current_enabled = await get_setting(db, "virtual_printer_enabled") == "true"
-    current_access_code = await get_setting(db, "virtual_printer_access_code") or ""
-    # Default to `archive` (the canonical name) but tolerate legacy `immediate`
-    # in the stored value — normalized later before validation.
-    current_mode = await get_setting(db, "virtual_printer_mode") or "archive"
-    current_model = await get_setting(db, "virtual_printer_model") or DEFAULT_VIRTUAL_PRINTER_MODEL
     current_target_id_str = await get_setting(db, "virtual_printer_target_printer_id")
     current_target_id = int(current_target_id_str) if current_target_id_str else None
-    current_remote_iface = await get_setting(db, "virtual_printer_remote_interface_ip") or ""
-    current_ts_disabled_raw = await get_setting(db, "virtual_printer_tailscale_disabled")
-    # Default True (opt-in) when the setting has never been saved — matches the model default.
-    current_ts_disabled = current_ts_disabled_raw == "true" if current_ts_disabled_raw else True
-
-    # Apply updates
-    new_enabled = enabled if enabled is not None else current_enabled
-    new_access_code = access_code if access_code is not None else current_access_code
-    new_mode = mode if mode is not None else current_mode
-    new_model = model if model is not None else current_model
-    new_target_id = target_printer_id if target_printer_id is not None else current_target_id
-    new_remote_iface = remote_interface_ip if remote_interface_ip is not None else current_remote_iface
-    new_ts_disabled = tailscale_disabled if tailscale_disabled is not None else current_ts_disabled
-
-    # Validate mode. Canonical wire values are `archive` / `review` / `queue`
-    # / `proxy`; legacy `immediate` and `print_queue` are accepted as aliases
-    # and translated before storage so support bundles stop showing the old
-    # confusing pair (#1429 mode-label discrepancy).
-    from backend.app.models.virtual_printer import VP_MODE_VALUES, normalize_vp_mode
-
-    canonical_mode = normalize_vp_mode(new_mode)
-    if canonical_mode not in VP_MODE_VALUES:
+    # One bridging to a printer the caller can't use is not theirs to change,
+    # and they can't aim it at such a printer.
+    # The first virtual printer is the one these settings reach.
+    first_vp = (await db.execute(select(FirstVP).order_by(FirstVP.position, FirstVP.id).limit(1))).scalar_one_or_none()
+    if not printer_scope.allows(current_target_id) or (
+        first_vp is not None and not printer_scope.allows(first_vp.target_printer_id)
+    ):
+        return JSONResponse(status_code=404, content={"detail": "Virtual printer not found"})
+    if target_printer_id is not None and not printer_scope.allows(target_printer_id):
+        return JSONResponse(status_code=400, content={"detail": f"Printer with ID {target_printer_id} not found"})
+    # Each virtual printer keeps these itself now; this route wrote them to
+    # settings keys nothing reads and answered 200 as if applied (vp-3). The
+    # stored legacy values are not checked either: an old install's stale
+    # mode or deleted target printer refused the settings this still serves.
+    unread = [
+        name
+        for name, value in (
+            ("enabled", enabled),
+            ("access_code", access_code),
+            ("mode", mode),
+            ("model", model),
+            ("target_printer_id", target_printer_id),
+            ("remote_interface_ip", remote_interface_ip),
+        )
+        if value is not None
+    ]
+    if unread:
         return JSONResponse(
             status_code=400,
             content={
-                "detail": f"Mode must be one of: {', '.join(VP_MODE_VALUES)}",
+                "detail": f"{', '.join(unread)} cannot be set here any more: set them for each virtual printer "
+                "with PUT /api/v1/virtual-printers/{id}"
             },
         )
-    new_mode = canonical_mode
 
-    # Validate archive_name_source
     if archive_name_source is not None and archive_name_source not in ("metadata", "filename"):
         return JSONResponse(
             status_code=400,
             content={"detail": "archive_name_source must be 'metadata' or 'filename'"},
         )
 
-    # Validate model
-    if model is not None and model not in VIRTUAL_PRINTER_MODELS:
-        return JSONResponse(
-            status_code=400,
-            content={"detail": f"Invalid model. Must be one of: {', '.join(VIRTUAL_PRINTER_MODELS.keys())}"},
-        )
-
-    # Mode-specific validation and printer lookup
-    target_printer_ip = ""
-    target_printer_serial = ""
-    if new_mode == "proxy":
-        # Proxy mode requires target printer when enabling
-        if new_enabled and not new_target_id:
-            # If just switching to proxy mode (not explicitly enabling), auto-disable
-            if enabled is None:
-                new_enabled = False
-            else:
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": "Target printer is required for proxy mode"},
-                )
-
-        # Look up printer IP and serial if we have a target
-        if new_target_id:
-            result = await db.execute(select(Printer).where(Printer.id == new_target_id))
-            printer = result.scalar_one_or_none()
-            if not printer:
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": f"Printer with ID {new_target_id} not found"},
-                )
-            target_printer_ip = printer.ip_address
-            target_printer_serial = printer.serial_number
-        # Access code not required for proxy mode
-    else:
-        # Non-proxy modes require access code when enabling
-        if new_enabled and not new_access_code:
-            # If just switching modes (not explicitly enabling), auto-disable
-            if enabled is None:
-                new_enabled = False
-            else:
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": "Access code is required when enabling virtual printer"},
-                )
-
-        # Validate access code length (Bambu Studio requires exactly 8 characters)
-        if access_code is not None and access_code and len(access_code) != 8:
-            return JSONResponse(
-                status_code=400,
-                content={"detail": "Access code must be exactly 8 characters"},
-            )
-
-    # Save settings
-    await set_setting(db, "virtual_printer_enabled", "true" if new_enabled else "false")
-    if access_code is not None:
-        await set_setting(db, "virtual_printer_access_code", access_code)
-    await set_setting(db, "virtual_printer_mode", new_mode)
-    if model is not None:
-        await set_setting(db, "virtual_printer_model", model)
-    if target_printer_id is not None:
-        await set_setting(db, "virtual_printer_target_printer_id", str(target_printer_id))
-    if remote_interface_ip is not None:
-        await set_setting(db, "virtual_printer_remote_interface_ip", remote_interface_ip)
     if tailscale_disabled is not None:
         await set_setting(db, "virtual_printer_tailscale_disabled", "true" if tailscale_disabled else "false")
+        # The first virtual printer's card shows its Tailscale address by it.
+        if first_vp is not None:
+            first_vp.tailscale_disabled = tailscale_disabled
     if archive_name_source is not None:
         await set_setting(db, "virtual_printer_archive_name_source", archive_name_source)
-
-    # Propagate tailscale_disabled to the first VirtualPrinter row so sync_from_db() picks it up
-    if tailscale_disabled is not None:
-        from backend.app.models.virtual_printer import VirtualPrinter as VPModel
-
-        vp_result = await db.execute(select(VPModel).order_by(VPModel.position).limit(1))
-        first_vp = vp_result.scalar_one_or_none()
-        if first_vp is not None:
-            first_vp.tailscale_disabled = new_ts_disabled
 
     await db.commit()
     db.expire_all()
 
-    # Reconfigure virtual printer
-    try:
-        await virtual_printer_manager.configure(
-            enabled=new_enabled,
-            access_code=new_access_code,
-            mode=new_mode,
-            model=new_model,
-            target_printer_ip=target_printer_ip,
-            target_printer_serial=target_printer_serial,
-            remote_interface_ip=new_remote_iface,
-        )
-    except ValueError as e:
-        logger.warning("Virtual printer configuration validation error: %s", e)
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Invalid virtual printer configuration. Check the provided values."},
-        )
-    except Exception as e:
-        logger.error("Failed to configure virtual printer: %s", e, exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Failed to configure virtual printer. Check server logs for details."},
-        )
-
-    return await get_virtual_printer_settings(db)
+    return await get_virtual_printer_settings(db, printer_scope=printer_scope)
 
 
 # =============================================================================

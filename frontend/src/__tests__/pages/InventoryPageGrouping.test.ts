@@ -17,7 +17,7 @@ import { aggregateGroupSpool } from '../../utils/inventoryGrouping';
 // and effect_type are part of the key (#1154) so multi-colour / effect
 // variants don't get collapsed under "Group similar".
 function spoolGroupKey(s: InventorySpool): string {
-  return `${s.material}|${s.subtype || ''}|${s.brand || ''}|${s.color_name || ''}|${s.rgba || ''}|${s.extra_colors || ''}|${s.effect_type || ''}|${s.label_weight}`;
+  return `${s.material}|${s.subtype || ''}|${s.brand || ''}|${s.color_name || ''}|${s.rgba || ''}|${s.extra_colors || ''}|${s.effect_type || ''}|${s.label_weight}|${s.last_dried_at || ''}`;
 }
 
 type DisplayItem =
@@ -102,6 +102,12 @@ describe('spoolGroupKey', () => {
     const a = makeSpool({ id: 1 });
     const b = makeSpool({ id: 2 });
     expect(spoolGroupKey(a)).toBe(spoolGroupKey(b));
+  });
+
+  it('keeps a dried spool out of a group with an undried one (#2863)', () => {
+    const a = makeSpool({ id: 1, last_dried_at: '2026-10-06T12:30:00' });
+    const b = makeSpool({ id: 2 });
+    expect(spoolGroupKey(a)).not.toBe(spoolGroupKey(b));
   });
 
   it('generates different key when material differs', () => {
@@ -293,6 +299,17 @@ describe('computeDisplayItems', () => {
 });
 
 describe('aggregateGroupSpool (#1368)', () => {
+  it('carries no scale reading, so the header shows no weight check', () => {
+    // The first member's reading against the group's summed weight was always
+    // a mismatch, and Sync then re-synced only that member.
+    const agg = aggregateGroupSpool([
+      makeSpool({ id: 1, last_scale_weight: 1250, last_weighed_at: '2026-11-01T10:00:00Z' }),
+      makeSpool({ id: 2, last_scale_weight: 1250, last_weighed_at: '2026-11-01T10:05:00Z' }),
+    ]);
+    expect(agg.last_scale_weight).toBeNull();
+    expect(agg.last_weighed_at).toBeNull();
+  });
+
   it('sums label_weight, weight_used and core_weight across members', () => {
     const agg = aggregateGroupSpool([
       makeSpool({ id: 1, label_weight: 1000, weight_used: 200, core_weight: 250 }),

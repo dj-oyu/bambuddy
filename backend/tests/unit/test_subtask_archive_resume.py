@@ -114,7 +114,7 @@ class TestSubtaskIdResume:
             select(PrintArchive)
             .where(PrintArchive.printer_id == printer.id)
             .where(PrintArchive.subtask_id == "t-123")
-            .where(PrintArchive.status.in_(["printing", "cancelled"]))
+            .where(PrintArchive.status == "printing")
             .order_by(PrintArchive.created_at.desc())
             .limit(1)
         )
@@ -175,16 +175,18 @@ class TestSubtaskIdResume:
         found = result.scalar_one_or_none()
         assert found is None, "Empty string must not match NULL rows"
 
-    async def test_completed_archive_not_resumed(self, archive_factory, db_session):
-        """A completed archive with the same subtask_id must not be reopened
-        as printing — that subtask's job is done; a new run is a new row."""
-        printer, _ = await archive_factory(subtask_id="t-789", status="completed")
+    @pytest.mark.parametrize("status", ["completed", "cancelled"])
+    async def test_finished_archive_not_resumed(self, archive_factory, db_session, status):
+        """A finished archive with the same subtask_id must not be reopened
+        as printing: completion has already charged and logged it, so a new
+        run is a new row."""
+        printer, _ = await archive_factory(subtask_id="t-789", status=status, failure_reason="noStatusUpdate")
 
         result = await db_session.execute(
             select(PrintArchive)
             .where(PrintArchive.printer_id == printer.id)
             .where(PrintArchive.subtask_id == "t-789")
-            .where(PrintArchive.status.in_(["printing", "cancelled"]))
+            .where(PrintArchive.status == "printing")
         )
         found = result.scalar_one_or_none()
         assert found is None

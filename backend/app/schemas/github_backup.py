@@ -6,6 +6,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field, model_validator
 
+from backend.app.schemas.not_null import IgnoresNullForRequiredColumns
+
 
 class ScheduleType(StrEnum):
     """Backup schedule types."""
@@ -68,8 +70,10 @@ class GitHubBackupConfigCreate(BaseModel):
         )
 
 
-class GitHubBackupConfigUpdate(BaseModel):
+class GitHubBackupConfigUpdate(IgnoresNullForRequiredColumns):
     """Schema for updating GitHub backup config (all fields optional)."""
+
+    __orm_table__ = "github_backup_config"
 
     repository_url: str | None = Field(default=None, max_length=500)
     access_token: str | None = Field(default=None)
@@ -180,6 +184,14 @@ class GitHubBackupStatus(BaseModel):
     last_backup_at: datetime | None
     last_backup_status: str | None
     next_scheduled_run: datetime | None
+
+
+class GitHubTestConnectionRequest(BaseModel):
+    """Credentials to test before they are saved."""
+
+    repo_url: str = Field(..., min_length=1, max_length=500, description="Repository URL")
+    token: str = Field(..., min_length=1, description="Personal Access Token")
+    provider: ProviderType = Field(default=ProviderType.GITHUB, description="Git provider key")
 
 
 class GitHubTestConnectionResponse(BaseModel):
