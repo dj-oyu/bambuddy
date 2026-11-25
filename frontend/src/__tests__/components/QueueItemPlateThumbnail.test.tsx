@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { QueueTimelineView } from '../../components/QueueTimelineView';
 import { CompactHistoryRow } from '../../components/CompactHistoryRow';
 import type { PrintQueueItem, Printer } from '../../api/client';
@@ -34,7 +35,9 @@ const fromArchive = { archive_id: 7, archive_thumbnail: 'thumb.png' };
 const fromLibrary = { archive_id: null, archive_thumbnail: null, library_file_id: 9, library_file_thumbnail: 'thumb.png' };
 
 function timelineImages(queued: PrintQueueItem): string[] {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const { container, unmount } = render(
+    <QueryClientProvider client={client}>
     <QueueTimelineView
       queueItems={[queued]}
       printers={printers}
@@ -42,7 +45,8 @@ function timelineImages(queued: PrintQueueItem): string[] {
       sjfEnabled={false}
       onItemClick={() => {}}
       t={(key: string) => key}
-    />,
+    />
+    </QueryClientProvider>,
   );
   const srcs = Array.from(container.querySelectorAll('img')).map((img) => img.getAttribute('src') ?? '');
   unmount();
