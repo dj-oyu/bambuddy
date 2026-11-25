@@ -4023,7 +4023,7 @@ class PrintScheduler:
         taken: set[int] = set()
         for o in sorted(force_overrides, key=lambda o: not o.get("tray_info_idx")):
             o_type = canonical_filament_type(o.get("type") or "")
-            o_color = (o.get("color") or "").replace("#", "").lower()[:6]
+            o_color = self._normalize_color_for_compare(o.get("color"))
             o_idx = o.get("tray_info_idx") or ""
             fits = [
                 i
@@ -9318,8 +9318,8 @@ class PrintScheduler:
                 {
                     "slot_id": slot_id,
                     "type": req.get("type") or "",
-                    "wanted": f"#{wanted.upper()}",
-                    "got": f"#{got.upper()}",
+                    "wanted": f"#{(wanted[:6] if wanted.endswith('ff') else wanted).upper()}",
+                    "got": f"#{(got[:6] if got.endswith('ff') else got).upper()}",
                     "tray": tray_id,
                 }
             )

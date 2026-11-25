@@ -210,6 +210,10 @@ jobs:
           # The release tags: older releases' code builds the databases to upgrade.
           fetch-depth: 0
 
+      - name: Fetch upstream upgrade fixture tag
+        # This upstream release tag is not present in the fork's tags.
+        run: git fetch --no-tags https://github.com/maziggy/bambuddy.git refs/tags/v1.2.5.7:refs/tags/v1.2.5.7
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:

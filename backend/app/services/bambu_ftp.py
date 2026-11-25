@@ -533,9 +533,10 @@ class ImplicitFTP_TLS(FTP_TLS):
         super().__init__(*args, **kwargs)
         self._sock = None
         self.skip_session_reuse = skip_session_reuse
-        self.ssl_context = ssl.create_default_context()
-        self.ssl_context.check_hostname = False
-        self.ssl_context.verify_mode = ssl.CERT_NONE
+        context = ssl.create_default_context()
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
         # ``create_default_context()`` does NOT guarantee a protocol floor: it
         # leaves ``minimum_version`` at ``MINIMUM_SUPPORTED``, and what that
         # resolves to is a property of the OpenSSL build, not of this code.
@@ -545,10 +546,10 @@ class ImplicitFTP_TLS(FTP_TLS):
         # 1.2 — every Bambu model is reachable under that floor — while
         # bare-metal and appliance installs could silently negotiate TLS 1.0.
         # State the floor rather than inheriting it.
-        self.ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         if cap_tls_v1_2:
             # With the floor above this pins the connection to exactly TLS 1.2.
-            self.ssl_context.maximum_version = ssl.TLSVersion.TLSv1_2
+            context.maximum_version = ssl.TLSVersion.TLSv1_2
+        self.ssl_context = context
 
     def connect(self, host="", port=990, timeout=-999, source_address=None):
         """Connect to host, wrapping socket in TLS immediately (implicit FTPS)."""

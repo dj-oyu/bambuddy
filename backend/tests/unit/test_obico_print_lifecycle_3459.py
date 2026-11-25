@@ -30,7 +30,7 @@ def _settings(action: str = "pause") -> dict:
 
 
 def _status(state: str = "RUNNING", task: str = "job", subtask_id: str | None = "111"):
-    return MagicMock(state=state, task_name=task, subtask_name="", subtask_id=subtask_id)
+    return MagicMock(state=state, task_name=task, subtask_name=task, subtask_id=subtask_id)
 
 
 class _Rig:

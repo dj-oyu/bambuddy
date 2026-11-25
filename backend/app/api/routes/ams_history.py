@@ -102,36 +102,3 @@ async def get_ams_history(
         max_temperature=stats.max_temp,
         avg_temperature=round(stats.avg_temp, 1) if stats.avg_temp is not None else None,
     )
-
-
-@router.delete("/{printer_id}")
-async def delete_old_history(
-    printer_id: int,
-    days: int = Query(default=30, ge=1, le=365, description="Delete data older than X days"),
-    db: AsyncSession = Depends(get_db),
-    _: User | None = RequirePrinterPermissionIfAuthEnabled(Permission.AMS_HISTORY_READ),
-):
-    """Delete old AMS history data for a printer."""
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-
-    result = await db.execute(
-        select(func.count(AMSSensorHistory.id)).where(
-            and_(
-                AMSSensorHistory.printer_id == printer_id,
-                AMSSensorHistory.recorded_at < cutoff,
-            )
-        )
-    )
-    count = result.scalar()
-
-    await db.execute(
-        AMSSensorHistory.__table__.delete().where(
-            and_(
-                AMSSensorHistory.printer_id == printer_id,
-                AMSSensorHistory.recorded_at < cutoff,
-            )
-        )
-    )
-    await db.commit()
-
-    return {"deleted": count, "message": f"Deleted {count} records older than {days} days"}

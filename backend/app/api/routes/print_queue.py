@@ -2330,6 +2330,7 @@ async def cancel_batch(
             from_states=("pending",),
             reason=f"batch {batch_id} cancelled",
             caller="print_queue.cancel_batch",
+            extra={"completed_at": datetime.now(UTC)},
             item=item,
             commit=False,
         )
@@ -2749,6 +2750,7 @@ async def _remove_queue_item(db: AsyncSession, item: PrintQueueItem) -> bool:
             from_states=(item.status,),
             reason="last batch-order source deleted by user",
             caller="print_queue._remove_queue_item",
+            extra={"completed_at": datetime.now(UTC)},
             item=item,
             commit=False,
         )
@@ -2935,7 +2937,7 @@ async def resume_queue_after_failure(
 @router.get("/printer/{printer_id}/deferred-unload-state")
 async def get_deferred_unload_state(
     printer_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.QUEUE_READ_ALL),
 ):
     """What the deferred-unload patch has withheld for this printer (private
@@ -2967,7 +2969,7 @@ async def get_deferred_unload_state(
 @router.get("/printer/{printer_id}/filament-plan")
 async def get_filament_plan(
     printer_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = RequirePermissionIfAuthEnabled(Permission.QUEUE_READ_ALL),
 ):
     """The resolved filament load/unload chain for this printer's queue

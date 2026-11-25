@@ -2681,7 +2681,10 @@ class TestAutoUnlinkZeroColourIsBlank:
 
         ams_data = [{"id": 0, "tray": [{"id": 1, **self.BLANK, "state": 3}]}]
         clock = [1000.0]
-        with patch.object(slot_unlink_grace, "_now", lambda: clock[0]):
+        with (
+            patch.dict("os.environ", {"BAMBUDDY_KEEP_ASSIGNMENTS_ON_EMPTY_TRAY": "0"}),
+            patch.object(slot_unlink_grace, "_now", lambda: clock[0]),
+        ):
             await TestAutoUnlinkOccupiedSlot._run(printer.id, ams_data, _make_printing_status(ams_data, state="IDLE"))
             assert await self._exists(db_session, assignment_id), "one blank push is not a removal"
 

@@ -2627,7 +2627,7 @@ async def engage_filament_spoof(
     printer_id: int,
     body: _FilamentSpoofRequest,
     _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Engage a filament spoof so an arbitrary same-material spool can back up another.
 
@@ -2690,7 +2690,7 @@ async def adopt_filament_spoof(
     printer_id: int,
     body: _FilamentSpoofAdoptRequest,
     _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Adopt an existing firmware-level runout backup without writing firmware.
 
@@ -2734,7 +2734,7 @@ async def adopt_filament_spoof(
 async def list_filament_spoofs(
     printer_id: int,
     _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_READ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """List the active (ENGAGED) filament spoofs for a printer."""
     from backend.app.services.filament_spoof_engine import filament_spoof_engine
@@ -2749,7 +2749,7 @@ async def release_filament_spoof(
     backup_ams_id: int,
     backup_tray_id: int,
     _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_CONTROL),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Release a filament spoof, restoring the backup slot's real firmware identity."""
     from backend.app.services.filament_spoof_engine import filament_spoof_engine

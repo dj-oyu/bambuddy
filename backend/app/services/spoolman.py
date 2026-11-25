@@ -7,7 +7,6 @@ import math
 import time
 import weakref
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Literal
 
 import httpx
@@ -496,8 +495,6 @@ class SpoolmanClient:
         if extra:
             data["extra"] = extra
             await self._ensure_extra_fields(extra)
-        data["last_used"] = datetime.now(UTC).isoformat()
-
         response = await self._request_spool("PATCH", spool_id, json_body=data, operation="update")
         return response.json()
 

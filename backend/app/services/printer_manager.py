@@ -1652,6 +1652,7 @@ def vt_trays_to_dicts(raw: object, resolve_slot_k: Callable) -> list[dict]:
         vt_tray.append(
             {
                 "id": tray_id,
+                "is_spoofed_backup": False,
                 "tray_color": vt_data.get("tray_color"),
                 "tray_type": vt_data.get("tray_type"),
                 "tray_sub_brands": vt_data.get("tray_sub_brands"),

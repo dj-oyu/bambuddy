@@ -1654,6 +1654,8 @@ async def forget_printer(printer_id: int) -> None:
             del tracked[key]
     for key in [key for key in _ams_index_only_logged if key[0] == printer_id]:
         _ams_index_only_logged.discard(key)
+    for key in [key for key in _hms_auto_clear_attempts if key[0] == printer_id]:
+        del _hms_auto_clear_attempts[key]
     for key in [key for key in _ams_alarm_cooldown if key.split(":", 1)[0] == str(printer_id)]:
         del _ams_alarm_cooldown[key]
 
@@ -1664,6 +1666,8 @@ async def forget_printer(printer_id: int) -> None:
         if task is not None:
             task.cancel()
     for keyed in (
+        _stall_episodes,
+        _stall_prev_state,
         _stage22_finish_frames,
         _stage22_finish_in_flight,
         _inprint_frame_bank,

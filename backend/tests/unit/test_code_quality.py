@@ -320,7 +320,12 @@ ALLOWED_PQ_STATUS_WRITES = {
     ("services/printer_lifecycle.py", "_execute", "bulk", "<dynamic>"): (1, "FACADE(cas-or-force)"),
     # --- core/database.py ---
     # startup migration #1667: raw SQL scoped by WHERE pq.status='skipped'
-    ("core/database.py", "run_migrations", "rawsql", "<sql>"): (1, "CAS(sql-scoped)"),
+    ("core/database.py", "_run_migrations", "rawsql", "<sql>"): (1, "CAS(sql-scoped)"),
+    # This scanner also sees BudgetReservation.status, not a queue write.
+    ("api/routes/users.py", "delete_user", "bulk", "'released'"): (1, "NOT_QUEUE(budget reservation)"),
+    # Both dispatch transitions recheck the prior status in their UPDATE.
+    ("services/print_scheduler.py", "_defer_until_printer_idle", "bulk", "'pending'"): (1, "CAS(printing)"),
+    ("services/print_scheduler.py", "_fail_dispatch", "bulk", "'failed'"): (1, "CAS(pending-or-printing)"),
 }
 
 
@@ -497,14 +502,31 @@ GCODE_STATE_VOCAB = {"IDLE", "FINISH", "FAILED", "RUNNING", "PAUSE", "PREPARE", 
 # judgment; new ones should use the printer_lifecycle constants/predicates
 # instead. Single-state equality (== "PAUSE") is legitimate and NOT fenced.
 ALLOWED_GCODE_STATE_LITERALS = {
+    ("main.py", "_reconciled_outcome", ("FAILED", "FINISH")): (1, "known outcome for same job"),
+    ("main.py", "_sd_files_in_use", ("", "FAILED", "FINISH", "IDLE", "UNKNOWN")): (
+        1,
+        "protect SD files while state is uncertain",
+    ),
+    ("services/bambu_mqtt.py", "_check_unconfirmed_skips", ("PAUSE", "RUNNING")): (1, "skip command verification"),
+    ("services/notify_live_activities.py", "content", ("PREPARE", "SLICING")): (1, "notification presentation"),
+    ("services/notify_widgets.py", "widget_content", ("PREPARE", "PRINTING", "RUNNING", "SLICING")): (
+        1,
+        "widget presentation",
+    ),
+    ("services/octoeverywhere_detection.py", "_poll_once", ("FAILED", "FINISH", "IDLE")): (
+        1,
+        "detection session ended",
+    ),
+    ("services/wled.py", "_applicable_wled_statuses", ("FAILED", "FINISH", "IDLE")): (1, "lighting presentation"),
+    ("services/wled.py", "_applicable_wled_statuses", ("PREPARE", "SLICING")): (1, "lighting presentation"),
+    ("services/wled.py", "handle_status", ("PREPARE", "PRINTING", "RUNNING", "SLICING")): (1, "lighting presentation"),
     # UI serialization of "is a print in progress" for status endpoints — pure
     # display, not a dispatch/requeue judgment.
-    ("api/routes/printers.py", "get_printer_status", ("PAUSE", "RUNNING")): (2, "UI serialization"),
+    ("api/routes/printers.py", "_printer_status", ("PAUSE", "RUNNING")): (2, "UI serialization"),
     ("api/routes/printers.py", "get_printable_objects", ("PAUSE", "RUNNING")): (1, "skip-objects guard"),
     # Plate-clear ack: FINISH/FAILED is the "post-print" condition, a different
     # state machine (printers table) — explicitly out of phase-3 scope.
     ("api/routes/printers.py", "clear_plate", ("FAILED", "FINISH")): (1, "plate-clear gate"),
-    ("api/routes/webhook.py", "webhook_cancel_print", ("PAUSE", "RUNNING")): (1, "cancel precondition"),
     # Completion-detection edge latches — the state machine that PRODUCES the
     # events the lifecycle predicates consume; stays in bambu_mqtt by design.
     ("services/bambu_mqtt.py", "_update_state", ("FAILED", "FINISH")): (2, "completion edges"),
