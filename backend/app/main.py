@@ -9389,10 +9389,25 @@ def _hms_status_inputs(status) -> tuple[dict[str, int], list[str]]:
     # itself. Shared with the auto-continue watch, which has the same gate.
     companions = companion_codes()
 
+    errors = getattr(status, "hms_errors", []) or []
+    # BMCU reports these two mismatch notifications alongside the 409D
+    # start rejection. Ignore only the exact observed HMS codes and only while
+    # an allowlisted 409D is present; standalone faults still hold the queue.
+    bmcu_mismatch_companions = {
+        "0500040000010044",
+        "0501040000010044",
+    }
+    ignore_bmcu_mismatch = os.environ.get("BAMBUDDY_HMS_BMCU_MISMATCH_COMPANIONS", "1") != "0" and any(
+        _hms_short_code(err.attr, err.code) in _HMS_AUTO_CLEAR_CODES
+        and _hms_short_code(err.attr, err.code) in {"0500_409D", "0501_409D", "0502_409D", "0503_409D"}
+        for err in errors
+    )
     autoclear_present: dict[str, int] = {}
     other_serious: list[str] = []
-    for err in getattr(status, "hms_errors", []) or []:
+    for err in errors:
         short = _hms_short_code(err.attr, err.code)
+        if ignore_bmcu_mismatch and (getattr(err, "full_code", "") or "").upper() in bmcu_mismatch_companions:
+            continue
         if short in companions:
             continue
         if short in _HMS_AUTO_CLEAR_CODES:

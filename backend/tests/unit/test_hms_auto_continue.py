@@ -409,6 +409,34 @@ class TestAutoClearSeverityGate:
         assert len(other_serious) == 1
         assert other_serious[0].startswith("0300_1800")
 
+    def test_bmcu_mismatches_allow_retry_but_not_unrelated_faults(self, monkeypatch):
+        from backend.app.main import _hms_status_inputs
+        from backend.app.services.bambu_mqtt import HMSError
+
+        monkeypatch.delenv("BAMBUDDY_HMS_BMCU_MISMATCH_COMPANIONS", raising=False)
+        errors = [
+            HMSError(code="0x409D", attr=0x0501409D, module=5, severity=2, full_code="0501409D"),
+            HMSError(code="0x10044", attr=0x05000400, module=5, severity=1, full_code="0500040000010044"),
+            HMSError(code="0x10044", attr=0x05010400, module=5, severity=1, full_code="0501040000010044"),
+        ]
+        present, serious = _hms_status_inputs(self._status(errors))
+        assert "0501_409D" in present
+        assert serious == []
+        errors.append(HMSError(code="0x1800", attr=50337792, module=3, severity=1, full_code="03001800"))
+        _, serious = _hms_status_inputs(self._status(errors))
+        assert len(serious) == 1 and serious[0].startswith("0300_1800")
+
+    def test_bmcu_exception_requires_409d_and_can_be_disabled(self, monkeypatch):
+        from backend.app.main import _hms_status_inputs
+        from backend.app.services.bambu_mqtt import HMSError
+
+        mismatch = HMSError(code="0x10044", attr=0x05000400, module=5, severity=1, full_code="0500040000010044")
+        rejection = HMSError(code="0x409D", attr=0x0501409D, module=5, severity=2, full_code="0501409D")
+        monkeypatch.delenv("BAMBUDDY_HMS_BMCU_MISMATCH_COMPANIONS", raising=False)
+        assert len(_hms_status_inputs(self._status([mismatch]))[1]) == 1
+        monkeypatch.setenv("BAMBUDDY_HMS_BMCU_MISMATCH_COMPANIONS", "0")
+        assert len(_hms_status_inputs(self._status([mismatch, rejection]))[1]) == 1
+
 
 class TestMultiplePrinters:
     def test_budgets_are_per_printer(self, watch):
