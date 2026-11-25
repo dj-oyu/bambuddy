@@ -6,7 +6,6 @@ import type { FilamentPlanItem, FilamentPlanWarning, PrintQueueItem, Printer } f
 import { compareQueueOrder, queueLaneKey } from '../utils/queueOrder';
 import { isBusyOnlyWaitingReason } from '../utils/waitingReason';
 import { api } from '../api/client';
-import type { PrintQueueItem, Printer } from '../api/client';
 import { queueItemThumbnailUrl } from '../utils/queueItemThumbnail';
 import { Button } from './Button';
 import { HotendLane, UnloadModePopover } from './QueueFilamentLane';
