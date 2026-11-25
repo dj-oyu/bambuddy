@@ -320,7 +320,12 @@ ALLOWED_PQ_STATUS_WRITES = {
     ("services/printer_lifecycle.py", "_execute", "bulk", "<dynamic>"): (1, "FACADE(cas-or-force)"),
     # --- core/database.py ---
     # startup migration #1667: raw SQL scoped by WHERE pq.status='skipped'
-    ("core/database.py", "run_migrations", "rawsql", "<sql>"): (1, "CAS(sql-scoped)"),
+    ("core/database.py", "_run_migrations", "rawsql", "<sql>"): (1, "CAS(sql-scoped)"),
+    # This scanner also sees BudgetReservation.status, not a queue write.
+    ("api/routes/users.py", "delete_user", "bulk", "'released'"): (1, "NOT_QUEUE(budget reservation)"),
+    # Both dispatch transitions recheck the prior status in their UPDATE.
+    ("services/print_scheduler.py", "_defer_until_printer_idle", "bulk", "'pending'"): (1, "CAS(printing)"),
+    ("services/print_scheduler.py", "_fail_dispatch", "bulk", "'failed'"): (1, "CAS(pending-or-printing)"),
 }
 
 
@@ -497,14 +502,31 @@ GCODE_STATE_VOCAB = {"IDLE", "FINISH", "FAILED", "RUNNING", "PAUSE", "PREPARE", 
 # judgment; new ones should use the printer_lifecycle constants/predicates
 # instead. Single-state equality (== "PAUSE") is legitimate and NOT fenced.
 ALLOWED_GCODE_STATE_LITERALS = {
+    ("main.py", "_reconciled_outcome", ("FAILED", "FINISH")): (1, "known outcome for same job"),
+    ("main.py", "_sd_files_in_use", ("", "FAILED", "FINISH", "IDLE", "UNKNOWN")): (
+        1,
+        "protect SD files while state is uncertain",
+    ),
+    ("services/bambu_mqtt.py", "_check_unconfirmed_skips", ("PAUSE", "RUNNING")): (1, "skip command verification"),
+    ("services/notify_live_activities.py", "content", ("PREPARE", "SLICING")): (1, "notification presentation"),
+    ("services/notify_widgets.py", "widget_content", ("PREPARE", "PRINTING", "RUNNING", "SLICING")): (
+        1,
+        "widget presentation",
+    ),
+    ("services/octoeverywhere_detection.py", "_poll_once", ("FAILED", "FINISH", "IDLE")): (
+        1,
+        "detection session ended",
+    ),
+    ("services/wled.py", "_applicable_wled_statuses", ("FAILED", "FINISH", "IDLE")): (1, "lighting presentation"),
+    ("services/wled.py", "_applicable_wled_statuses", ("PREPARE", "SLICING")): (1, "lighting presentation"),
+    ("services/wled.py", "handle_status", ("PREPARE", "PRINTING", "RUNNING", "SLICING")): (1, "lighting presentation"),
     # UI serialization of "is a print in progress" for status endpoints — pure
     # display, not a dispatch/requeue judgment.
-    ("api/routes/printers.py", "get_printer_status", ("PAUSE", "RUNNING")): (2, "UI serialization"),
+    ("api/routes/printers.py", "_printer_status", ("PAUSE", "RUNNING")): (2, "UI serialization"),
     ("api/routes/printers.py", "get_printable_objects", ("PAUSE", "RUNNING")): (1, "skip-objects guard"),
     # Plate-clear ack: FINISH/FAILED is the "post-print" condition, a different
     # state machine (printers table) — explicitly out of phase-3 scope.
     ("api/routes/printers.py", "clear_plate", ("FAILED", "FINISH")): (1, "plate-clear gate"),
-    ("api/routes/webhook.py", "webhook_cancel_print", ("PAUSE", "RUNNING")): (1, "cancel precondition"),
     # Completion-detection edge latches — the state machine that PRODUCES the
     # events the lifecycle predicates consume; stays in bambu_mqtt by design.
     ("services/bambu_mqtt.py", "_update_state", ("FAILED", "FINISH")): (2, "completion edges"),
@@ -624,3 +646,82 @@ class TestLogErrorPatterns:
             client._process_message(msg)
 
         assert not capture_logs.has_errors(), f"Errors during MQTT processing:\n{capture_logs.format_errors()}"
+
+
+def _load_all_models():
+    """Import every model module and return the declarative Base.
+
+    The package __init__ does not import every model module; without this a
+    table outside it would never be checked.
+    """
+    import importlib
+    import pkgutil
+
+    import backend.app.models
+    from backend.app.core.database import Base
+
+    for module in pkgutil.iter_modules(backend.app.models.__path__):
+        importlib.import_module(f"backend.app.models.{module.name}")
+    return Base
+
+
+class TestDateTimeColumns:
+    """No model column may be DateTime(timezone=True).
+
+    On PostgreSQL every bound datetime reaches asyncpg naive (the engine strips
+    tzinfo), and asyncpg reads a naive value for a timestamptz bind as
+    process-local time. With TZ set on the host such a column is stored shifted
+    by the UTC offset. Every column is plain DateTime holding naive UTC.
+    """
+
+    def test_no_timezone_aware_datetime_columns(self):
+        from sqlalchemy import DateTime
+
+        Base = _load_all_models()
+        offenders = [
+            f"{table.name}.{column.name}"
+            for table in Base.metadata.sorted_tables
+            for column in table.columns
+            if isinstance(column.type, DateTime) and column.type.timezone
+        ]
+        assert not offenders, f"DateTime(timezone=True) columns: {offenders}"
+
+
+class TestMappedColumns:
+    """Every model column is declared with Mapped[], and its type says whether it can be NULL.
+
+    A column assigned as ``x = Column(...)`` reaches the type checker as a
+    Column, not as the value it holds, so every use of it is unchecked (or a
+    false error in the type-check baseline). And a Mapped[] annotation that
+    disagrees with the column's nullability lies to every reader: Mapped[str]
+    on a nullable column hides the None the code must handle; Mapped[str | None]
+    on a NOT NULL column asks for checks that can never matter.
+    """
+
+    def test_columns_are_mapped_and_nullability_matches(self):
+        import typing
+
+        Base = _load_all_models()
+        models = {mapper.class_.__name__: mapper.class_ for mapper in Base.registry.mappers}
+        legacy, mismatched = [], []
+        for mapper in Base.registry.mappers:
+            hints: dict = {}
+            for klass in reversed(mapper.class_.__mro__):
+                hints.update(typing.get_type_hints(klass, localns=models))
+            for column in mapper.local_table.columns:
+                if column.primary_key:
+                    continue
+                key = mapper.get_property_by_column(column).key
+                name = f"{mapper.class_.__name__}.{key}"
+                hint = hints.get(key)
+                if hint is None:
+                    legacy.append(name)
+                    continue
+                optional = type(None) in typing.get_args(typing.get_args(hint)[0])
+                if optional != column.nullable:
+                    mismatched.append(
+                        f"{name}: annotated {'optional' if optional else 'required'}, "
+                        f"column {'nullable' if column.nullable else 'NOT NULL'}"
+                    )
+        assert not legacy, f"declare these with Mapped[...] = mapped_column(...): {legacy}"
+        assert not mismatched, f"Mapped[] annotation disagrees with the column: {mismatched}"

@@ -103,10 +103,10 @@ describe('FilamentSpoofModal', () => {
         onClose={vi.fn()}
       />,
     );
-    // Single-tray units render as "HT-x". Same-side (unit 2) is a candidate;
+    // These units use regular AMS IDs. Same-side (unit 2) is a candidate;
     // other-side (unit 1) is filtered out.
-    expect(screen.getByText('HT-C 1')).toBeInTheDocument();
-    expect(screen.queryByText('HT-B 1')).not.toBeInTheDocument();
+    expect(screen.getByText('AMS-C 1')).toBeInTheDocument();
+    expect(screen.queryByText('AMS-B 1')).not.toBeInTheDocument();
   });
 
   it('#13: FTS (extruder-agnostic) allows candidates across extruder sides', () => {
@@ -126,7 +126,7 @@ describe('FilamentSpoofModal', () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByText('HT-B 1')).toBeInTheDocument();
+    expect(screen.getByText('AMS-B 1')).toBeInTheDocument();
   });
 
   it('rule D: shows the K-difference warning only after a diverging backup is selected', () => {

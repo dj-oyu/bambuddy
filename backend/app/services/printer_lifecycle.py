@@ -168,7 +168,15 @@ def active_job_stale(archive_subtask_id: str | None, state: Any) -> tuple[bool, 
 # Columns callers may update atomically together with status. Kept narrow on
 # purpose — this facade owns lifecycle state, not generic row editing.
 EXTRA_COLUMN_WHITELIST = frozenset(
-    {"error_message", "completed_at", "started_at", "dispatch_attempts", "waiting_reason"}
+    {
+        "error_message",
+        "completed_at",
+        "started_at",
+        "dispatch_attempts",
+        "waiting_reason",
+        "billing_run_id",
+        "color_substitutions",
+    }
 )
 
 

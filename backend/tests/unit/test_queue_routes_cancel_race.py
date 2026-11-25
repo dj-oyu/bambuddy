@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 import backend.app.models  # noqa: F401 - populate Base.metadata
 from backend.app.api.routes.print_queue import cancel_queue_item, stop_queue_item
 from backend.app.core.database import Base
+from backend.app.core.printer_scope import PrinterScope
 from backend.app.models.print_queue import PrintQueueItem
 from backend.app.models.printer import Printer
 
@@ -113,7 +114,9 @@ async def test_stop_does_not_clobber_concurrent_completion(queue_case):
     ):
         async with queue_case.session_maker() as db:
             racing = _RacingSession(db, complete_wins)
-            response = await stop_queue_item(queue_case.item_id, db=racing, auth_result=(None, True))
+            response = await stop_queue_item(
+                queue_case.item_id, db=racing, auth_result=(None, True), printer_scope=PrinterScope()
+            )
 
     assert response["message"] == "Print stopped"
     assert await _final_status(queue_case.session_maker, queue_case.item_id) == "completed"
@@ -127,7 +130,9 @@ async def test_cancel_races_concurrent_dispatch_and_400s(queue_case):
     async with queue_case.session_maker() as db:
         racing = _RacingSession(db, dispatch_wins)
         with pytest.raises(HTTPException) as exc:
-            await cancel_queue_item(queue_case.item_id, db=racing, auth_result=(None, True))
+            await cancel_queue_item(
+                queue_case.item_id, db=racing, auth_result=(None, True), printer_scope=PrinterScope()
+            )
 
     assert exc.value.status_code == 400
     assert "printing" in exc.value.detail

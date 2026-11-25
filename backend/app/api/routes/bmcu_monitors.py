@@ -85,7 +85,7 @@ def _summary(row, link_count=0):
     response_model=list[MonitorSummary],
     summary="Which bridges exist, and is each one connected right now?",
 )
-async def devices(db: AsyncSession = Depends(get_db), _: User | None = ReadAccess):
+async def devices(db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess):
     rows = (await db.execute(select(BMCUBinaryDevice).order_by(BMCUBinaryDevice.device_id))).scalars()
     counts = dict(
         (
@@ -129,7 +129,7 @@ async def guide(_: User | None = ReadAccess):
     response_model=MonitorDetail,
     summary="What is each loader on this bridge doing, and how old is that answer?",
 )
-async def detail(device_id: str, db: AsyncSession = Depends(get_db), _: User | None = ReadAccess):
+async def detail(device_id: str, db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess):
     row = await _device(db, device_id)
     stored_links = (
         (
@@ -261,7 +261,7 @@ async def timeline(
     from_time: datetime | None = Query(None, alias="from"),
     to_time: datetime | None = Query(None, alias="to"),
     limit: int = Query(1000, ge=1, le=5000),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = ReadAccess,
 ):
     await _device(db, device_id)
@@ -420,7 +420,7 @@ async def metrics(
     from_time: datetime | None = Query(None, alias="from"),
     to_time: datetime | None = Query(None, alias="to"),
     limit: int = Query(500, ge=1, le=5000),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = ReadAccess,
 ):
     await _device(db, device_id)
@@ -476,7 +476,7 @@ async def logs(
     severity: int | None = Query(None, ge=0, le=5),
     component: str | None = None,
     limit: int = Query(200, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = ReadAccess,
 ):
     await _device(db, device_id)
@@ -507,7 +507,7 @@ async def logs(
 async def control(
     device_id: str,
     body: ControlRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = ControlAccess,
 ):
     row = await _device(db, device_id)

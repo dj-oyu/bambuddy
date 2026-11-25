@@ -22,9 +22,10 @@ REV=$(git rev-parse HEAD)
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "Deploying $BRANCH @ ${REV:0:8} -> $DEST"
 
+# Protect runtime data at the install root while syncing backend/app/data assets.
 sudo rsync -a --delete \
     --exclude venv --exclude .venv --exclude 'venv-py*' --exclude uv-python \
-    --exclude data --exclude logs --exclude .env --exclude .git \
+    --exclude /data --exclude logs --exclude .env --exclude .git \
     --exclude node_modules --exclude .deployed-rev --exclude handover.md \
     "$REPO/" "$DEST/"
 echo "$BRANCH $REV $(date -Iseconds)" | sudo tee "$DEST/.deployed-rev" >/dev/null

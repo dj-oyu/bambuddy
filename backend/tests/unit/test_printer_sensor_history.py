@@ -1,6 +1,6 @@
 """Tests for printer heater (nozzle / bed / chamber) sensor history."""
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -19,7 +19,7 @@ async def test_get_returns_per_sensor_series(async_client: AsyncClient, db_sessi
     await db_session.commit()
     await db_session.refresh(printer)
 
-    base = datetime.now(UTC) - timedelta(hours=1)
+    base = datetime.now(timezone.utc) - timedelta(hours=1)
     samples = [
         ("nozzle", 210.0, 220.0, 0),
         ("nozzle", 215.0, 220.0, 5),
@@ -86,7 +86,7 @@ async def test_get_clamps_to_hours_window(async_client: AsyncClient, db_session:
     await db_session.commit()
     await db_session.refresh(printer)
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     # One inside the window, one outside.
     db_session.add(
         PrinterSensorHistory(
@@ -116,27 +116,17 @@ async def test_get_clamps_to_hours_window(async_client: AsyncClient, db_session:
 
 
 @pytest.mark.asyncio
-async def test_delete_removes_old_rows(async_client: AsyncClient, db_session: AsyncSession):
-    """DELETE removes rows older than `days` for the given printer only."""
-    keep_printer = Printer(name="Keep", serial_number="KEEP-001", ip_address="10.0.0.20", access_code="12345678")
-    other_printer = Printer(name="Other", serial_number="OTHER-001", ip_address="10.0.0.21", access_code="12345678")
-    db_session.add_all([keep_printer, other_printer])
+async def test_history_cannot_be_deleted_through_the_api(async_client: AsyncClient, db_session: AsyncSession):
+    """Old history goes by the retention setting only; there is no delete route."""
+    printer = Printer(name="Keep", serial_number="KEEP-001", ip_address="10.0.0.20", access_code="12345678")
+    db_session.add(printer)
     await db_session.commit()
-    await db_session.refresh(keep_printer)
-    await db_session.refresh(other_printer)
-
-    now = datetime.now(UTC)
-    old = now - timedelta(days=40)
-    db_session.add(PrinterSensorHistory(printer_id=keep_printer.id, sensor_kind="bed", value=60.0, recorded_at=old))
-    db_session.add(PrinterSensorHistory(printer_id=keep_printer.id, sensor_kind="bed", value=60.0, recorded_at=now))
-    db_session.add(PrinterSensorHistory(printer_id=other_printer.id, sensor_kind="bed", value=60.0, recorded_at=old))
+    await db_session.refresh(printer)
+    old = datetime.now(timezone.utc) - timedelta(days=40)
+    db_session.add(PrinterSensorHistory(printer_id=printer.id, sensor_kind="bed", value=60.0, recorded_at=old))
     await db_session.commit()
 
-    response = await async_client.delete(f"/api/v1/printer-sensor-history/{keep_printer.id}?days=30")
-    assert response.status_code == 200
-    assert response.json()["deleted"] == 1
+    response = await async_client.delete(f"/api/v1/printer-sensor-history/{printer.id}?days=30")
 
-    # other printer's old row untouched.
-    rows = (await db_session.execute(select(PrinterSensorHistory))).scalars().all()
-    kinds_left = sorted((r.printer_id, r.value) for r in rows)
-    assert kinds_left == sorted([(keep_printer.id, 60.0), (other_printer.id, 60.0)])
+    assert response.status_code == 405
+    assert len((await db_session.execute(select(PrinterSensorHistory))).scalars().all()) == 1

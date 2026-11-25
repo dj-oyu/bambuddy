@@ -177,7 +177,7 @@ async def rotate_provisioning_key(
 
 
 @router.get("/devices")
-async def devices(db: AsyncSession = Depends(get_db), _: User | None = ReadAccess):
+async def devices(db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess):
     rows = (await db.execute(select(BMCUBinaryDevice).order_by(BMCUBinaryDevice.device_id))).scalars().all()
     counts = dict(
         (
@@ -194,7 +194,7 @@ async def devices(db: AsyncSession = Depends(get_db), _: User | None = ReadAcces
 
 
 @router.get("/devices/{device_id}")
-async def device(device_id: str, db: AsyncSession = Depends(get_db), _: User | None = ReadAccess):
+async def device(device_id: str, db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess):
     row = (
         await db.execute(select(BMCUBinaryDevice).where(BMCUBinaryDevice.device_id == device_id))
     ).scalar_one_or_none()
@@ -213,7 +213,7 @@ async def events(
     kind: str | None = None,
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = ReadAccess,
 ):
     # Page across both streams before loading payloads. BMCU EVENTs are stored
