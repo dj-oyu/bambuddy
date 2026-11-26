@@ -62,17 +62,28 @@ async def _device(db, device_id):
 
 def _summary(row, link_count=0):
     connected = binary_transport_server.registry.get(row.device_id) is not None
+    udp = binary_transport_server.udp
+    state = udp.states.get(row.device_id) if udp else None
+    if connected and state and state.health() == "offline":
+        state = None
+    health = state.health() if state else ("online" if connected else "offline")
     return MonitorSummary(
         deviceId=row.device_id,
         displayName=row.device_id,
         firmware=row.firmware,
-        health="online" if connected else "offline",
+        health=health,
         lastSeenAt=row.last_seen_at,
         bootId=row.pico_boot_id,
         linkCount=link_count,
-        onlineLinks=link_count if connected else 0,
-        ackSequence=row.last_ack_sequence,
-        replayPending=max(0, int(row.newest_available_sequence) - int(row.last_ack_sequence)),
+        onlineLinks=(
+            sum(1 for _, code in state.links.values() if code == 2)
+            if state and health == "online"
+            else link_count
+            if connected and not state
+            else 0
+        ),
+        ackSequence=None if state else row.last_ack_sequence,
+        replayPending=None if state else max(0, int(row.newest_available_sequence) - int(row.last_ack_sequence)),
         # Null, not 0: the warning/critical aggregation this field is meant to
         # carry is not implemented, and 0 would state that the device reports
         # nothing wrong. It reports plenty; nobody has counted it.
@@ -182,6 +193,43 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db, scope="funct
             )
         )
     return MonitorDetail(**_summary(row, len(stored_links)).model_dump(), firstSeenAt=row.first_seen_at, links=links)
+
+
+@router.get("/{device_id}/stream-diagnostics", summary="UDP stream ingest counters since startup")
+async def stream_diagnostics(
+    device_id: str, db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess
+):
+    await _device(db, device_id)
+    receiver = binary_transport_server.udp
+    if receiver is None:
+        raise HTTPException(404, "UDP stream receiver is disabled")
+    state = receiver.states.get(device_id)
+    queue = receiver.queues.get(device_id)
+    latest = (
+        await db.execute(
+            select(BMCUBinaryDiagnostic)
+            .where(BMCUBinaryDiagnostic.device_id == device_id)
+            .order_by(BMCUBinaryDiagnostic.recorded_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    tags = {item.tag: typed_tlv_value(item) for item in decode_tlvs(latest.payload)} if latest else {}
+    return {
+        "deviceId": device_id,
+        "health": state.health() if state else "offline",
+        "sourceAddress": state.source if state else None,
+        "uptimeMs": state.uptime_ms if state else None,
+        "queueDepth": queue.qsize() if queue else 0,
+        "counters": dict(receiver.device_counters.get(device_id, {})),
+        "receiverEnvelopeRejects": receiver.counters["envelope_rejects"],
+        "pico": {
+            "datagramsSent": tags.get(90),
+            "recordsSent": tags.get(91),
+            "sendErrors": tags.get(92),
+            "bytesSent": tags.get(93),
+            "heartbeatsSent": tags.get(94),
+        },
+    }
 
 
 async def _sampled_window(db, conditions, limit):
@@ -440,7 +488,6 @@ async def metrics(
         17: "wifiRssiDbm",
         28: "ackAgeMs",
         31: "transportEncodeAvgUs",
-        34: "replayPending",
         36: "transportSendAvgUs",
         37: "transportSendMaxUs",
         40: "journalBytes",

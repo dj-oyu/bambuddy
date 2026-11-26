@@ -383,6 +383,11 @@ class BinaryPersistence:
             device.last_seen_at = now
             await db.commit()
 
+        self.apply_semantic(device_id, frame, semantic, received_at_us)
+        return watermark
+
+    def apply_semantic(self, device_id, frame, semantic, received_at_us) -> None:
+        """Apply a committed record to the shared live view."""
         if semantic is not None and received_at_us is not None:
             key = (device_id, frame.header.link_index)
             now_m = time.monotonic()
@@ -398,7 +403,6 @@ class BinaryPersistence:
             elif isinstance(semantic, BMCUHello):
                 self.last_hello[key] = semantic
                 self.bmcu_hello_epoch[device_id] = self.bmcu_hello_epoch.get(device_id, 0) + 1
-        return watermark
 
     async def persist_control_result(self, device_id: str, boot_id: int, result: ControlResult) -> None:
         boot_key, command_key, now = u64_hex(boot_id), u64_decimal(result.command_sequence), _utcnow()

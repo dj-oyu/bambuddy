@@ -8,13 +8,17 @@ import logging
 import time
 from collections import defaultdict, deque
 
+from sqlalchemy import select
+
 from backend.app.core.config import settings
 from backend.app.core.database import async_session
+from backend.app.models.bmcu_binary import BMCUBinaryDevice
 
 from .persistence import BinaryPersistence
 from .provisioning import load_key_file, save_key_file, validate_device_id
 from .registry import SessionRegistry
 from .session import BinarySession
+from .stream_v2 import StreamReceiver
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,7 @@ class BinaryTransportServer:
         self.registry = SessionRegistry()
         self.persistence = BinaryPersistence(async_session)
         self._server = None
+        self.udp = None
         self._connections: set[asyncio.Task] = set()
         self._keys: dict[str, bytes] = {}
         self._auth_failures = defaultdict(deque)
@@ -49,17 +54,46 @@ class BinaryTransportServer:
         self.provisioning_lock = asyncio.Lock()
 
     async def start(self) -> None:
-        if self._server is not None or not settings.bmcu_binary_enabled:
+        if self._server is not None or self.udp is not None:
+            return
+        if not settings.bmcu_binary_enabled and not settings.bmcu_stream_udp:
             return
         self._keys = configured_keys()
         await self.persistence.rehydrate_current_state()
-        self._server = await asyncio.start_server(
-            self._accept,
-            settings.bmcu_binary_host,
-            settings.bmcu_binary_port,
-            limit=32 + 4096,
-        )
-        logger.info("BMCU binary listener started on %s:%d", settings.bmcu_binary_host, settings.bmcu_binary_port)
+        if settings.bmcu_binary_enabled:
+            self._server = await asyncio.start_server(
+                self._accept, settings.bmcu_binary_host, settings.bmcu_binary_port, limit=32 + 4096
+            )
+            logger.info(
+                "BMCU binary TCP listener started on %s:%d", settings.bmcu_binary_host, settings.bmcu_binary_port
+            )
+        if settings.bmcu_stream_udp:
+            async with async_session() as db:
+                known = set((await db.execute(select(BMCUBinaryDevice.device_id))).scalars()) | set(self._keys)
+            self.udp = StreamReceiver(
+                self.persistence,
+                known,
+                accept_new=settings.bmcu_stream_accept_new,
+                queue_size=settings.bmcu_stream_queue_size,
+                batch_size=settings.bmcu_stream_batch_size,
+                flush_seconds=settings.bmcu_stream_flush_seconds,
+            )
+            try:
+                await asyncio.get_running_loop().create_datagram_endpoint(
+                    lambda: self.udp, local_addr=(settings.bmcu_binary_host, settings.bmcu_binary_port)
+                )
+                await self.udp.restore_pending()
+            except BaseException:
+                await self.udp.close()
+                self.udp = None
+                if self._server is not None:
+                    self._server.close()
+                    await self._server.wait_closed()
+                    self._server = None
+                raise
+            logger.info(
+                "BMCU stream UDP listener started on %s:%d", settings.bmcu_binary_host, settings.bmcu_binary_port
+            )
 
     async def _accept(self, reader, writer) -> None:
         task = asyncio.current_task()
@@ -102,11 +136,13 @@ class BinaryTransportServer:
             self._connections.discard(task)
 
     async def stop(self) -> None:
-        if self._server is None:
-            return
-        self._server.close()
-        await self._server.wait_closed()
-        self._server = None
+        if self.udp is not None:
+            await self.udp.close()
+            self.udp = None
+        if self._server is not None:
+            self._server.close()
+            await self._server.wait_closed()
+            self._server = None
         sessions = self.registry.sessions()
         await asyncio.gather(*(session.close() for session in sessions), return_exceptions=True)
 
@@ -122,6 +158,8 @@ class BinaryTransportServer:
             updated[device_id] = key
             await asyncio.to_thread(save_key_file, updated)
             self._keys = updated
+            if self.udp is not None:
+                self.udp.known_devices.add(device_id)
             session = self.registry.get(device_id)
             if session is not None:
                 await session.close()

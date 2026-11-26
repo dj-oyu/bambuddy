@@ -22,6 +22,7 @@ class MessageType(IntEnum):
     CONTROL_RESULT = 0x31
     PING = 0x40
     PONG = 0x41
+    HEARTBEAT = 0x42
     PROTOCOL_ERROR = 0x7F
 
 
@@ -131,6 +132,8 @@ class DropReason(IntEnum):
     JOURNAL_CORRUPT = 3
     RECORD_TOO_LARGE = 4
     RETENTION_EVICTION = 5
+    NETWORK_GAP = 6
+    RECEIVER_OVERFLOW = 7
 
 
 class RejectReason(IntEnum):

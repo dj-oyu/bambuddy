@@ -2,7 +2,7 @@ import { getAuthToken } from './client';
 
 const API_ROOT = '/api/v1/bmcu-monitors';
 /** Device-level connectivity: a BMB1 session is open, or it is not. */
-export type MonitorHealth = 'online' | 'offline';
+export type MonitorHealth = 'online' | 'stale' | 'offline';
 /** How much is known about one link's loader view.
  *  `no_data` — nothing was ever decoded, so every loader field below is null.
  *  `stale`   — something was, and the bridge has said nothing since. */
@@ -20,8 +20,8 @@ export interface BMCUMonitorSummary {
   linkCount: number;
   onlineLinks: number;
   /** Zero-padded 20-digit decimal string. A u64 — never parse it into a number. */
-  ackSequence: string;
-  replayPending: number;
+  ackSequence: string | null;
+  replayPending: number | null;
   /** Always null: the aggregation is not implemented, and 0 would claim the
    *  device reports nothing wrong. */
   anomalyCount: number | null;

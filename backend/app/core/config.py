@@ -124,6 +124,11 @@ class Settings(BaseSettings):
     bmcu_binary_write_timeout_s: float = Field(default=5.0, gt=0, le=60)
     # JSON object mapping device id to a 64-hex-character provisioned key.
     bmcu_binary_keys: str = "{}"
+    bmcu_stream_udp: bool = Field(default=True, validation_alias="BAMBUDDY_BMCU_STREAM_UDP")
+    bmcu_stream_accept_new: bool = Field(default=False, validation_alias="BAMBUDDY_BMCU_STREAM_ACCEPT_NEW")
+    bmcu_stream_queue_size: int = Field(default=8192, ge=1, le=100000)
+    bmcu_stream_batch_size: int = Field(default=512, ge=1, le=1000)
+    bmcu_stream_flush_seconds: float = Field(default=0.25, gt=0, le=10)
 
     # Slicer API sidecars. Defaults match the docker-compose.yml ports in the
     # orca-slicer-api fork (https://github.com/maziggy/orca-slicer-api):

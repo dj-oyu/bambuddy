@@ -27,6 +27,8 @@ services:
     # Note: Printer discovery won't work - add printers manually by IP.
     #ports:
     #  - "${PORT:-8000}:8000"
+    #  - "8799:8799/udp"             # BMCU Monitor Stream v2
+    #  - "8799:8799/tcp"             # Optional legacy BMCU v1 listener
     #  - "3000:3000"                  # Virtual printer bind/detect
     #  - "3002:3002"                  # Virtual printer bind/detect
     #  - "8883:8883"                  # Virtual printer MQTT
@@ -112,6 +114,10 @@ services:
       # Port BamBuddy runs on (default: 8000)
       # Usage: PORT=8080 docker compose up -d
       - PORT=${PORT:-8000}
+      # For BMCU Monitor Stream v2, allow new device IDs only during setup.
+      # The UDP stream is unauthenticated and intended for a trusted LAN.
+      #- BAMBUDDY_BMCU_STREAM_UDP=true
+      #- BAMBUDDY_BMCU_STREAM_ACCEPT_NEW=true
       # Directory this compose file lives in, so Settings → Updates can print
       # an update command you can paste from anywhere instead of one that only
       # works if you are already in the right directory (#2664). Uncomment to

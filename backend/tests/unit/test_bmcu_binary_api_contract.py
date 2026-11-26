@@ -35,7 +35,7 @@ from backend.app.services.bmcu_binary.bmcu_decoder import (
 )
 from backend.app.services.bmcu_binary.constants import MessageType
 from backend.app.services.bmcu_binary.framing import IncrementalFrameParser
-from backend.app.services.bmcu_binary.messages import decode_bmcu_frame
+from backend.app.services.bmcu_binary.messages import TLV, decode_bmcu_frame, encode_tlvs
 from backend.app.services.bmcu_binary.server import binary_transport_server
 from backend.app.services.bmcu_binary.storage_keys import u64_decimal
 
@@ -246,7 +246,7 @@ def test_guide_route_is_matched_before_the_device_id_route() -> None:
 def test_link_state_and_health_enumerate_only_what_the_route_produces() -> None:
     """A bare `str` hides the value set from every consumer of /openapi.json."""
     assert set(get_args(LinkState)) == {"online", "stale", "no_data"}
-    assert set(get_args(MonitorHealth)) == {"online", "offline"}
+    assert set(get_args(MonitorHealth)) == {"online", "stale", "offline"}
 
 
 @pytest.mark.asyncio
@@ -405,6 +405,23 @@ async def test_timeline_small_window_is_returned_whole(bmcu_db) -> None:
     )
     assert len({point["at"] for point in result["points"]}) == 5
     assert result["downsampled"] is False
+
+
+@pytest.mark.asyncio
+async def test_metrics_does_not_report_oldest_sequence_as_pending_count(bmcu_db) -> None:
+    bmcu_db.add(
+        BMCUBinaryDiagnostic(
+            device_id="pico-bmcu-bridge",
+            pico_boot_id="0000000000000001",
+            transport_sequence=u64_decimal(1),
+            recorded_at=datetime(2026, 8, 3),
+            payload=encode_tlvs((TLV(34, 4, (55970).to_bytes(8, "big")),)),
+        )
+    )
+    await bmcu_db.commit()
+    points = await bmcu_monitors.metrics("pico-bmcu-bridge", from_time=None, to_time=None, limit=10, db=bmcu_db, _=None)
+    assert len(points) == 1
+    assert points[0].get("replayPending") is None
 
 
 @pytest.mark.asyncio

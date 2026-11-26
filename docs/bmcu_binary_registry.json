@@ -16,6 +16,7 @@
     "CONTROL_RESULT": 49,
     "PING": 64,
     "PONG": 65,
+    "HEARTBEAT": 66,
     "PROTOCOL_ERROR": 127
   },
   "flags": {
@@ -69,7 +70,9 @@
     "JOURNAL_FULL": 2,
     "JOURNAL_CORRUPT": 3,
     "RECORD_TOO_LARGE": 4,
-    "RETENTION_EVICTION": 5
+    "RETENTION_EVICTION": 5,
+    "NETWORK_GAP": 6,
+    "RECEIVER_OVERFLOW": 7
   },
   "reject_reasons": {
     "UNKNOWN": 0,
@@ -158,7 +161,12 @@
     "UART0_DRAIN_BYTES": 80,
     "UART0_OVERFLOW_COUNT": 81,
     "UART1_DRAIN_BYTES": 82,
-    "UART1_OVERFLOW_COUNT": 83
+    "UART1_OVERFLOW_COUNT": 83,
+    "UDP_DATAGRAMS_SENT": 90,
+    "UDP_RECORDS_SENT": 91,
+    "UDP_SEND_ERRORS": 92,
+    "UDP_BYTES_SENT": 93,
+    "HEARTBEATS_SENT": 94
   },
   "limits": {
     "HEADER_SIZE": 32,
