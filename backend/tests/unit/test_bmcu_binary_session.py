@@ -1,14 +1,15 @@
 import asyncio
 
 from backend.app.services.bmcu_binary.auth import control_mac, derive_session_key, hello_mac
-from backend.app.services.bmcu_binary.constants import MessageType
-from backend.app.services.bmcu_binary.framing import FrameHeader, IncrementalFrameParser, encode_frame
+from backend.app.services.bmcu_binary.constants import Flag, MessageType
+from backend.app.services.bmcu_binary.framing import Frame, FrameHeader, IncrementalFrameParser, encode_frame
 from backend.app.services.bmcu_binary.messages import (
     Control,
     ControlResult,
     Hello,
     HelloLink,
     HelloReplayRange,
+    LinkStateMessage,
     Ping,
 )
 from backend.app.services.bmcu_binary.registry import SessionRegistry
@@ -173,3 +174,37 @@ def test_control_timestamp_is_session_relative(monkeypatch) -> None:
     control = Control.decode(frame.payload)
     assert frame.header.message_type == MessageType.CONTROL
     assert control.issued_at_us == 5000
+
+
+async def test_session_link_health_ignores_replay_and_late_transitions():
+    session = BinarySession(
+        Reader([]),
+        Writer(),
+        key_provider=lambda _: None,
+        persistence=Persistence(),
+        registry=SessionRegistry(),
+        auth_timeout=1,
+        idle_timeout=1,
+        write_timeout=1,
+    )
+    session.device_id, session.authenticated_boot_id = "monitor", 123
+
+    async def transition(sequence, state, flags=0):
+        await session._handle(
+            Frame(
+                FrameHeader(MessageType.LINK_STATE, flags=flags, pico_boot_id=123, transport_sequence=sequence),
+                LinkStateMessage(1, state, 0).encode(),
+            )
+        )
+
+    assert not session.link_online_since
+    await transition(1, 2)
+    online = session.link_online_since[0]
+    await transition(2, 2)
+    assert session.link_online_since[0] == online
+    await transition(4, 4)
+    await transition(3, 2)
+    await transition(5, 2, Flag.REPLAY)
+    assert not session.link_online_since
+    await transition(6, 2)
+    assert session.link_online_since[0] >= online

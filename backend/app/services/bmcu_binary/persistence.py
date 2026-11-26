@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 
 from backend.app.models.bmcu_binary import (
+    BMCUBinaryAlarmOutbox,
     BMCUBinaryBoot,
     BMCUBinaryControlResult,
     BMCUBinaryDevice,
@@ -21,6 +22,7 @@ from backend.app.models.bmcu_binary import (
     BMCUBinaryRecord,
 )
 
+from .alarms import alarm_delivery, make_alarm
 from .bmcu_decoder import (
     FULL_STATUS_COUNTERS,
     FULL_STATUS_GLOBAL,
@@ -33,7 +35,7 @@ from .bmcu_decoder import (
     status_from_full_status,
     validate_alpha3_wire_frame,
 )
-from .constants import MessageType, RecordType, StateField
+from .constants import Flag, MessageType, RecordType, StateField
 from .errors import InvalidBMCUFrame, InvalidTransportDrop
 from .framing import Frame
 from .messages import ControlResult, Hello, PicoLog, TransportDrop, decode_bmcu_frame
@@ -110,7 +112,19 @@ class BinaryPersistence:
 
     async def register_hello(self, hello: Hello, boot_id: int) -> int:
         async with self._hello_lock:
-            return await self._register_hello_unlocked(hello, boot_id)
+            watermark = await self._register_hello_unlocked(hello, boot_id)
+            # A new TCP session must receive a new, non-replayed STATUS before
+            # safety monitoring can use it. Historical/retransmitted frames
+            # may be persisted, but do not make the live view fresh.
+            for values in (
+                self.current_state,
+                self.current_state_seen,
+                self.full_status_global,
+                self.full_status_counters,
+            ):
+                for key in [key for key in values if key[0] == hello.device_id]:
+                    values.pop(key, None)
+            return watermark
 
     async def _register_hello_unlocked(self, hello: Hello, boot_id: int) -> int:
         now = _utcnow()
@@ -253,6 +267,8 @@ class BinaryPersistence:
         received_at_us = None
         wire = None
         bmcu = None
+        alarm_queued = False
+        live_record = False
         if frame.header.message_type == MessageType.BMCU_FRAME:
             embedded = decode_bmcu_frame(frame.payload, validate_alpha3_wire_frame)
             received_at_us, wire = embedded.received_at_us, embedded.wire_bytes
@@ -305,6 +321,7 @@ class BinaryPersistence:
                 )
             ).scalar_one_or_none()
             if existing is None:
+                live_record = device.pico_boot_id == boot_key and not (frame.header.flags & Flag.REPLAY)
                 db.add(
                     BMCUBinaryRecord(
                         device_id=device_id,
@@ -322,6 +339,12 @@ class BinaryPersistence:
                         raw_bmcu_frame=wire,
                     )
                 )
+                # Historical replay remains in the log, but is not a current
+                # alarm and must not wake a user after reconnection.
+                alarm = make_alarm(device_id, frame, semantic, now) if live_record else None
+                if alarm is not None and await db.get(BMCUBinaryAlarmOutbox, alarm.event_id) is None:
+                    db.add(alarm)
+                    alarm_queued = True
                 if frame.header.message_type == MessageType.PICO_DIAGNOSTIC:
                     db.add(
                         BMCUBinaryDiagnostic(
@@ -383,6 +406,14 @@ class BinaryPersistence:
             device.last_seen_at = now
             await db.commit()
 
+        if alarm_queued:
+            alarm_delivery.wake()
+        if live_record:
+            self.apply_semantic(device_id, frame, semantic, received_at_us)
+        return watermark
+
+    def apply_semantic(self, device_id, frame, semantic, received_at_us) -> None:
+        """Apply a committed record to the shared live view."""
         if semantic is not None and received_at_us is not None:
             key = (device_id, frame.header.link_index)
             now_m = time.monotonic()
@@ -398,7 +429,6 @@ class BinaryPersistence:
             elif isinstance(semantic, BMCUHello):
                 self.last_hello[key] = semantic
                 self.bmcu_hello_epoch[device_id] = self.bmcu_hello_epoch.get(device_id, 0) + 1
-        return watermark
 
     async def persist_control_result(self, device_id: str, boot_id: int, result: ControlResult) -> None:
         boot_key, command_key, now = u64_hex(boot_id), u64_decimal(result.command_sequence), _utcnow()

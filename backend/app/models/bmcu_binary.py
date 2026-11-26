@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, Integer, LargeBinary, String, UniqueConstraint
+from sqlalchemy import DateTime, Index, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.core.database import Base
@@ -146,3 +146,28 @@ class BMCUBinaryLossRange(Base):
         UniqueConstraint("device_id", "pico_boot_id", "report_sequence", name="uq_bmcu_binary_loss_report"),
         Index("ix_bmcu_binary_loss_boot_range", "device_id", "pico_boot_id", "first_sequence"),
     )
+
+
+class BMCUBinaryStreamCursor(Base):
+    """Crash-safe v2 gap candidates and high sequences, one row per device."""
+
+    __tablename__ = "bmcu_binary_stream_cursors"
+
+    device_id: Mapped[str] = mapped_column(String(63), primary_key=True)
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class BMCUBinaryAlarmOutbox(Base):
+    """MQTT delivery queue; rows are created atomically with the source record."""
+
+    __tablename__ = "bmcu_binary_alarm_outbox"
+
+    event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(63), nullable=False)
+    pico_boot_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    transport_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    __table_args__ = (Index("ix_bmcu_alarm_pending", "delivered_at", "created_at"),)

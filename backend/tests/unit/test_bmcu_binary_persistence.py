@@ -17,7 +17,7 @@ from backend.app.models.bmcu_binary import (
 )
 from backend.app.services.bmcu_binary import persistence as persistence_module
 from backend.app.services.bmcu_binary.bmcu_decoder import BMCUEvent, BMCUStatus, crc16_ccitt_false
-from backend.app.services.bmcu_binary.constants import MessageType
+from backend.app.services.bmcu_binary.constants import Flag, MessageType
 from backend.app.services.bmcu_binary.errors import BinaryProtocolError
 from backend.app.services.bmcu_binary.framing import Frame, FrameHeader, IncrementalFrameParser
 from backend.app.services.bmcu_binary.messages import (
@@ -143,6 +143,28 @@ async def _persistence(tmp_path, device_id, newest=10):
     hello = Hello(device_id, "1", (HelloLink(0, "bmcu-a"),), (HelloReplayRange(boot, 1, newest),), b"x" * 32)
     await persistence.register_hello(hello, boot)
     return engine, factory, persistence, boot
+
+
+@pytest.mark.asyncio
+async def test_reconnect_and_replayed_records_do_not_make_status_fresh(tmp_path):
+    engine, _factory, persistence, boot = await _persistence(tmp_path, "monitor-replay")
+    key = ("monitor-replay", 0)
+    first = _frame("bmcu_status.bin", 1, boot)
+    await persistence.persist(key[0], first)
+    seen = persistence.current_state_seen[key]
+    await persistence.persist(key[0], first)
+    assert persistence.current_state_seen[key] == seen
+
+    hello = Hello(key[0], "1", (HelloLink(0, "bmcu-a"),), (HelloReplayRange(boot, 1, 10),), b"x" * 32)
+    await persistence.register_hello(hello, boot)
+    assert key not in persistence.current_state
+    replay = _frame("bmcu_status.bin", 2, boot)
+    replay = Frame(replace(replay.header, flags=int(Flag.REPLAY)), replay.payload)
+    await persistence.persist(key[0], replay)
+    assert key not in persistence.current_state_seen
+    await persistence.persist(key[0], _frame("bmcu_status.bin", 3, boot))
+    assert key in persistence.current_state_seen
+    await engine.dispose()
 
 
 @pytest.mark.asyncio

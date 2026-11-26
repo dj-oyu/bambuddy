@@ -112,6 +112,7 @@ class FeedStallDetector:
         self.warn_cooldown_s = warn_cooldown_s
         self.max_age_s = max_age_s
         self._last_warn_at: dict[int, float] = {}
+        self._sources: dict[int, tuple[object, float]] = {}
         self._episodes: dict[int, FeedStallEpisode] = {}
         self._warn_episodes: dict[int, FeedWarnEpisode] = {}
         # printer_id -> layer at which pull_pct last dipped below neutral_pct
@@ -127,6 +128,8 @@ class FeedStallDetector:
         status: dict | None,
         age_s: float,
         now: float,
+        source: object = None,
+        received_m: float | None = None,
     ) -> FeedStallTrigger | FeedStallWarning | None:
         """status is the inner BMCU status dict (pull_pct/motion/current_slot).
         Any missing/degenerate input dissolves the episode — FAIL-SAFE toward
@@ -140,6 +143,12 @@ class FeedStallDetector:
             # dropped envelopes). No data = no episode.
             self._reset(printer_id)
             return None
+
+        if received_m is not None:
+            previous = self._sources.get(printer_id)
+            if previous and (source != previous[0] or not 0 <= received_m - previous[1] <= self.max_age_s):
+                self._reset(printer_id)
+            self._sources[printer_id] = (source, received_m)
 
         slot = status.get("current_slot")
         pull = status.get("pull_pct")
@@ -244,6 +253,7 @@ class FeedStallDetector:
             self._last_warn_at[printer_id] = now
 
     def _reset(self, printer_id: int) -> None:
+        self._sources.pop(printer_id, None)
         self._episodes.pop(printer_id, None)
         self._warn_episodes.pop(printer_id, None)
         self._degraded_layer.pop(printer_id, None)

@@ -9138,10 +9138,11 @@ _FEED_STALL_WARN_AFTER_S = float(os.environ.get("BAMBUDDY_FEED_STALL_WARN_AFTER_
 _FEED_STALL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_PCT", "5"))
 _FEED_STALL_NEUTRAL_PCT = int(os.environ.get("BAMBUDDY_FEED_STALL_NEUTRAL_PCT", "20"))
 _FEED_STALL_MAX_AGE_S = float(os.environ.get("BAMBUDDY_FEED_STALL_MAX_AGE_S", "20"))
+_FEED_STALL_DEVICE_ID = os.environ.get("BAMBUDDY_FEED_STALL_DEVICE_ID", "").strip()
 _FEED_STALL_LINK_ID = os.environ.get("BAMBUDDY_FEED_STALL_LINK_ID", "").strip()
-# BMCU Link devices are not modeled against printers yet (single-printer
-# household); the freshest device status is attributed to this printer.
-_FEED_STALL_PRINTER_ID = int(os.environ.get("BAMBUDDY_FEED_STALL_PRINTER_ID", "1"))
+# Map exactly one explicitly selected BMCU device/link to this printer.
+_feed_stall_printer_id = os.environ.get("BAMBUDDY_FEED_STALL_PRINTER_ID", "").strip()
+_FEED_STALL_PRINTER_ID = int(_feed_stall_printer_id) if _feed_stall_printer_id else None
 _FEED_STALL_CHECK_INTERVAL_S = 2.0
 _feed_stall_watch_task: asyncio.Task | None = None
 _feed_stall_detector = None  # created lazily so env parsing stays import-safe
@@ -9260,6 +9261,7 @@ async def _pause_feed_stall_with_confirmation(printer_id: int) -> bool:
 
 
 async def _feed_stall_tick(now: float) -> None:
+    from backend.app.services.bmcu_binary.alarms import alarm_delivery, make_feed_alarm
     from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus
     from backend.app.services.bmcu_binary.server import binary_transport_server
     from backend.app.services.feed_stall import FeedStallTrigger
@@ -9267,6 +9269,8 @@ async def _feed_stall_tick(now: float) -> None:
     log = logging.getLogger(__name__)
     detector = _get_feed_stall_detector()
     printer_id = _FEED_STALL_PRINTER_ID
+    if printer_id is None:
+        return
 
     status = printer_manager.get_status(printer_id)
     printing = (
@@ -9277,14 +9281,42 @@ async def _feed_stall_tick(now: float) -> None:
     layer_num = int(getattr(status, "layer_num", 0) or 0) if status is not None else 0
 
     inner, age_s = None, float("inf")
+    key = None
+    source = seen = source_boot = None
     candidates = [
         (key, value)
         for key, value in binary_transport_server.persistence.current_state.items()
-        if isinstance(value, BMCUStatus) and (not _FEED_STALL_LINK_ID or str(key[1]) == _FEED_STALL_LINK_ID)
+        if isinstance(value, BMCUStatus)
+        and _FEED_STALL_DEVICE_ID
+        and _FEED_STALL_LINK_ID
+        and key[0] == _FEED_STALL_DEVICE_ID
+        and str(key[1]) == _FEED_STALL_LINK_ID
     ]
-    if candidates:
+    if len(candidates) == 1:
         key, value = candidates[0]
-        age_s = now - binary_transport_server.persistence.current_state_seen.get(key, now)
+        seen = binary_transport_server.persistence.current_state_seen.get(key)
+        # STATUS receipt uses the monotonic clock; `now` is wall time for the
+        # detector's episode timestamps. A missing receipt time is not fresh.
+        if seen is not None:
+            elapsed = time.monotonic() - seen
+            age_s = elapsed if elapsed >= 0 else float("inf")
+        receiver = binary_transport_server.udp
+        udp_state = receiver.states.get(key[0]) if receiver else None
+        tcp_session = binary_transport_server.registry.get(key[0])
+        if udp_state and not (udp_state.health() == "offline" and tcp_session is not None):
+            source_boot = udp_state.boot_id
+            online_since = udp_state.link_online_since.get(key[1])
+            source = ("udp", source_boot, online_since, key)
+            if udp_state.health() != "online" or online_since is None or seen is None or seen < online_since:
+                age_s = float("inf")
+        elif tcp_session is not None:
+            online_since = tcp_session.link_online_since.get(key[1])
+            source_boot = tcp_session.authenticated_boot_id
+            source = ("tcp", tcp_session, online_since, key)
+            if online_since is None or seen is None or seen < online_since:
+                age_s = float("inf")
+        else:
+            age_s = float("inf")
         inner = {
             "current_slot": value.current_slot,
             "inserted_mask": value.inserted_mask,
@@ -9302,9 +9334,17 @@ async def _feed_stall_tick(now: float) -> None:
         status=inner,
         age_s=age_s,
         now=now,
+        source=source,
+        received_m=seen,
     )
-    if event is None:
+    if event is None or key is None:
         return
+
+    # Queueing is bounded and non-blocking so a slow database or broker can
+    # never delay the physical pause attempt. Derived events are durable only
+    # after the worker has committed them; see the MQTT delivery status.
+    alarm_kind = "feed_stall_detected" if isinstance(event, FeedStallTrigger) else "feed_stall_warning"
+    alarm_delivery.enqueue_derived(make_feed_alarm(key[0], source_boot, key[1], printer_id, event, now, alarm_kind))
 
     if isinstance(event, FeedStallTrigger):
         paused = False
@@ -9312,6 +9352,10 @@ async def _feed_stall_tick(now: float) -> None:
             paused = await _pause_feed_stall_with_confirmation(printer_id)
             if not paused:
                 log.error("[FEED-STALL] pause command failed for printer %s — will retry next tick", printer_id)
+            else:
+                alarm_delivery.enqueue_derived(
+                    make_feed_alarm(key[0], source_boot, key[1], printer_id, event, now, "feed_stall_pause_confirmed")
+                )
         try:
             await _notify_feed_stall(printer_id, event, paused)
         except Exception:
@@ -9343,6 +9387,11 @@ async def _feed_stall_watch_loop() -> None:
 def start_feed_stall_watch() -> None:
     global _feed_stall_watch_task
     if _FEED_STALL_ENABLED and _feed_stall_watch_task is None:
+        if not _FEED_STALL_DEVICE_ID or not _FEED_STALL_LINK_ID or _FEED_STALL_PRINTER_ID is None:
+            logging.getLogger(__name__).warning(
+                "[FEED-STALL] monitoring is unarmed: configure BAMBUDDY_FEED_STALL_DEVICE_ID and "
+                "BAMBUDDY_FEED_STALL_LINK_ID and BAMBUDDY_FEED_STALL_PRINTER_ID to map one BMCU link to the printer"
+            )
         _feed_stall_watch_task = asyncio.create_task(_feed_stall_watch_loop())
         logging.getLogger(__name__).info(
             "Feed-stall watch started (warn %.0fs at <%d%%, pause %.0fs at <=%d%%, auto_pause=%s)",
@@ -13499,10 +13548,12 @@ async def lifespan(app: FastAPI):
 
     # Dedicated authenticated Pico transport; disabled by default and isolated
     # from the legacy JSON BMCU Link adapter during the migration period.
+    from backend.app.services.bmcu_binary.alarms import alarm_delivery
     from backend.app.services.bmcu_binary.retention import bmcu_retention_service
     from backend.app.services.bmcu_binary.server import binary_transport_server
 
     await binary_transport_server.start()
+    alarm_delivery.start()
     # Nothing ever aged out BMB1 telemetry; it reached 440 MB of a 451 MB DB.
     await bmcu_retention_service.start_scheduler()
 
@@ -14046,6 +14097,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     await binary_transport_server.stop()
+    await alarm_delivery.stop()
     bmcu_retention_service.stop_scheduler()
     print_scheduler.stop()
     smart_plug_manager.stop_scheduler()

@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 # What the transport knows about the device as a whole. Only these two are ever
 # produced: the device either holds an open BMB1 session or it does not.
-MonitorHealth = Literal["online", "offline"]
+MonitorHealth = Literal["online", "stale", "offline"]
 
 # What is known about one loader link's STATUS view.
 #   online  - decoded within _STALE_AFTER_S; the loader fields are current
@@ -53,11 +53,11 @@ class MonitorSummary(BaseModel):
     bootId: str | None = Field(description="16-digit lowercase hex. Changes when the bridge reboots.")
     linkCount: int
     onlineLinks: int
-    ackSequence: str = Field(
+    ackSequence: str | None = Field(
         description="Zero-padded 20-digit decimal string, not a number. Highest contiguously persisted "
         "transport sequence."
     )
-    replayPending: int = Field(
+    replayPending: int | None = Field(
         description="Records the bridge holds above ackSequence. Non-zero is normal while it catches "
         "up; a value that does not fall between two reads is the signal."
     )

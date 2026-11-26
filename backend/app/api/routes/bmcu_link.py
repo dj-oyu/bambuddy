@@ -94,6 +94,10 @@ def _control_key_set_at(device_id):
 def _device(row, count=0, drops=0):
     hello, last_status = _link_state(row.device_id)
     protocol = hello.protocol_version if hello else None
+    udp = binary_transport_server.udp
+    state = udp.states.get(row.device_id) if udp else None
+    if state and state.health() == "offline" and binary_transport_server.registry.get(row.device_id):
+        state = None
     return {
         "id": row.id,
         "device_id": row.device_id,
@@ -103,7 +107,9 @@ def _device(row, count=0, drops=0):
         "protocol_max": protocol if protocol is not None else _DEFAULT_PROTOCOL,
         "capabilities": hello.capabilities if hello else 0,
         "mode": "production_monitor",
-        "link_state": "online" if binary_transport_server.registry.get(row.device_id) else "offline",
+        "link_state": state.health()
+        if state
+        else ("online" if binary_transport_server.registry.get(row.device_id) else "offline"),
         "pico_boot_session": row.pico_boot_id,
         # No BMCU boot id exists on the wire; this counts observed BMCU HELLOs.
         "bmcu_boot_session": binary_transport_server.persistence.bmcu_hello_epoch.get(row.device_id, 0),
