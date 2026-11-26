@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.app.core.database import Base
 from backend.app.models.bmcu_binary import BMCUBinaryAlarmOutbox, BMCUBinaryRecord
-from backend.app.services.bmcu_binary.alarms import AlarmDelivery, make_alarm, publish_confirmed
+from backend.app.services.bmcu_binary.alarms import AlarmDelivery, make_alarm, make_feed_alarm, publish_confirmed
 from backend.app.services.bmcu_binary.bmcu_decoder import BMCUEvent, crc16_ccitt_false
 from backend.app.services.bmcu_binary.constants import Flag, MessageType, RecordType, StateField
 from backend.app.services.bmcu_binary.framing import Frame, FrameHeader
@@ -137,7 +137,7 @@ async def test_outbox_keeps_event_until_confirmed_puback(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_outbox_preserves_insertion_order_for_equal_timestamps(tmp_path):
+async def test_outbox_preserves_feed_stall_stage_order(tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'ordering.db'}")
     async with engine.begin() as conn:
         await conn.run_sync(
@@ -145,26 +145,22 @@ async def test_outbox_preserves_insertion_order_for_equal_timestamps(tmp_path):
             tables=[t for t in Base.metadata.sorted_tables if t.name.startswith("bmcu_binary_")],
         )
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC).timestamp()
+    event = SimpleNamespace(slot=0, starved_for_s=30, pull_pct=0, current_layer=10, degraded_layer=9)
+    detected = make_feed_alarm("pico", 1, 0, 1, event, now, "feed_stall_detected")
+    paused = make_feed_alarm("pico", 1, 0, 1, event, now, "feed_stall_pause_confirmed")
     async with factory() as db:
-        for event_id in ("z", "a"):
-            db.add(
-                BMCUBinaryAlarmOutbox(
-                    event_id=event_id,
-                    device_id="pico",
-                    pico_boot_id="0",
-                    transport_sequence="0",
-                    payload=json.dumps({"event_id": event_id}),
-                    created_at=now,
-                )
-            )
+        db.add_all([paused, detected])
         await db.commit()
     info = SimpleNamespace(rc=0, wait_for_publish=Mock(), is_published=Mock(return_value=True))
     client = SimpleNamespace(publish=Mock(return_value=info))
     worker = AlarmDelivery(factory, SimpleNamespace(enabled=True, connected=True, client=client, topic_prefix="test"))
     assert await worker.deliver_one()
     assert await worker.deliver_one()
-    assert [json.loads(call.args[1])["event_id"] for call in client.publish.call_args_list] == ["z", "a"]
+    assert [json.loads(call.args[1])["kind"] for call in client.publish.call_args_list] == [
+        "feed_stall_detected",
+        "feed_stall_pause_confirmed",
+    ]
     await engine.dispose()
 
 

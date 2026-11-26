@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
 import paho.mqtt.client as mqtt
-from sqlalchemy import literal_column, select
+from sqlalchemy import select
 
 from backend.app.core.database import async_session
 from backend.app.models.bmcu_binary import BMCUBinaryAlarmOutbox
@@ -122,7 +122,9 @@ def make_feed_alarm(device_id, boot_id, link_index, printer_id, event, now, kind
         pico_boot_id=u64_hex(boot_id or 0),
         transport_sequence=u64_decimal(0),
         payload=json.dumps(payload, separators=(",", ":")),
-        created_at=received_at,
+        # Both stages may be generated in the same tick. A stable timestamp
+        # tie-breaker preserves their causal order on SQLite and PostgreSQL.
+        created_at=received_at + timedelta(microseconds={"feed_stall_pause_confirmed": 1}.get(kind, 0)),
         delivered_at=None,
     )
 
@@ -226,7 +228,7 @@ class AlarmDelivery:
                 await db.execute(
                     select(BMCUBinaryAlarmOutbox)
                     .where(BMCUBinaryAlarmOutbox.delivered_at.is_(None))
-                    .order_by(BMCUBinaryAlarmOutbox.created_at, literal_column("bmcu_binary_alarm_outbox.rowid"))
+                    .order_by(BMCUBinaryAlarmOutbox.created_at, BMCUBinaryAlarmOutbox.event_id)
                     .limit(1)
                 )
             ).scalar_one_or_none()
