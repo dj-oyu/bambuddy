@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BMCULinkPage } from '../../pages/BMCULinkPage';
 import { bmcuLinkApi } from '../../api/client';
 import { bmcuMonitorsApi } from '../../api/bmcuMonitors';
+import { SlotStateGrid } from '../../components/bmcu/SlotStateGrid';
 import type { BMCUMetricPoint, BMCUMonitorDetail, BMCUMonitorSummary, BMCUTimelineResponse } from '../../api/bmcuMonitors';
 import fixture from '../fixtures/bmcuMonitorApi.json';
 
@@ -15,6 +16,7 @@ vi.mock('../../api/bmcuMonitors', async (importOriginal) => {
     bmcuMonitorsApi: {
       list: vi.fn(),
       get: vi.fn(),
+      streamDiagnostics: vi.fn(),
       timeline: vi.fn(),
       metrics: vi.fn(),
     },
@@ -49,6 +51,10 @@ describe('BMCULinkPage', () => {
     }]);
     vi.mocked(bmcuMonitorsApi.list).mockResolvedValue(fixture.list as BMCUMonitorSummary[]);
     vi.mocked(bmcuMonitorsApi.get).mockResolvedValue(fixture.detail as BMCUMonitorDetail);
+    vi.mocked(bmcuMonitorsApi.streamDiagnostics).mockResolvedValue({
+      deviceId: fixture.detail.deviceId, health: 'online', sourceAddress: '192.0.2.10',
+      queueDepth: 2, counters: { datagrams_received: 120, records_persisted: 450, gaps_detected: 4 },
+    });
     vi.mocked(bmcuMonitorsApi.timeline).mockResolvedValue(fixture.timeline as BMCUTimelineResponse);
     vi.mocked(bmcuMonitorsApi.metrics).mockResolvedValue(fixture.metrics as BMCUMetricPoint[]);
   });
@@ -60,6 +66,9 @@ describe('BMCULinkPage', () => {
     expect(await screen.findByText('Pico loader')).toBeTruthy();
     await waitFor(() => expect(bmcuMonitorsApi.timeline).toHaveBeenCalled());
     expect(screen.getByText('Loader state')).toBeTruthy();
+    expect(screen.getByText('Monitor status')).toBeTruthy();
+    expect(await screen.findByText('192.0.2.10')).toBeTruthy();
+    expect(screen.getByText('Missing sequences detected')).toBeTruthy();
     expect(screen.getByText('Loader timeline')).toBeTruthy();
     expect(screen.getByText('control error')).toBeTruthy();
     expect(screen.getByText('Pico hardware')).toBeTruthy();
@@ -67,5 +76,15 @@ describe('BMCULinkPage', () => {
     expect(screen.getByText('-55 dBm')).toBeTruthy();
     expect(await screen.findByText('printer_transaction')).toBeTruthy();
     expect(bmcuLinkApi.getEvents).toHaveBeenCalledWith(fixture.detail.deviceId, { kind: undefined, limit: 50, offset: 0 });
+  });
+
+  it('marks an aging loader snapshot as stale between updates', () => {
+    const link = { ...(fixture.detail as BMCUMonitorDetail).links[0], state: 'online', statusAgeS: 14 } as const;
+    const { rerender } = render(<SlotStateGrid links={[link]} />);
+    expect(screen.getByText('Live')).toBeTruthy();
+
+    rerender(<SlotStateGrid links={[link]} elapsedSeconds={2} />);
+    expect(screen.getByText('Stale')).toBeTruthy();
+    expect(screen.getByText('Last STATUS 16s ago')).toBeTruthy();
   });
 });

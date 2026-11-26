@@ -686,3 +686,159 @@ async def test_settings_events_include_bmcu_events_without_pico_logs(bmcu_db):
     assert await bmcu_link.events("pico-bmcu-bridge", kind=None, limit=1, offset=1, db=bmcu_db, _=None) == all_rows[1:]
     for kind, expected in (("event", all_rows[1:]), ("pico_log", all_rows[:1]), ("wifi", all_rows[:1]), ("status", [])):
         assert await bmcu_link.events("pico-bmcu-bridge", kind=kind, limit=50, offset=0, db=bmcu_db, _=None) == expected
+
+
+def test_live_broker_coalesces_wakeups():
+    from backend.app.services.bmcu_binary.live import LiveBroker
+
+    broker = LiveBroker()
+    queue = broker.subscribe("pico")
+    broker.notify("pico")
+    broker.notify("pico")
+    assert queue.qsize() == 1
+    broker.unsubscribe("pico", queue)
+    assert not broker._subscribers
+
+
+@pytest.mark.asyncio
+async def test_live_broker_serializes_once_per_device_generation():
+    import asyncio
+    from unittest.mock import Mock
+
+    from backend.app.services.bmcu_binary.live import LiveBroker
+
+    broker = LiveBroker()
+    first = broker.subscribe("pico")
+    second = broker.subscribe("pico")
+    build = Mock(return_value={"detail": {"health": "online", "links": []}, "stream": {}})
+    snapshot = broker.snapshot("pico", build)
+    assert broker.snapshot("pico", build) is snapshot
+    assert build.call_count == 1
+    broker.notify("pico")
+    assert broker.snapshot("pico", build) is snapshot
+    await asyncio.sleep(0.26)
+    updated = broker.snapshot("pico", build)
+    assert updated is broker.snapshot("pico", build)
+    assert build.call_count == 2
+    broker.unsubscribe("pico", first)
+    assert "pico" in broker._snapshots
+    broker.unsubscribe("pico", second)
+    assert "pico" not in broker._snapshots
+
+
+@pytest.mark.asyncio
+async def test_live_stream_emits_committed_state_and_unsubscribes(bmcu_db, monkeypatch):
+    import asyncio
+    import json
+    from types import SimpleNamespace
+
+    from backend.app.services.bmcu_binary.live import live_broker
+    from backend.app.services.bmcu_binary.stream_v2 import StreamState
+
+    state = StreamState(
+        heartbeat_at=time.monotonic(), heartbeat_interval=5, boot_id=1, source="127.0.0.1", links={0: ("bmcu-a", 2)}
+    )
+    receiver = SimpleNamespace(
+        states={"pico-bmcu-bridge": state}, queues={}, device_counters={"pico-bmcu-bridge": {}}, counters={}
+    )
+    from collections import Counter
+
+    receiver.counters = Counter()
+    monkeypatch.setattr(binary_transport_server, "udp", receiver)
+    response = await bmcu_monitors.live("pico-bmcu-bridge", db=bmcu_db, user=None)
+    stream = response.body_iterator
+    first = await asyncio.wait_for(anext(stream), 2)
+    payload = json.loads(first.split("data: ", 1)[1])
+    assert payload["detail"]["health"] == "online"
+    assert payload["detail"]["links"][0]["state"] == "no_data"
+    assert payload["stream"]["sourceAddress"] == "127.0.0.1"
+    assert payload["detail"]["ackSequence"] is None
+    state.heartbeat_at = time.monotonic() - 61
+    live_broker.notify("pico-bmcu-bridge")
+    second = await asyncio.wait_for(anext(stream), 2)
+    assert json.loads(second.split("data: ", 1)[1])["detail"]["health"] == "offline"
+    await stream.aclose()
+    assert "pico-bmcu-bridge" not in live_broker._subscribers
+
+
+@pytest.mark.asyncio
+async def test_offline_link_never_reports_fresh_status_as_live(bmcu_db, monkeypatch):
+    from collections import Counter
+    from types import SimpleNamespace
+
+    from backend.app.services.bmcu_binary.stream_v2 import StreamState
+
+    device = "pico-bmcu-bridge"
+    state = StreamState(heartbeat_at=time.monotonic(), heartbeat_interval=5, boot_id=1, links={0: ("bmcu-a", 4)})
+    receiver = SimpleNamespace(states={device: state}, queues={}, device_counters={}, counters=Counter())
+    monkeypatch.setattr(binary_transport_server, "udp", receiver)
+    binary_transport_server.persistence.current_state[(device, 0)] = _status()
+    binary_transport_server.persistence.current_state_seen[(device, 0)] = time.monotonic()
+    result = await bmcu_monitors.detail(device, db=bmcu_db, _=None)
+    assert result.links[0].state == "stale"
+    assert result.links[0].statusAgeS < 2
+    initial = result.model_dump(mode="json")
+    live = bmcu_monitors._live_snapshot(device, initial, {"deviceId": device})
+    assert live["detail"]["links"][0]["state"] == "stale"
+    assert live["detail"]["onlineLinks"] == 0
+
+
+@pytest.mark.asyncio
+async def test_live_stream_switches_to_tcp_if_udp_goes_offline(bmcu_db, monkeypatch):
+    import asyncio
+    from collections import Counter
+    from types import SimpleNamespace
+
+    from fastapi import HTTPException
+
+    from backend.app.services.bmcu_binary.live import live_broker
+    from backend.app.services.bmcu_binary.stream_v2 import StreamState
+
+    device = "pico-bmcu-bridge"
+    state = StreamState(heartbeat_at=time.monotonic(), heartbeat_interval=5, boot_id=1, links={0: ("bmcu-a", 2)})
+    monkeypatch.setattr(
+        binary_transport_server,
+        "udp",
+        SimpleNamespace(states={device: state}, queues={}, device_counters={}, counters=Counter()),
+    )
+    response = await bmcu_monitors.live(device, db=bmcu_db, user=None)
+    stream = response.body_iterator
+    await asyncio.wait_for(anext(stream), 2)
+    state.heartbeat_at = time.monotonic() - 61
+    monkeypatch.setitem(binary_transport_server.registry._sessions, device, object())
+    live_broker.notify(device)
+    with pytest.raises(StopAsyncIteration):
+        await asyncio.wait_for(anext(stream), 2)
+    with pytest.raises(HTTPException) as error:
+        await bmcu_monitors.live(device, db=bmcu_db, user=None)
+    assert error.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_diagnostics_uses_sequence_not_late_arrival_time(bmcu_db, monkeypatch):
+    from collections import Counter
+    from types import SimpleNamespace
+
+    from backend.app.services.bmcu_binary.messages import TLV, encode_tlvs
+    from backend.app.services.bmcu_binary.stream_v2 import StreamState
+
+    device = "pico-bmcu-bridge"
+    state = StreamState(heartbeat_at=time.monotonic(), boot_id=1)
+    monkeypatch.setattr(
+        binary_transport_server,
+        "udp",
+        SimpleNamespace(states={device: state}, queues={}, device_counters={}, counters=Counter()),
+    )
+    for sequence, value, minute in ((10, 100, 1), (9, 50, 2)):
+        bmcu_db.add(
+            BMCUBinaryDiagnostic(
+                device_id=device,
+                pico_boot_id="0000000000000001",
+                transport_sequence=u64_decimal(sequence),
+                recorded_at=datetime(2026, 8, 3, 0, minute),
+                payload=encode_tlvs((TLV(90, 4, value.to_bytes(8, "big")),)),
+            )
+        )
+    await bmcu_db.commit()
+    response = await bmcu_monitors.stream_diagnostics(device, db=bmcu_db, _=None)
+    assert response["pico"]["datagramsSent"] == 100

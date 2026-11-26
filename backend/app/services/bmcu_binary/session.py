@@ -9,7 +9,7 @@ import os
 import time
 
 from .auth import control_mac, derive_session_key, verify_hello_mac
-from .constants import MessageType
+from .constants import Flag, MessageType
 from .errors import BinaryProtocolError
 from .framing import Frame, FrameHeader, IncrementalFrameParser, encode_frame
 from .messages import (
@@ -61,6 +61,8 @@ class BinarySession:
         self.device_id: str | None = None
         self.session_key: bytes | None = None
         self.authenticated_boot_id: int | None = None
+        self.link_state_sequences: dict[int, int] = {}
+        self.link_online_since: dict[int, float] = {}
         self.control_epoch_ns: int | None = None
         self._closed = False
         self._write_lock = asyncio.Lock()
@@ -159,7 +161,18 @@ class BinarySession:
         if typ in (MessageType.PICO_DIAGNOSTIC, MessageType.PICO_LOG) and frame.header.link_index != GLOBAL_SCOPE:
             raise BinaryProtocolError("bridge record requires global link scope")
         if typ == MessageType.LINK_STATE:
-            LinkStateMessage.decode(frame.payload)
+            link_state = LinkStateMessage.decode(frame.payload)
+            index = frame.header.link_index
+            if (
+                not frame.header.flags & Flag.REPLAY
+                and frame.header.pico_boot_id == self.authenticated_boot_id
+                and frame.header.transport_sequence > self.link_state_sequences.get(index, 0)
+            ):
+                self.link_state_sequences[index] = frame.header.transport_sequence
+                if link_state.state == 2:
+                    self.link_online_since.setdefault(index, time.monotonic())
+                else:
+                    self.link_online_since.pop(index, None)
         elif typ == MessageType.TRANSPORT_DROP:
             TransportDrop.decode(frame.payload)
         elif typ == MessageType.PICO_DIAGNOSTIC:

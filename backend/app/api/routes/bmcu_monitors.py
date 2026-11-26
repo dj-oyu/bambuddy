@@ -1,9 +1,11 @@
 """Read/control API for authenticated binary BMCU Monitors."""
 
+import asyncio
 import time
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -12,6 +14,7 @@ from backend.app.core.auth import RequirePermissionIfAuthEnabled
 from backend.app.core.database import get_db
 from backend.app.core.permissions import Permission
 from backend.app.models.bmcu_binary import (
+    BMCUBinaryAlarmOutbox,
     BMCUBinaryDevice,
     BMCUBinaryDiagnostic,
     BMCUBinaryLink,
@@ -38,6 +41,7 @@ from backend.app.services.bmcu_binary.bmcu_decoder import (
 )
 from backend.app.services.bmcu_binary.constants import MessageType, StateField, state_field_name
 from backend.app.services.bmcu_binary.guide import READING_NOTES, THRESHOLDS
+from backend.app.services.bmcu_binary.live import live_broker
 from backend.app.services.bmcu_binary.messages import decode_tlvs, typed_tlv_value
 from backend.app.services.bmcu_binary.sampling import sample_strides
 from backend.app.services.bmcu_binary.server import binary_transport_server
@@ -152,6 +156,10 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db, scope="funct
         .all()
     )
     persistence = binary_transport_server.persistence
+    receiver = binary_transport_server.udp
+    udp_state = receiver.states.get(device_id) if receiver else None
+    if udp_state and udp_state.health() == "offline" and binary_transport_server.registry.get(device_id):
+        udp_state = None
     links = []
     now = datetime.now(UTC).replace(tzinfo=None)
     for stored in stored_links:
@@ -168,7 +176,10 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db, scope="funct
         else:
             age_s = time.monotonic() - persistence.current_state_seen.get(key, time.monotonic())
             snapshot = status_snapshot(value, age_s)
-            state = "online" if age_s < _STALE_AFTER_S else "stale"
+            link_online = udp_state is None or (
+                udp_state.health() == "online" and udp_state.links.get(stored.link_index, (None, 0))[1] == 2
+            )
+            state = "online" if age_s < _STALE_AFTER_S and link_online else "stale"
             faults = value.crc_error + value.frame_error
         links.append(
             LinkSnapshot(
@@ -199,7 +210,7 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db, scope="funct
 async def stream_diagnostics(
     device_id: str, db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess
 ):
-    await _device(db, device_id)
+    device = await _device(db, device_id)
     receiver = binary_transport_server.udp
     if receiver is None:
         raise HTTPException(404, "UDP stream receiver is disabled")
@@ -208,8 +219,11 @@ async def stream_diagnostics(
     latest = (
         await db.execute(
             select(BMCUBinaryDiagnostic)
-            .where(BMCUBinaryDiagnostic.device_id == device_id)
-            .order_by(BMCUBinaryDiagnostic.recorded_at.desc())
+            .where(
+                BMCUBinaryDiagnostic.device_id == device_id,
+                BMCUBinaryDiagnostic.pico_boot_id == (f"{state.boot_id:016x}" if state else device.pico_boot_id),
+            )
+            .order_by(BMCUBinaryDiagnostic.transport_sequence.desc(), BMCUBinaryDiagnostic.recorded_at.desc())
             .limit(1)
         )
     ).scalar_one_or_none()
@@ -230,6 +244,174 @@ async def stream_diagnostics(
             "heartbeatsSent": tags.get(94),
         },
     }
+
+
+@router.get("/{device_id}/alarm-delivery", summary="Pending MQTT alarm delivery status")
+async def alarm_delivery_status(
+    device_id: str, db: AsyncSession = Depends(get_db, scope="function"), _: User | None = ReadAccess
+):
+    from backend.app.services.bmcu_binary.alarms import alarm_delivery
+    from backend.app.services.mqtt_relay import mqtt_relay
+
+    await _device(db, device_id)
+    pending, oldest = (
+        await db.execute(
+            select(func.count(), func.min(BMCUBinaryAlarmOutbox.created_at)).where(
+                BMCUBinaryAlarmOutbox.device_id == device_id, BMCUBinaryAlarmOutbox.delivered_at.is_(None)
+            )
+        )
+    ).one()
+    return {
+        "deviceId": device_id,
+        "mqttEnabled": mqtt_relay.enabled,
+        "mqttConnected": mqtt_relay.connected,
+        "topic": f"{mqtt_relay.topic_prefix}/bmcu/alarms",
+        "pending": pending,
+        "oldestPendingAt": oldest,
+        "derivedQueueDepth": alarm_delivery.derived_queue_depth,
+        "derivedQueueOverflowTotal": alarm_delivery.derived_overflow,
+    }
+
+
+def _live_snapshot(device_id: str, initial_detail: dict, initial_stream: dict) -> dict:
+    """Read committed live state without querying the database per update."""
+    receiver = binary_transport_server.udp
+    state = receiver.states.get(device_id) if receiver else None
+    if state is None:
+        return {"detail": initial_detail, "stream": initial_stream}
+    persistence = binary_transport_server.persistence
+    now, now_m = datetime.now(UTC), time.monotonic()
+    health = state.health()
+    links = []
+    for index, (link_id, transport_state) in sorted(state.links.items()):
+        key = (device_id, index)
+        value = persistence.current_state.get(key)
+        if isinstance(value, BMCUStatus) and key in persistence.current_state_seen:
+            age = max(0.0, now_m - persistence.current_state_seen[key])
+            snapshot = status_snapshot(value, age)
+            link_state = "online" if age < _STALE_AFTER_S and health == "online" and transport_state == 2 else "stale"
+            links.append(
+                {
+                    "linkIndex": index,
+                    "linkId": link_id,
+                    "state": link_state,
+                    "currentSlot": snapshot["current_slot"],
+                    "activeMask": snapshot["online_mask"],
+                    "motion": snapshot["motion"],
+                    "pullPercent": snapshot["pull_pct"],
+                    "pressure": snapshot["pressure"],
+                    "faultCount": value.crc_error + value.frame_error,
+                    "statusAgeS": round(age, 1),
+                    "lastSeenAt": (now - timedelta(seconds=age)).isoformat(),
+                }
+            )
+        else:
+            links.append(
+                {
+                    "linkIndex": index,
+                    "linkId": link_id,
+                    "state": "no_data",
+                    "currentSlot": None,
+                    "activeMask": None,
+                    "motion": None,
+                    "pullPercent": None,
+                    "pressure": None,
+                    "faultCount": None,
+                    "statusAgeS": None,
+                    "lastSeenAt": None,
+                }
+            )
+    heartbeat_age = max(0.0, now_m - state.heartbeat_at) if state.heartbeat_at else None
+    detail_data = {
+        **initial_detail,
+        "health": health,
+        "bootId": f"{state.boot_id:016x}",
+        "firmware": state.firmware or initial_detail["firmware"],
+        "lastSeenAt": (now - timedelta(seconds=heartbeat_age)).isoformat() if heartbeat_age is not None else None,
+        "linkCount": len(state.links),
+        "onlineLinks": sum(1 for _, code in state.links.values() if code == 2) if health == "online" else 0,
+        "ackSequence": None,
+        "replayPending": None,
+        "links": links,
+    }
+    queue = receiver.queues.get(device_id)
+    stream_data = {
+        **initial_stream,
+        "health": health,
+        "sourceAddress": state.source or None,
+        "uptimeMs": state.uptime_ms,
+        "queueDepth": queue.qsize() if queue else 0,
+        "counters": dict(receiver.device_counters.get(device_id, {})),
+        "receiverEnvelopeRejects": receiver.counters["envelope_rejects"],
+        "pico": state.pico_metrics
+        or (initial_stream.get("pico") if initial_detail.get("bootId") == f"{state.boot_id:016x}" else None),
+    }
+    return {"detail": detail_data, "stream": stream_data}
+
+
+@router.get("/{device_id}/live", summary="Stream received heartbeat health and committed loader state")
+async def live(device_id: str, db: AsyncSession = Depends(get_db, scope="function"), user: User | None = ReadAccess):
+    receiver = binary_transport_server.udp
+    if receiver is None or device_id not in receiver.states:
+        raise HTTPException(404, "Live UDP stream is unavailable")
+    if receiver.states[device_id].health() == "offline" and binary_transport_server.registry.get(device_id):
+        raise HTTPException(404, "Monitor has switched to TCP")
+    initial_detail = (await detail(device_id, db=db, _=user)).model_dump(mode="json")
+    initial_stream = await stream_diagnostics(device_id, db=db, _=user)
+
+    async def events():
+        queue = live_broker.subscribe(device_id)
+        try:
+            snapshot = live_broker.snapshot(
+                device_id, lambda: _live_snapshot(device_id, initial_detail, initial_stream)
+            )
+            last_snapshot = snapshot
+            last_signature = snapshot.signature
+            last_send = time.monotonic()
+            started = time.monotonic()
+            yield snapshot.event
+            while time.monotonic() - started < 60:
+                current = binary_transport_server.udp
+                current_state = current.states.get(device_id) if current else None
+                if current_state is None or (
+                    current_state.health() == "offline" and binary_transport_server.registry.get(device_id)
+                ):
+                    break
+                try:
+                    await asyncio.wait_for(queue.get(), timeout=1.0)
+                    # Coalesce bursts; a stalled client retains at most one wakeup.
+                    delay = 0.25 - (time.monotonic() - last_send)
+                    if delay > 0:
+                        await asyncio.sleep(delay)
+                    while not queue.empty():
+                        queue.get_nowait()
+                    changed = True
+                except TimeoutError:
+                    changed = False
+                current = binary_transport_server.udp
+                current_state = current.states.get(device_id) if current else None
+                if current_state is None or (
+                    current_state.health() == "offline" and binary_transport_server.registry.get(device_id)
+                ):
+                    break
+                snapshot = live_broker.snapshot(
+                    device_id, lambda: _live_snapshot(device_id, initial_detail, initial_stream)
+                )
+                signature = snapshot.signature
+                if (changed and snapshot is not last_snapshot) or last_signature != signature or not last_send:
+                    yield snapshot.event
+                    last_snapshot, last_signature, last_send = snapshot, signature, time.monotonic()
+                elif time.monotonic() - last_send >= 15:
+                    yield ": keepalive\n\n"
+                    last_send = time.monotonic()
+        finally:
+            live_broker.unsubscribe(device_id, queue)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no"},
+    )
 
 
 async def _sampled_window(db, conditions, limit):

@@ -1,0 +1,9 @@
+# BMCU Link: live page requirements
+
+- Show the selected monitor's connection/heartbeat health, transport and loss counters, and each loader's current slot, filament mask, motion, pressure, faults, and STATUS age. Keep history and device events accessible.
+- A connected bridge does not imply fresh loader data. Never highlight an old or unknown slot as live; visibly mark delayed, stale, no-data, offline and failed updates. Do not turn null into zero or conflate cumulative counters with current rates.
+- The live view should reflect committed loader data promptly without making UDP ingestion wait for a browser. Heartbeat health and link state reflect receipt and may precede database commit. Coalesce bursts, bound buffers and slow-client work, and suspend the subscription when the page is hidden. On disconnect, reconnect and use polling as a fallback.
+- Keep high-frequency loader-value updates out of React reconciliation by rendering them inside a DOM island owned exclusively by the live renderer. React owns the container and the rest of the page. Do not let React and the renderer modify the same nodes. Apply all text as text, not HTML.
+- Bound DOM work to the affected loader fields, batch updates per animation frame, do not rebuild nodes on each sample, and retain correct behaviour across device switches, stale timeouts, unmounts, reconnects and background tabs. Preserve semantic, accessible text and keyboard use elsewhere on the page.
+- Refresh expensive history separately from live state. The transport does not guarantee loss-free UDP delivery. User-visible counters must state their scope.
+- Verify both the server/client streaming path and the direct renderer, including stale/unknown transitions, out-of-order lifecycle events, cleanup and fallback. Measure in a real browser before claiming a latency or CPU improvement.

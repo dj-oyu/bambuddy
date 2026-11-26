@@ -155,3 +155,19 @@ class BMCUBinaryStreamCursor(Base):
 
     device_id: Mapped[str] = mapped_column(String(63), primary_key=True)
     state: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class BMCUBinaryAlarmOutbox(Base):
+    """MQTT delivery queue; rows are created atomically with the source record."""
+
+    __tablename__ = "bmcu_binary_alarm_outbox"
+
+    event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(63), nullable=False)
+    pico_boot_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    transport_sequence: Mapped[str] = mapped_column(String(20), nullable=False)
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    __table_args__ = (Index("ix_bmcu_alarm_pending", "delivered_at", "created_at"),)

@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 
 from backend.app.models.bmcu_binary import (
+    BMCUBinaryAlarmOutbox,
     BMCUBinaryBoot,
     BMCUBinaryDevice,
     BMCUBinaryDiagnostic,
@@ -25,6 +26,7 @@ from backend.app.models.bmcu_binary import (
     BMCUBinaryStreamCursor,
 )
 
+from .alarms import alarm_delivery, make_alarm
 from .bmcu_decoder import (
     BMCUEvent,
     BMCUFullStatusRecord,
@@ -33,10 +35,11 @@ from .bmcu_decoder import (
     decode_wire_frame,
     validate_alpha3_wire_frame,
 )
-from .constants import DropReason, MessageType
+from .constants import DropReason, Flag, MessageType
 from .errors import BinaryProtocolError, InvalidMessage
 from .framing import Frame, decode_header
-from .messages import LinkStateMessage, PicoLog, TransportDrop, decode_bmcu_frame, decode_tlvs
+from .live import live_broker
+from .messages import LinkStateMessage, PicoLog, TransportDrop, decode_bmcu_frame, decode_tlvs, typed_tlv_value
 from .storage_keys import u64_decimal, u64_hex
 
 logger = logging.getLogger(__name__)
@@ -147,6 +150,8 @@ def validate_frame(frame: Frame):
         return parse_heartbeat(frame.payload)
     if h.message_type not in SEQUENCED or not h.transport_sequence:
         raise InvalidMessage("invalid stream record type or sequence")
+    if h.flags & Flag.REPLAY:
+        raise InvalidMessage("replay is not supported by the UDP stream")
     if h.message_type in (MessageType.PICO_DIAGNOSTIC, MessageType.PICO_LOG) and h.link_index != 255:
         raise InvalidMessage("bridge record requires global scope")
     if h.message_type == MessageType.LINK_STATE:
@@ -172,9 +177,23 @@ class StreamState:
     source: str = ""
     boot_id: int = 0
     uptime_ms: int = 0
+    firmware: str = ""
     links: dict = field(default_factory=dict)
+    link_online_since: dict[int, float] = field(default_factory=dict)
     seen_sequences: dict = field(default_factory=dict)
     seen_boots: set = field(default_factory=set)
+    pico_metrics: dict = field(default_factory=dict)
+    pico_metrics_sequence: int = 0
+
+    def observe_links(self, beat, received_m):
+        continuous = self.heartbeat_at and received_m - self.heartbeat_at <= 3 * self.heartbeat_interval
+        links = {i: (name, code) for i, name, code in beat.links}
+        self.link_online_since = {
+            i: self.link_online_since.get(i, received_m) if continuous and self.links.get(i) == link else received_m
+            for i, link in links.items()
+            if link[1] == 2
+        }
+        self.links = links
 
     def health(self):
         if not self.heartbeat_at:
@@ -267,12 +286,18 @@ class StreamReceiver(asyncio.DatagramProtocol):
                     state.boot_id = frame.header.pico_boot_id
                     state.seen_boots.add(state.boot_id)
                     state.seen_sequences.clear()
+                    state.link_online_since.clear()
+                    state.pico_metrics.clear()
+                    state.pico_metrics_sequence = 0
                     clear_live_state(self.persistence, device)
-                state.heartbeat_at = time.monotonic()
+                received_m = time.monotonic()
+                state.observe_links(beat, received_m)
+                state.heartbeat_at = received_m
                 state.heartbeat_interval = beat.interval_ms / 1000
                 state.source = str(addr[0])
                 state.uptime_ms = beat.uptime_ms
-                state.links = {index: (link_id, link_state) for index, link_id, link_state in beat.links}
+                state.firmware = beat.firmware
+                live_broker.notify(device)
             try:
                 queue.put_nowait((frame, beat, str(addr[0]), time.monotonic()))
             except asyncio.QueueFull:
@@ -441,6 +466,7 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
     unique = {(f.header.pico_boot_id, f.header.transport_sequence): f for f in frames}
     frames = sorted(unique.values(), key=lambda f: (f.header.pico_boot_id, f.header.transport_sequence))
     decoded = []
+    alarm_queued = False
     async with persistence._session_factory() as db:
         device = (
             await db.execute(select(BMCUBinaryDevice).where(BMCUBinaryDevice.device_id == device_id))
@@ -622,6 +648,10 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
                     raw_bmcu_frame=wire,
                 )
             )
+            alarm = make_alarm(device_id, frame, semantic, recorded_at)
+            if alarm is not None and await db.get(BMCUBinaryAlarmOutbox, alarm.event_id) is None:
+                db.add(alarm)
+                alarm_queued = True
             if h.message_type == MessageType.PICO_DIAGNOSTIC:
                 db.add(
                     BMCUBinaryDiagnostic(
@@ -663,6 +693,8 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
             await store_due(db, device_id, tracker, counters, now_s)
             await save_cursor(db, device_id, tracker)
         await db.commit()
+    if alarm_queued:
+        alarm_delivery.wake()
     for frame, beat, source, received_m in beat_items:
         state = states.setdefault(device_id, StreamState())
         if state.boot_id != frame.header.pico_boot_id:
@@ -671,12 +703,16 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
             state.boot_id = frame.header.pico_boot_id
             state.seen_boots.add(state.boot_id)
             state.seen_sequences.clear()
+            state.link_online_since.clear()
+            state.pico_metrics.clear()
+            state.pico_metrics_sequence = 0
             clear_live_state(persistence, device_id)
         if not state.heartbeat_at:
+            state.observe_links(beat, received_m)
             state.heartbeat_at = received_m
             state.heartbeat_interval = beat.interval_ms / 1000
             state.source, state.uptime_ms = source, beat.uptime_ms
-            state.links = {index: (link_id, link_state) for index, link_id, link_state in beat.links}
+            state.firmware = beat.firmware
     state = states.setdefault(device_id, StreamState())
     new_boot = next(
         (
@@ -690,6 +726,9 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
         state.boot_id = new_boot
         state.seen_boots.add(new_boot)
         state.seen_sequences.clear()
+        state.link_online_since.clear()
+        state.pico_metrics.clear()
+        state.pico_metrics_sequence = 0
         clear_live_state(persistence, device_id)
     for frame, semantic, received in decoded:
         # Delayed datagrams must not roll the live view back.
@@ -707,8 +746,26 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
                 persistence.current_state_seen[state_key] = min(persistence.current_state_seen[state_key], arrived_m)
             if state_key in persistence.last_event_seen and isinstance(semantic, BMCUEvent):
                 persistence.last_event_seen[state_key] = min(persistence.last_event_seen[state_key], arrived_m)
+        if (
+            frame.header.pico_boot_id == state.boot_id
+            and frame.header.message_type == MessageType.PICO_DIAGNOSTIC
+            and frame.header.transport_sequence > state.pico_metrics_sequence
+        ):
+            try:
+                tags = {item.tag: typed_tlv_value(item) for item in decode_tlvs(frame.payload) if 90 <= item.tag <= 94}
+            except BinaryProtocolError:
+                continue
+            state.pico_metrics = {
+                "datagramsSent": tags.get(90),
+                "recordsSent": tags.get(91),
+                "sendErrors": tags.get(92),
+                "bytesSent": tags.get(93),
+                "heartbeatsSent": tags.get(94),
+            }
+            state.pico_metrics_sequence = frame.header.transport_sequence
     counters["records_persisted"] += len(decoded)
     counters["batches"] += 1
+    live_broker.notify(device_id)
 
 
 class GapTracker:

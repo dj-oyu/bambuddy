@@ -114,6 +114,8 @@ async def test_batch_gap_late_arrival_and_drop_report(tmp_path):
 
 @pytest.mark.asyncio
 async def test_udp_first_heartbeat_registration_and_batch(tmp_path):
+    from backend.app.services.bmcu_binary.live import live_broker
+
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'udp.db'}")
     async with engine.begin() as conn:
         await conn.run_sync(
@@ -122,9 +124,12 @@ async def test_udp_first_heartbeat_registration_and_batch(tmp_path):
         )
     factory = async_sessionmaker(engine, expire_on_commit=False)
     receiver = StreamReceiver(BinaryPersistence(factory), set(), accept_new=True, flush_seconds=0.01)
+    wakeups = live_broker.subscribe("pico-bmcu-bridge")
     receiver.datagram_received((FIXTURES / "heartbeat.bin").read_bytes(), ("127.0.0.1", 8000))
     await asyncio.wait_for(receiver.queues["pico-bmcu-bridge"].join(), 3)
     assert receiver.states["pico-bmcu-bridge"].health() == "online"
+    assert wakeups.qsize() == 1
+    live_broker.unsubscribe("pico-bmcu-bridge", wakeups)
     async with factory() as db:
         assert (await db.execute(select(BMCUBinaryDevice))).scalar_one().firmware == "alpha.3"
     await receiver.close()
@@ -333,3 +338,49 @@ async def test_pico_log_received_over_udp_is_saved_and_returned_by_api(tmp_path)
     ]
     await receiver.close()
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_diagnostic_counters_ignore_late_frames_and_reset_on_reboot(tmp_path):
+    from backend.app.services.bmcu_binary.messages import TLV, encode_tlvs
+
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'diag.db'}")
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[t for t in Base.metadata.sorted_tables if t.name.startswith("bmcu_binary_")],
+        )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    persistence, states, counters = BinaryPersistence(factory), {}, Counter()
+
+    def diagnostic(seq, value):
+        payload = encode_tlvs((TLV(90, 4, value.to_bytes(8, "big")),))
+        return Frame(
+            FrameHeader(MessageType.PICO_DIAGNOSTIC, transport_sequence=seq, pico_boot_id=1, link_index=255), payload
+        )
+
+    await persist_batch(persistence, "pico", [item(beat()), item(diagnostic(10, 100))], states, counters)
+    await persist_batch(persistence, "pico", [item(diagnostic(9, 50))], states, counters)
+    assert states["pico"].pico_metrics["datagramsSent"] == 100
+    restart = Frame(FrameHeader(HEARTBEAT, pico_boot_id=2, link_index=255), beat().payload)
+    await persist_batch(persistence, "pico", [item(restart)], states, counters)
+    assert states["pico"].pico_metrics == {}
+    await engine.dispose()
+
+
+def test_link_continuity_restarts_after_loss_or_silent_heartbeat_gap():
+    from backend.app.services.bmcu_binary.stream_v2 import Heartbeat, StreamState
+
+    state = StreamState(heartbeat_interval=5)
+
+    def observe(code, timestamp):
+        beat = Heartbeat(5000, 1, 1, "test", ((0, "a", code), (1, "b", 2)))
+        state.observe_links(beat, timestamp)
+        state.heartbeat_at = timestamp
+
+    observe(2, 10)
+    observe(4, 11)
+    observe(2, 12)
+    assert state.link_online_since == {0: 12, 1: 10}
+    observe(2, 33)
+    assert state.link_online_since == {0: 33, 1: 33}

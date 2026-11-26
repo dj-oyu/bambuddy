@@ -1,7 +1,10 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import type { BMCULinkSnapshot } from '../../api/bmcuMonitors';
+import { act, render, screen } from '@testing-library/react';
+import { Profiler } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import type { BMCULinkSnapshot, BMCUMonitorDetail } from '../../api/bmcuMonitors';
 import { SlotStateGrid } from '../../components/bmcu/SlotStateGrid';
+import { publishLoader } from '../../components/bmcu/liveUpdates';
+import fixture from '../fixtures/bmcuMonitorApi.json';
 
 const link = (linkIndex: number, linkId: string, overrides: Partial<BMCULinkSnapshot> = {}): BMCULinkSnapshot => ({
   linkIndex,
@@ -19,6 +22,42 @@ const link = (linkIndex: number, linkId: string, overrides: Partial<BMCULinkSnap
 });
 
 describe('SlotStateGrid', () => {
+  it('updates live values without a React render or rebuilding the loader nodes', () => {
+    const renders = vi.fn();
+    const deviceId = 'live-pico';
+    const initial = link(0, 'bmcu-a', { currentSlot: 0, motion: [0, 0, 0, 0] });
+    const { unmount } = render(<Profiler id="loader" onRender={renders}><SlotStateGrid deviceId={deviceId} liveConnected links={[initial]} /></Profiler>);
+    const firstSlot = screen.getByText('1').parentElement;
+    const before = renders.mock.calls.length;
+    const detail = { ...fixture.detail, deviceId, links: [link(0, 'bmcu-a', { currentSlot: 1, motion: [0, 1, 0, 0] })] } as BMCUMonitorDetail;
+    act(() => publishLoader(detail));
+    expect(renders).toHaveBeenCalledTimes(before);
+    expect(screen.getByText('1').parentElement).toBe(firstSlot);
+    expect(firstSlot?.className).not.toContain('bg-bambu-green');
+    expect(screen.getByText('2').parentElement?.className).toContain('bg-bambu-green');
+    expect(screen.getByText('0, 1, 0, 0')).toBeTruthy();
+    unmount();
+    act(() => publishLoader(detail));
+  });
+
+  it('switches back to polling data after the stream disconnects', () => {
+    const deviceId = 'live-pico';
+    const initial = link(0, 'bmcu-a', { currentSlot: 0 });
+    const { rerender } = render(<SlotStateGrid deviceId={deviceId} liveConnected links={[initial]} />);
+    const detail = { ...fixture.detail, deviceId, links: [link(0, 'bmcu-a', { currentSlot: 1 })] } as BMCUMonitorDetail;
+    act(() => publishLoader(detail));
+    expect(screen.getByText('2').parentElement?.className).toContain('bg-bambu-green');
+    rerender(<SlotStateGrid deviceId={deviceId} liveConnected={false} links={[initial]} />);
+    expect(screen.getByText('1').parentElement?.className).toContain('bg-bambu-green');
+    expect(screen.getByText('2').parentElement?.className).not.toContain('bg-bambu-green');
+  });
+
+  it('treats device-supplied labels as text', () => {
+    const unsafe = '<img src=x onerror=alert(1)>';
+    const { container } = render(<SlotStateGrid links={[link(0, unsafe)]} />);
+    expect(screen.getByText(unsafe)).toBeTruthy();
+    expect(container.querySelector('img')).toBeNull();
+  });
   it('shows loader links in natural link-id order', () => {
     render(<SlotStateGrid links={[
       link(1, 'bmcu-b'),
@@ -37,7 +76,7 @@ describe('SlotStateGrid', () => {
     // so a day-old slot was rendered as the active one.
     render(<SlotStateGrid links={[link(0, 'bmcu-a', { state: 'stale', currentSlot: 0, statusAgeS: 5 * 3600 })]} />);
 
-    expect(screen.getByText(/5h old/)).toBeTruthy();
+    expect(screen.getByText('Last STATUS 5h ago')).toBeTruthy();
     expect(screen.getByText('1').parentElement?.className).not.toContain('bg-bambu-green');
   });
 
@@ -51,7 +90,7 @@ describe('SlotStateGrid', () => {
   it('reports a day-old snapshot in days', () => {
     render(<SlotStateGrid links={[link(0, 'bmcu-a', { state: 'stale', currentSlot: 0, statusAgeS: 33 * 3600 })]} />);
 
-    expect(screen.getByText(/1d old/)).toBeTruthy();
+    expect(screen.getByText('Last STATUS 1d ago')).toBeTruthy();
   });
 
   it('says so when a link never reported loader state', () => {

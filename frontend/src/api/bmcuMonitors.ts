@@ -1,7 +1,7 @@
 import { getAuthToken } from './client';
 
 const API_ROOT = '/api/v1/bmcu-monitors';
-/** Device-level connectivity: a BMB1 session is open, or it is not. */
+/** Device-level connectivity from the session or UDP heartbeat. */
 export type MonitorHealth = 'online' | 'stale' | 'offline';
 /** How much is known about one link's loader view.
  *  `no_data` — nothing was ever decoded, so every loader field below is null.
@@ -52,6 +52,14 @@ export interface BMCULinkSnapshot {
 export interface BMCUMonitorDetail extends BMCUMonitorSummary {
   firstSeenAt: string | null;
   links: BMCULinkSnapshot[];
+}
+
+export interface BMCUStreamDiagnostics {
+  deviceId: string;
+  health: MonitorHealth;
+  sourceAddress: string | null;
+  queueDepth: number;
+  counters: Partial<Record<'datagrams_received' | 'records_persisted' | 'gaps_detected' | 'ingest_overflow', number>>;
 }
 
 export interface BMCUTimelinePoint {
@@ -120,7 +128,8 @@ async function monitorRequest<T>(path = '', query?: Record<string, QueryValue>):
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(typeof body?.detail === 'string' ? body.detail : `HTTP ${response.status}`);
+    const error = new Error(typeof body?.detail === 'string' ? body.detail : `HTTP ${response.status}`);
+    throw Object.assign(error, { status: response.status });
   }
   return response.json() as Promise<T>;
 }
@@ -129,6 +138,16 @@ export const bmcuMonitorsApi = {
   list: () => monitorRequest<BMCUMonitorSummary[]>(),
   get: (deviceId: string) =>
     monitorRequest<BMCUMonitorDetail>(`/${encodeURIComponent(deviceId)}`),
+  streamDiagnostics: async (deviceId: string) => {
+    try {
+      return await monitorRequest<BMCUStreamDiagnostics>(`/${encodeURIComponent(deviceId)}/stream-diagnostics`);
+    } catch (error) {
+      if (error instanceof Error && 'status' in error && error.status === 404 && error.message === 'UDP stream receiver is disabled') {
+        return null;
+      }
+      throw error;
+    }
+  },
   timeline: (deviceId: string, query: { from: string; to: string; resolution?: string; link?: number }) =>
     monitorRequest<BMCUTimelineResponse>(`/${encodeURIComponent(deviceId)}/timeline`, query),
   metrics: (deviceId: string, query: { from: string; to: string; resolution?: string }) =>

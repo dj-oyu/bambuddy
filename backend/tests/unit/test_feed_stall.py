@@ -8,6 +8,8 @@ anomaly — and every degenerate input must dissolve the episode (fail-safe:
 a spurious pause scars a healthy print).
 """
 
+import pytest
+
 from backend.app.services.feed_stall import (
     FeedStallDetector,
     FeedStallTrigger,
@@ -166,3 +168,105 @@ class TestFailSafeGates:
         ):
             assert _obs(d, 0.0, status=bad) is None
             assert _obs(d, 100.0, status=bad) is None
+
+
+async def test_watch_uses_monotonic_receipt_age_for_fresh_stale_and_missing(monkeypatch):
+    import time
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    import pytest
+
+    from backend.app import main
+    from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus
+    from backend.app.services.bmcu_binary.server import binary_transport_server
+
+    pytest.importorskip("pytest_asyncio")
+    observed = MagicMock(return_value=None)
+    detector = MagicMock(observe=observed)
+    monkeypatch.setattr(main, "_get_feed_stall_detector", lambda: detector)
+    monkeypatch.setattr(main, "_FEED_STALL_DEVICE_ID", "test")
+    monkeypatch.setattr(main, "_FEED_STALL_LINK_ID", "0")
+    monkeypatch.setattr(main, "_FEED_STALL_PRINTER_ID", 1)
+    monkeypatch.setattr(main.printer_manager, "get_status", lambda _: None)
+    session = SimpleNamespace(link_online_since={0: 0.0}, authenticated_boot_id=1)
+    monkeypatch.setattr(binary_transport_server.registry, "get", lambda _: session)
+    state = BMCUStatus(0, 0, 0, 0, 0, 0, 1, 1, (2, 0, 0, 0), (0, 0, 0, 0), 0, 0, 0)
+    key = ("test", 0)
+    monkeypatch.setattr(binary_transport_server.persistence, "current_state", {key: state})
+    monkeypatch.setattr(binary_transport_server.persistence, "current_state_seen", {key: time.monotonic() - 1})
+    await main._feed_stall_tick(time.time())
+    assert 0.5 <= observed.call_args.kwargs["age_s"] < 3
+    binary_transport_server.persistence.current_state_seen[key] = time.monotonic() - 30
+    await main._feed_stall_tick(time.time())
+    assert observed.call_args.kwargs["age_s"] >= 30
+    binary_transport_server.persistence.current_state_seen.clear()
+    await main._feed_stall_tick(time.time())
+    assert observed.call_args.kwargs["age_s"] == float("inf")
+
+
+async def test_fresh_status_reaches_pause_path_without_live_printer_commands(monkeypatch):
+    import time
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from backend.app import main
+    from backend.app.services.bmcu_binary.bmcu_decoder import BMCUStatus
+    from backend.app.services.bmcu_binary.server import binary_transport_server
+
+    detector = FeedStallDetector(after_s=2, warn_after_s=1, max_age_s=20)
+    monkeypatch.setattr(main, "_get_feed_stall_detector", lambda: detector)
+    monkeypatch.setattr(main, "_FEED_STALL_DEVICE_ID", "test")
+    monkeypatch.setattr(main, "_FEED_STALL_LINK_ID", "0")
+    monkeypatch.setattr(main, "_FEED_STALL_PRINTER_ID", 1)
+    monkeypatch.setattr(main, "_FEED_STALL_AUTO_PAUSE", True)
+    monkeypatch.setattr(
+        main.printer_manager, "get_status", lambda _: SimpleNamespace(connected=True, state="RUNNING", layer_num=7)
+    )
+    pause = AsyncMock(return_value=True)
+    notify = AsyncMock()
+    monkeypatch.setattr(main, "_pause_feed_stall_with_confirmation", pause)
+    monkeypatch.setattr(main, "_notify_feed_stall", notify)
+    session = SimpleNamespace(link_online_since={0: 0.0}, authenticated_boot_id=1)
+    monkeypatch.setattr(binary_transport_server.registry, "get", lambda _: session)
+    key = ("test", 0)
+    value = BMCUStatus(0, 0, 0, 0, 0, 0, 1, 1, (2, 0, 0, 0), (0, 50, 50, 50), 0, 0, 0)
+    monkeypatch.setattr(binary_transport_server.persistence, "current_state", {key: value})
+    monkeypatch.setattr(binary_transport_server.persistence, "current_state_seen", {key: time.monotonic()})
+    await main._feed_stall_tick(1_700_000_000.0)
+    # A brief offline/online transition between ticks must dissolve the
+    # old episode. A STATUS from before re-arming cannot start another one.
+    session.link_online_since.clear()
+    await main._feed_stall_tick(1_700_000_003.0)
+    session.link_online_since[0] = time.monotonic()
+    await main._feed_stall_tick(1_700_000_005.0)
+    pause.assert_not_awaited()
+    binary_transport_server.persistence.current_state_seen[key] = time.monotonic()
+    await main._feed_stall_tick(1_700_000_007.0)
+    await main._feed_stall_tick(1_700_000_010.0)
+    pause.assert_awaited_once()
+    notify.assert_awaited_once()
+    assert notify.await_args.args[2] is True
+
+
+@pytest.mark.parametrize(("source", "received_m"), [(("udp", 2), 101), (("tcp", 1), 101), (("udp", 1), 130)])
+def test_new_source_or_unobserved_status_gap_starts_a_new_episode(source, received_m):
+    detector = FeedStallDetector(after_s=30, warn_after_s=90, max_age_s=20)
+
+    def observe(now, identity, receipt):
+        return detector.observe(
+            1,
+            printing=True,
+            layer_num=3,
+            status=_status(),
+            age_s=0,
+            now=now,
+            source=identity,
+            received_m=receipt,
+        )
+
+    assert observe(0, ("udp", 1), 90) is None
+    assert observe(20, ("udp", 1), 100) is None
+    assert observe(30, source, received_m) is None
+    assert observe(45, source, received_m + 15) is None
+    assert isinstance(observe(60, source, received_m + 30), FeedStallTrigger)
