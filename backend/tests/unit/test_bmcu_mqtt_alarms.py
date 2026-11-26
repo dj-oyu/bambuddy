@@ -148,9 +148,16 @@ async def test_outbox_preserves_insertion_order_for_equal_timestamps(tmp_path):
     now = datetime.now(UTC).replace(tzinfo=None)
     async with factory() as db:
         for event_id in ("z", "a"):
-            db.add(BMCUBinaryAlarmOutbox(event_id=event_id, device_id="pico", pico_boot_id="0",
-                                        transport_sequence="0", payload=json.dumps({"event_id": event_id}),
-                                        created_at=now))
+            db.add(
+                BMCUBinaryAlarmOutbox(
+                    event_id=event_id,
+                    device_id="pico",
+                    pico_boot_id="0",
+                    transport_sequence="0",
+                    payload=json.dumps({"event_id": event_id}),
+                    created_at=now,
+                )
+            )
         await db.commit()
     info = SimpleNamespace(rc=0, wait_for_publish=Mock(), is_published=Mock(return_value=True))
     client = SimpleNamespace(publish=Mock(return_value=info))

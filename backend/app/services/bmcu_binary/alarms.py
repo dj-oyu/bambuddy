@@ -138,8 +138,7 @@ async def publish_confirmed(relay, payload: str, *, timeout: float = 5, pending:
         return False
     prefix = relay.topic_prefix
     try:
-        matching = pending and pending.get("client") is client and pending.get("payload") == payload
-        if matching:
+        if pending is not None and pending.get("client") is client and pending.get("payload") == payload:
             info = pending["info"]
         else:
             if pending is not None:

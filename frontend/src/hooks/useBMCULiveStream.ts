@@ -5,6 +5,7 @@ import { publishLoader } from '../components/bmcu/liveUpdates';
 import type { BMCUMonitorDetail, BMCUStreamDiagnostics } from '../api/bmcuMonitors';
 
 type Snapshot = { detail: BMCUMonitorDetail; stream: BMCUStreamDiagnostics };
+const isDocumentHidden = () => document.visibilityState === 'hidden';
 
 /** Stream heartbeat health and committed loader values while visible. The server
  * coalesces bursts; the browser coalesces rendering and reconnects with a
@@ -153,13 +154,13 @@ export function useBMCULiveStream(deviceId: string | undefined): boolean {
         const isCurrent = controller === activeController;
         if (isCurrent) controller = null;
         if (!stopped && isCurrent) {
-          if (document.visibilityState !== 'hidden') {
+          if (!isDocumentHidden()) {
             preserveDisplayed();
             flushStream();
           }
           discardPending();
           setConnectedId(null);
-          if (document.visibilityState !== 'hidden') {
+          if (!isDocumentHidden()) {
             retry = window.setTimeout(connect, opened ? 250 : retryDelay);
             if (!opened) retryDelay = Math.min(retryDelay * 2, 30000);
           }

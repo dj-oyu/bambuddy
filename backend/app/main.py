@@ -9281,6 +9281,7 @@ async def _feed_stall_tick(now: float) -> None:
     layer_num = int(getattr(status, "layer_num", 0) or 0) if status is not None else 0
 
     inner, age_s = None, float("inf")
+    key = None
     source = seen = source_boot = None
     candidates = [
         (key, value)
@@ -9336,7 +9337,7 @@ async def _feed_stall_tick(now: float) -> None:
         source=source,
         received_m=seen,
     )
-    if event is None:
+    if event is None or key is None:
         return
 
     # Queueing is bounded and non-blocking so a slow database or broker can

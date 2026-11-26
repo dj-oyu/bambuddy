@@ -185,7 +185,7 @@ class StreamState:
     pico_metrics: dict = field(default_factory=dict)
     pico_metrics_sequence: int = 0
 
-    def observe_links(self, beat, received_m):
+    def observe_links(self, beat, received_m: float):
         continuous = self.heartbeat_at and received_m - self.heartbeat_at <= 3 * self.heartbeat_interval
         links = {i: (name, code) for i, name, code in beat.links}
         self.link_online_since = {

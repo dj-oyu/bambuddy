@@ -17,8 +17,9 @@ import asyncio
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import Table, delete, select
 
 from backend.app.core import database as _database
 from backend.app.models.bmcu_binary import (
@@ -73,7 +74,7 @@ async def prune_once(session_factory=None) -> dict[str, int]:
     batch, removed = _batch_size(), {}
     for model, column in _TABLES:
         total = 0
-        key = model.event_id if model is BMCUBinaryAlarmOutbox else model.id
+        key = model.__table__.c["event_id" if model is BMCUBinaryAlarmOutbox else "id"]
         while True:
             async with factory() as db:
                 ids = (await db.execute(select(key).where(column < cutoff).order_by(key).limit(batch))).scalars().all()
@@ -83,7 +84,7 @@ async def prune_once(session_factory=None) -> dict[str, int]:
                     # Outbox rows have no dependent entities. Core execution
                     # avoids unrelated ORM cascade hooks for this table.
                     connection = await db.connection()
-                    await connection.execute(delete(model.__table__).where(key.in_(ids)))
+                    await connection.execute(delete(cast(Table, model.__table__)).where(key.in_(ids)))
                 else:
                     await db.execute(delete(model).where(key.in_(ids)))
                 await db.commit()

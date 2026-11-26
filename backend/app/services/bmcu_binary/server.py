@@ -70,7 +70,7 @@ class BinaryTransportServer:
         if settings.bmcu_stream_udp:
             async with async_session() as db:
                 known = set((await db.execute(select(BMCUBinaryDevice.device_id))).scalars()) | set(self._keys)
-            self.udp = StreamReceiver(
+            udp = StreamReceiver(
                 self.persistence,
                 known,
                 accept_new=settings.bmcu_stream_accept_new,
@@ -78,13 +78,14 @@ class BinaryTransportServer:
                 batch_size=settings.bmcu_stream_batch_size,
                 flush_seconds=settings.bmcu_stream_flush_seconds,
             )
+            self.udp = udp
             try:
                 await asyncio.get_running_loop().create_datagram_endpoint(
-                    lambda: self.udp, local_addr=(settings.bmcu_binary_host, settings.bmcu_binary_port)
+                    lambda: udp, local_addr=(settings.bmcu_binary_host, settings.bmcu_binary_port)
                 )
-                await self.udp.restore_pending()
+                await udp.restore_pending()
             except BaseException:
-                await self.udp.close()
+                await udp.close()
                 self.udp = None
                 if self._server is not None:
                     self._server.close()

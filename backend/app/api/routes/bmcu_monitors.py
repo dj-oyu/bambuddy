@@ -276,7 +276,9 @@ async def alarm_delivery_status(
 def _live_snapshot(device_id: str, initial_detail: dict, initial_stream: dict) -> dict:
     """Read committed live state without querying the database per update."""
     receiver = binary_transport_server.udp
-    state = receiver.states.get(device_id) if receiver else None
+    if receiver is None:
+        return {"detail": initial_detail, "stream": initial_stream}
+    state = receiver.states.get(device_id)
     if state is None:
         return {"detail": initial_detail, "stream": initial_stream}
     persistence = binary_transport_server.persistence
