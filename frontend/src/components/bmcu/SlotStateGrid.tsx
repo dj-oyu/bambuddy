@@ -13,7 +13,7 @@ type LoaderNodes = {
   slots: HTMLDivElement;
   slotNodes: HTMLDivElement[];
   slotStates: HTMLSpanElement[];
-  spoolIcons: SVGSVGElement[];
+  filamentIndicators: SVGCircleElement[];
   flowPaths: SVGPathElement[];
   flowLabel: HTMLDivElement;
   buffer: HTMLDivElement;
@@ -45,40 +45,65 @@ const svgNode = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Recor
   return result;
 };
 
+// Spools are schematic. The sensor indicator alone represents filament presence.
+function buildSpool() {
+  const icon = svgNode('svg', { viewBox: '0 0 74 54', class: 'mx-auto h-auto w-full max-w-[78px]', 'aria-hidden': 'true', fill: 'none' });
+  const ellipse = (cx: number, cy: number, rx: number, ry: number, fill: string, stroke = 'none') =>
+    svgNode('ellipse', { cx: String(cx), cy: String(cy), rx: String(rx), ry: String(ry), fill, stroke });
+  const body = svgNode('g', { transform: 'rotate(-12 37 28)' });
+  icon.append(ellipse(38, 48, 25, 3, '#101518'), body);
+  body.append(ellipse(47, 27, 13, 21, '#354249', '#89969b'),
+    svgNode('path', { d: 'M26 18 L47 18 A6 9 0 0 1 47 36 H26 Z', fill: '#38464b' }));
+  const winding = svgNode('g', { color: '#687b7c' });
+  for (const cx of [43, 40, 37, 34, 31]) {
+    winding.append(ellipse(cx, 27, 10, 16, 'currentColor', '#233e39'));
+  }
+  const rim = ellipse(27, 27, 13, 21, '#263339', '#abb9bd');
+  const wheel = svgNode('g', { transform: 'translate(27 27) scale(.58 1)' });
+  const spokes = svgNode('g', {});
+  for (const angle of [0, 120, 240]) {
+    spokes.append(svgNode('path', { d: 'M-2 -7 L-4 -16 Q0 -18 4 -16 L2 -7 Z', transform: `rotate(${angle})`, fill: '#87999f' }));
+  }
+  wheel.append(spokes, ellipse(0, 0, 5.5, 5.5, '#526167', '#9aa8ac'), ellipse(0, 0, 2, 2, '#111a1e'));
+  body.append(winding, rim, wheel);
+  const indicator = svgNode('circle', { cx: '60', cy: '44', r: '3.5', stroke: '#a5b5b6', 'stroke-width': '1' });
+  icon.append(indicator);
+  return { icon, indicator };
+}
+
 function buildLoader(): LoaderNodes {
   const root = node('div', 'rounded-xl border border-bambu-dark-tertiary bg-bambu-dark/40 p-4 sm:p-5');
   const heading = node('div', 'flex flex-wrap items-center justify-between gap-2');
   const name = node('span', 'font-medium text-white');
   const badge = node('span');
   heading.append(name, badge);
+  const deck = node('div', 'mt-3 overflow-hidden rounded-xl border border-bambu-dark-tertiary bg-gradient-to-b from-[#30393d] via-[#20282b] to-[#161c1e] px-2 pb-2 pt-2 shadow-inner sm:px-3');
   const slots = node('div');
   const slotStates: HTMLSpanElement[] = [];
-  const spoolIcons: SVGSVGElement[] = [];
+  const filamentIndicators: SVGCircleElement[] = [];
   const slotNodes = [0, 1, 2, 3].map((slot) => {
     const item = node('div');
     const label = node('div', 'flex items-center justify-between text-[10px] font-medium uppercase tracking-wide', 'Slot');
-    const state = node('span', 'mt-2 block text-[11px]');
-    const icon = svgNode('svg', { viewBox: '0 0 40 40', class: 'mt-2 h-9 w-9', 'aria-hidden': 'true', fill: 'none' });
-    icon.append(svgNode('circle', { cx: '20', cy: '20', r: '16', stroke: 'currentColor', 'stroke-width': '2' }),
-      svgNode('circle', { cx: '20', cy: '20', r: '9', stroke: 'currentColor', 'stroke-width': '2', opacity: '.65' }),
-      svgNode('circle', { cx: '20', cy: '20', r: '3', fill: 'currentColor' }));
-    spoolIcons.push(icon);
-    item.append(label, icon, node('div', 'mt-2 text-lg font-semibold tabular-nums', String(slot + 1)), state);
+    const state = node('span', 'block truncate text-center text-[11px]');
+    const { icon, indicator } = buildSpool();
+    filamentIndicators.push(indicator);
+    item.append(label, node('div', 'font-mono text-lg font-semibold leading-tight tabular-nums', String(slot + 1)), icon, state);
     slotStates.push(state);
     slots.append(item);
     return item;
   });
-  const routing = svgNode('svg', { viewBox: '0 0 400 42', preserveAspectRatio: 'none', class: 'h-9 w-full', 'aria-hidden': 'true' });
+  const routing = svgNode('svg', { viewBox: '0 0 400 46', preserveAspectRatio: 'none', class: 'block h-10 w-full', 'aria-hidden': 'true' });
   const css = svgNode('style', {});
   css.textContent = '@keyframes bmcu-route{to{stroke-dashoffset:-18}} @keyframes bmcu-route-reverse{to{stroke-dashoffset:18}} @media (prefers-reduced-motion:reduce){.bmcu-route-moving{animation:none!important}}';
   routing.append(css);
   const flowPaths = [50, 150, 250, 350].map((x) => {
-    const d = `M${x} 0 V12 H200 V40`;
-    routing.append(svgNode('path', { d, fill: 'none', stroke: '#4b5563', 'stroke-width': '2', 'vector-effect': 'non-scaling-stroke' }));
+    const d = `M${x} 0 V6 C${x} 27 200 10 200 34 V45`;
+    routing.append(svgNode('path', { d, fill: 'none', stroke: '#586467', 'stroke-width': '4', 'vector-effect': 'non-scaling-stroke' }));
     return svgNode('path', { d, fill: 'none', stroke: 'transparent', 'stroke-width': '3', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' });
   });
   routing.append(...flowPaths);
-  const flowLabel = node('div', 'text-center text-[10px] font-medium uppercase tracking-widest text-bambu-gray', 'BMCU');
+  const flowLabel = node('div', 'mx-auto w-fit max-w-full rounded border border-[#566166] bg-[#252e31] px-3 py-1 text-center text-[11px] font-medium text-bambu-gray-light shadow-sm');
+  deck.append(slots, routing, flowLabel);
   const gauges = node('div', 'mt-4 grid gap-3 sm:grid-cols-2');
   const buffer = node('div', 'rounded-lg border border-bambu-dark-tertiary bg-bambu-dark/35 p-3');
   buffer.setAttribute('role', 'img');
@@ -86,8 +111,13 @@ function buildLoader(): LoaderNodes {
   const bufferState = node('span', 'font-medium text-white');
   bufferHeading.append(node('span', 'text-bambu-gray-light', 'Buffer position'), bufferState);
   const gauge = svgNode('svg', { viewBox: '0 0 200 36', class: 'mt-2 h-9 w-full', 'aria-hidden': 'true' });
-  gauge.append(svgNode('path', { d: 'M10 18 H190', stroke: '#475569', 'stroke-width': '2', 'stroke-linecap': 'round' }),
+  gauge.append(svgNode('path', { d: 'M5 8 H195 L191 28 H9 Z', fill: '#182024', stroke: '#455257' }),
+    svgNode('path', { d: 'M10 18 H190', stroke: '#627279', 'stroke-width': '4', 'stroke-linecap': 'round' }),
+    svgNode('path', { d: 'M10 17 H190', stroke: '#a2b1b5', 'stroke-width': '1' }),
     svgNode('path', { d: 'M100 4 V32', stroke: '#94a3b8', 'stroke-width': '1', 'stroke-dasharray': '2 3' }));
+  for (let tick = 10; tick <= 190; tick += 18) {
+    gauge.append(svgNode('path', { d: `M${tick} 29 v${tick === 100 ? 6 : 3}`, stroke: '#87959a' }));
+  }
   const bufferSpring = svgNode('path', { d: '', fill: 'none', stroke: '#6ee7b7', 'stroke-width': '2', 'stroke-linejoin': 'round' });
   const bufferMarker = svgNode('rect', { x: '96', y: '8', width: '8', height: '20', rx: '3', fill: '#6ee7b7', stroke: '#163d32', 'stroke-width': '2' });
   gauge.append(bufferSpring, bufferMarker);
@@ -114,8 +144,8 @@ function buildLoader(): LoaderNodes {
   const faults = node('span');
   footer.append(filament, faults);
   details.append(summary, diagnostics, footer);
-  root.append(heading, slots, routing, flowLabel, gauges, warning, details);
-  return { root, name, badge, slots, slotNodes, slotStates, spoolIcons, flowPaths, flowLabel, buffer, bufferState, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, pressureCaption, diagnostics, warning, filament, faults };
+  root.append(heading, deck, gauges, warning, details);
+  return { root, name, badge, slots, slotNodes, slotStates, filamentIndicators, flowPaths, flowLabel, buffer, bufferState, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, pressureCaption, diagnostics, warning, filament, faults };
 }
 
 function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean) {
@@ -132,12 +162,14 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   const motionNames: Record<number, string> = { 0: 'Idle', 1: 'Loading requested', 2: 'In use', 3: 'Preparing to unload', 4: 'Unloading requested', 5: 'Preparing to use', 6: 'Stopped' };
   const motionState = selected == null ? (known && link.currentSlot == null ? 'No active slot' : 'Slot unknown') : currentMotion == null ? 'Motion unknown' : motionNames[currentMotion] ?? 'Motion unknown';
   text(view.flowLabel, live ? motionState : known ? `${motionState} · last reported` : 'No data');
-  style(view.slots, `mt-3 grid grid-cols-4 gap-2 ${live ? '' : 'opacity-70'}`);
+  style(view.slots, `grid grid-cols-4 gap-1 ${live ? '' : 'opacity-70'}`);
   view.slotNodes.forEach((slot, index) => {
     const isSelected = selected === index;
     const present = link.activeMask == null ? null : (link.activeMask & (1 << index)) !== 0;
     const motion = link.motion?.[index];
-    view.spoolIcons[index].setAttribute('style', `color:${present == null ? '#64748b' : present ? '#6ee7b7' : '#64748b'};opacity:${present === false ? '0.45' : '1'}`);
+    const indicator = view.filamentIndicators[index];
+    indicator.setAttribute('fill', present ? (live ? '#7de1ba' : '#bdac8e') : '#21292b');
+    indicator.setAttribute('stroke-dasharray', present == null ? '2 2' : 'none');
     const path = view.flowPaths[index];
     path.setAttribute('stroke', isSelected ? (live ? '#36c88c' : '#d49c47') : 'transparent');
     const moving = live && isSelected && (motion === 1 || motion === 4);
@@ -150,7 +182,7 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
     }
     text(view.slotStates[index], present == null ? 'Unknown' : present ? 'Present' : 'Empty');
     slot.setAttribute('aria-label', `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${live ? '' : ', last reported'}`);
-    style(slot, `min-w-0 rounded-lg border px-2 py-3 text-left ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-bambu-dark-tertiary bg-bambu-dark/30 text-bambu-gray-light'}`);
+    style(slot, `min-w-0 rounded-md border px-1.5 pb-1.5 pt-2 text-left shadow-[inset_0_1px_0_#ffffff12,0_2px_2px_#0004] ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-[#465256] bg-[#252d30] text-bambu-gray-light'}`);
   });
   const pull = selected != null && link.pullPercent != null && Number.isFinite(link.pullPercent) && link.pullPercent >= 0 && link.pullPercent <= 100 ? link.pullPercent : null;
   const position = pull == null ? 'Unavailable' : pull < 49 ? 'Pulled' : pull > 51 ? 'Pressed' : 'Near neutral';
