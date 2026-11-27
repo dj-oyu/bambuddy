@@ -105,6 +105,7 @@ class BinaryPersistence:
         self.last_event = {}
         self.last_event_seen = {}
         self.last_hello = {}
+        self.rehydrated_boot_ids = {}
         # There is no BMCU boot id on the wire or in the schema; this monotonic
         # counter of observed BMCU HELLO frames is the honest stand-in.
         self.bmcu_hello_epoch = {}
@@ -483,23 +484,26 @@ class BinaryPersistence:
             self.current_state[key] = status
             self.current_state_seen[key] = now_m
 
-    async def _newest_semantic(self, db, device_id: str, link_index: int, kind: int, accept=None):
+    async def _newest_semantic(self, db, device_id: str, link_index: int, kind: int, accept=None, boot_id=None):
         """Newest decodable semantic of one BMCU kind for one link.
 
         Queried per link rather than with a single global scan: STATUS rates
         differ wildly between links, so a shared row budget lets a busy link
         starve a quiet one out of ever being restored.
         """
+        conditions = [
+            BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
+            BMCUBinaryRecord.raw_bmcu_frame.isnot(None),
+            BMCUBinaryRecord.bmcu_kind == kind,
+            BMCUBinaryRecord.device_id == device_id,
+            BMCUBinaryRecord.link_index == link_index,
+        ]
+        if boot_id is not None:
+            conditions.append(BMCUBinaryRecord.pico_boot_id == boot_id)
         rows = (
             await db.execute(
                 select(BMCUBinaryRecord)
-                .where(
-                    BMCUBinaryRecord.message_type == MessageType.BMCU_FRAME,
-                    BMCUBinaryRecord.raw_bmcu_frame.isnot(None),
-                    BMCUBinaryRecord.bmcu_kind == kind,
-                    BMCUBinaryRecord.device_id == device_id,
-                    BMCUBinaryRecord.link_index == link_index,
-                )
+                .where(*conditions)
                 .order_by(BMCUBinaryRecord.server_received_at.desc())
                 .limit(_REHYDRATE_SCAN_LIMIT)
             )
@@ -516,6 +520,9 @@ class BinaryPersistence:
     async def rehydrate_current_state(self) -> None:
         """Restore latest decoded per-link state before accepting Pico sessions."""
         async with self._session_factory() as db:
+            self.rehydrated_boot_ids = dict(
+                (await db.execute(select(BMCUBinaryDevice.device_id, BMCUBinaryDevice.pico_boot_id))).all()
+            )
             links = (
                 await db.execute(
                     select(BMCUBinaryRecord.device_id, BMCUBinaryRecord.link_index)
@@ -555,7 +562,8 @@ class BinaryPersistence:
                         stamped = received_at.replace(tzinfo=None) if received_at.tzinfo else received_at
                         age_s = max(0.0, (now - stamped).total_seconds())
                     self.current_state_seen[key] = now_m - age_s
-                hello, _ = await self._newest_semantic(db, device_id, link_index, 1)
+                boot_id = self.rehydrated_boot_ids.get(device_id)
+                hello, _ = await self._newest_semantic(db, device_id, link_index, 1, boot_id=boot_id)
                 if isinstance(hello, BMCUHello):
                     self.last_hello[key] = hello
             # No BMCU boot id exists on the wire, so the HELLO count stands in
