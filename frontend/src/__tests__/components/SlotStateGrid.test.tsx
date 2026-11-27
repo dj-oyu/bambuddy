@@ -35,7 +35,7 @@ describe('SlotStateGrid', () => {
     expect(screen.getByText('1').parentElement).toBe(firstSlot);
     expect(firstSlot?.className).not.toContain('bg-bambu-green');
     expect(screen.getByText('2').parentElement?.className).toContain('bg-bambu-green');
-    expect(screen.getByText('0, 1, 0, 0')).toBeTruthy();
+    expect(screen.getByText('Loading requested')).toBeTruthy();
     unmount();
     act(() => publishLoader(detail));
   });
@@ -76,7 +76,7 @@ describe('SlotStateGrid', () => {
     // so a day-old slot was rendered as the active one.
     render(<SlotStateGrid links={[link(0, 'bmcu-a', { state: 'stale', currentSlot: 0, statusAgeS: 5 * 3600 })]} />);
 
-    expect(screen.getByText('Last STATUS 5h ago')).toBeTruthy();
+    expect(screen.getByLabelText('Stale: BMCU status 5h ago')).toBeTruthy();
     expect(screen.getByText('1').parentElement?.className).not.toContain('bg-bambu-green');
   });
 
@@ -90,7 +90,7 @@ describe('SlotStateGrid', () => {
   it('reports a day-old snapshot in days', () => {
     render(<SlotStateGrid links={[link(0, 'bmcu-a', { state: 'stale', currentSlot: 0, statusAgeS: 33 * 3600 })]} />);
 
-    expect(screen.getByText('Last STATUS 1d ago')).toBeTruthy();
+    expect(screen.getByLabelText('Stale: BMCU status 1d ago')).toBeTruthy();
   });
 
   it('says so when a link never reported loader state', () => {
@@ -117,18 +117,17 @@ describe('SlotStateGrid', () => {
     expect(screen.getByText('CRC / frame errors: 0 (total)')).toBeTruthy();
   });
 
-  it('renders the four motion values instead of a stringified tuple', () => {
-    render(<SlotStateGrid links={[link(0, 'bmcu-a', { motion: [0, 2, 0, 0], statusAgeS: 1 })]} />);
+  it('shows the selected motion state and retains raw values in diagnostics', () => {
+    render(<SlotStateGrid links={[link(0, 'bmcu-a', { currentSlot: 1, motion: [0, 2, 0, 0], statusAgeS: 1 })]} />);
 
-    expect(screen.getByText('0, 2, 0, 0')).toBeTruthy();
+    expect(screen.getByText('In use')).toBeTruthy();
+    expect(screen.getByText(/Motion 0, 2, 0, 0/)).toBeTruthy();
   });
   it('distinguishes selected, empty, unknown and stale filament reports', () => {
     const { rerender } = render(<SlotStateGrid links={[link(0, 'bmcu-a', { currentSlot: 0, activeMask: 1 })]} />);
-    expect(screen.getByText('Selected slot: 1')).toBeTruthy();
     expect(screen.getByLabelText('Slot 1: selected, filament present')).toBeTruthy();
     expect(screen.getByLabelText('Slot 2: filament empty')).toBeTruthy();
     rerender(<SlotStateGrid links={[link(0, 'bmcu-a', { state: 'stale', currentSlot: 0, activeMask: null, statusAgeS: 60 })]} />);
-    expect(screen.getByText('Last selected slot: 1')).toBeTruthy();
     expect(screen.getByLabelText('Slot 1: last selected, filament unknown, last reported')).toBeTruthy();
   });
 
