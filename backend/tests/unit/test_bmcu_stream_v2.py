@@ -113,7 +113,32 @@ async def test_batch_gap_late_arrival_and_drop_report(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_rehydrated_hello_survives_same_bridge_boot_but_not_new_boot(tmp_path):
+    from backend.app.services.bmcu_binary.bmcu_decoder import BMCUHello
+
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'hello-boot.db'}")
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[t for t in Base.metadata.sorted_tables if t.name.startswith("bmcu_binary_")],
+        )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    persistence, states, counters = BinaryPersistence(factory), {}, Counter()
+    await persist_batch(persistence, "pico", [item(beat())], states, counters)
+    persistence.rehydrated_boot_ids["pico"] = "0000000000000001"
+    persistence.last_hello[("pico", 0)] = BMCUHello(3, 0, 1, 2, 1000, 0x10)
+    states.clear()  # The server restarted, while the bridge stayed on.
+    await persist_batch(persistence, "pico", [item(beat())], states, counters)
+    assert persistence.last_hello[("pico", 0)].ams_index == 1
+    restart = Frame(FrameHeader(HEARTBEAT, pico_boot_id=2, link_index=255), beat().payload)
+    await persist_batch(persistence, "pico", [item(restart)], states, counters)
+    assert ("pico", 0) not in persistence.last_hello
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_udp_first_heartbeat_registration_and_batch(tmp_path):
+    from backend.app.services.bmcu_binary.bmcu_decoder import BMCUHello
     from backend.app.services.bmcu_binary.live import live_broker
 
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'udp.db'}")
@@ -123,11 +148,16 @@ async def test_udp_first_heartbeat_registration_and_batch(tmp_path):
             tables=[t for t in Base.metadata.sorted_tables if t.name.startswith("bmcu_binary_")],
         )
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    receiver = StreamReceiver(BinaryPersistence(factory), set(), accept_new=True, flush_seconds=0.01)
+    persistence = BinaryPersistence(factory)
+    _, heartbeat = parse_datagram((FIXTURES / "heartbeat.bin").read_bytes())
+    persistence.rehydrated_boot_ids["pico-bmcu-bridge"] = f"{heartbeat[0].header.pico_boot_id:016x}"
+    persistence.last_hello[("pico-bmcu-bridge", 0)] = BMCUHello(3, 0, 1, 2, 1000, 0x10)
+    receiver = StreamReceiver(persistence, set(), accept_new=True, flush_seconds=0.01)
     wakeups = live_broker.subscribe("pico-bmcu-bridge")
     receiver.datagram_received((FIXTURES / "heartbeat.bin").read_bytes(), ("127.0.0.1", 8000))
     await asyncio.wait_for(receiver.queues["pico-bmcu-bridge"].join(), 3)
     assert receiver.states["pico-bmcu-bridge"].health() == "online"
+    assert persistence.last_hello[("pico-bmcu-bridge", 0)].ams_index == 1
     assert wakeups.qsize() == 1
     live_broker.unsubscribe("pico-bmcu-bridge", wakeups)
     async with factory() as db:

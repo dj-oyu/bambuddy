@@ -139,6 +139,17 @@ describe('BMCULinkPage', () => {
     expect(screen.getByRole('img', { name: 'Virtual print' })).toBe(view);
   });
 
+  it('uses the sole printer and the BMCU-reported AMS number for filament colors', async () => {
+    vi.mocked(api.getPrinters).mockResolvedValue([{ id: 1, name: 'Printer' } as Printer]);
+    vi.mocked(api.getPrinterStatus).mockResolvedValue({ connected: true, ams: [{ id: 0, tray: [{ id: 1, tray_color: 'FEC600FF', tray_type: 'PLA' }] }] } as never);
+    const detail = fixture.detail as BMCUMonitorDetail;
+    vi.mocked(bmcuMonitorsApi.get).mockResolvedValue({ ...detail, links: [{ ...detail.links[0], amsIndex: 0 }] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
+    const slot = await screen.findByLabelText('Slot 2: selected, filament present, PLA, #FEC600');
+    expect(slot.querySelector('circle')?.getAttribute('fill')).toBe('#FEC600');
+  });
+
   it('marks an aging loader snapshot as stale between updates', () => {
     const link = { ...(fixture.detail as BMCUMonitorDetail).links[0], state: 'online', statusAgeS: 14 } as const;
     const { rerender } = render(<SlotStateGrid links={[link]} />);

@@ -31,6 +31,7 @@
       {
         "linkIndex": 0,
         "linkId": "bmcu-0",
+        "amsIndex": null,
         "state": "online",
         "currentSlot": 1,
         "activeMask": 15,
@@ -49,6 +50,7 @@
       {
         "linkIndex": 1,
         "linkId": "bmcu-1",
+        "amsIndex": null,
         "state": "no_data",
         "currentSlot": null,
         "activeMask": null,

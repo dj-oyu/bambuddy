@@ -796,12 +796,15 @@ async def test_offline_link_never_reports_fresh_status_as_live(bmcu_db, monkeypa
     monkeypatch.setattr(binary_transport_server, "udp", receiver)
     binary_transport_server.persistence.current_state[(device, 0)] = _status()
     binary_transport_server.persistence.current_state_seen[(device, 0)] = time.monotonic()
+    monkeypatch.setitem(binary_transport_server.persistence.last_hello, (device, 0), BMCUHello(3, 0, 1, 2, 1000, 0x10))
     result = await bmcu_monitors.detail(device, db=bmcu_db, _=None)
     assert result.links[0].state == "stale"
+    assert result.links[0].amsIndex == 1
     assert result.links[0].statusAgeS < 2
     initial = result.model_dump(mode="json")
     live = bmcu_monitors._live_snapshot(device, initial, {"deviceId": device})
     assert live["detail"]["links"][0]["state"] == "stale"
+    assert live["detail"]["links"][0]["amsIndex"] == 1
     assert live["detail"]["onlineLinks"] == 0
 
 

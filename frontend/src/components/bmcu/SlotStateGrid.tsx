@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { BMCULinkSnapshot } from '../../api/bmcuMonitors';
+import type { AMSUnit } from '../../api/client';
 import { Card, CardContent, CardHeader } from '../Card';
 import { formatBMCUAge } from './bmcuTime';
 import { subscribeLoader } from './liveUpdates';
@@ -12,8 +13,7 @@ type LoaderNodes = {
   badge: HTMLSpanElement;
   slots: HTMLDivElement;
   slotNodes: HTMLDivElement[];
-  slotStates: HTMLSpanElement[];
-  filamentIndicators: SVGCircleElement[];
+  spools: SVGCircleElement[];
   flowPaths: SVGPathElement[];
   flowLabel: HTMLDivElement;
   buffer: HTMLDivElement;
@@ -43,30 +43,12 @@ const svgNode = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Recor
   return result;
 };
 
-// Spools are schematic. The sensor indicator alone represents filament presence.
+// A spool is a simple disc with a hub, not a model of winding or remaining amount.
 function buildSpool() {
-  const icon = svgNode('svg', { viewBox: '0 0 74 54', class: 'mx-auto h-auto w-full max-w-[78px]', 'aria-hidden': 'true', fill: 'none' });
-  const ellipse = (cx: number, cy: number, rx: number, ry: number, fill: string, stroke = 'none') =>
-    svgNode('ellipse', { cx: String(cx), cy: String(cy), rx: String(rx), ry: String(ry), fill, stroke });
-  const body = svgNode('g', { transform: 'rotate(-12 37 28)' });
-  icon.append(ellipse(38, 48, 25, 3, '#101518'), body);
-  body.append(ellipse(47, 27, 13, 21, '#354249', '#89969b'),
-    svgNode('path', { d: 'M26 18 L47 18 A6 9 0 0 1 47 36 H26 Z', fill: '#38464b' }));
-  const winding = svgNode('g', { color: '#687b7c' });
-  for (const cx of [43, 40, 37, 34, 31]) {
-    winding.append(ellipse(cx, 27, 10, 16, 'currentColor', '#233e39'));
-  }
-  const rim = ellipse(27, 27, 13, 21, '#263339', '#abb9bd');
-  const wheel = svgNode('g', { transform: 'translate(27 27) scale(.58 1)' });
-  const spokes = svgNode('g', {});
-  for (const angle of [0, 120, 240]) {
-    spokes.append(svgNode('path', { d: 'M-2 -7 L-4 -16 Q0 -18 4 -16 L2 -7 Z', transform: `rotate(${angle})`, fill: '#87999f' }));
-  }
-  wheel.append(spokes, ellipse(0, 0, 5.5, 5.5, '#526167', '#9aa8ac'), ellipse(0, 0, 2, 2, '#111a1e'));
-  body.append(winding, rim, wheel);
-  const indicator = svgNode('circle', { cx: '60', cy: '44', r: '3.5', stroke: '#a5b5b6', 'stroke-width': '1' });
-  icon.append(indicator);
-  return { icon, indicator };
+  const icon = svgNode('svg', { viewBox: '0 0 48 48', class: 'mx-auto mt-2 h-11 w-11', 'aria-hidden': 'true' });
+  const disc = svgNode('circle', { cx: '24', cy: '24', r: '19', stroke: '#8c9da1', 'stroke-width': '1.5' });
+  icon.append(disc, svgNode('circle', { cx: '24', cy: '24', r: '5', fill: '#1a2225', stroke: '#8c9da1', 'stroke-width': '1' }));
+  return { icon, disc };
 }
 
 function buildLoader(): LoaderNodes {
@@ -75,22 +57,19 @@ function buildLoader(): LoaderNodes {
   const name = node('span', 'font-medium text-white');
   const badge = node('span');
   heading.append(name, badge);
-  const deck = node('div', 'mt-3 overflow-hidden rounded-xl border border-bambu-dark-tertiary bg-gradient-to-b from-[#30393d] via-[#20282b] to-[#161c1e] px-2 pb-2 pt-2 shadow-inner sm:px-3');
+  const deck = node('div', 'mt-4 px-2 sm:px-3');
   const slots = node('div');
-  const slotStates: HTMLSpanElement[] = [];
-  const filamentIndicators: SVGCircleElement[] = [];
+  const spools: SVGCircleElement[] = [];
   const slotNodes = [0, 1, 2, 3].map((slot) => {
     const item = node('div');
-    const label = node('div', 'flex items-center justify-between text-[10px] font-medium uppercase tracking-wide', 'Slot');
-    const state = node('span', 'block truncate text-center text-[11px]');
-    const { icon, indicator } = buildSpool();
-    filamentIndicators.push(indicator);
-    item.append(label, node('div', 'font-mono text-lg font-semibold leading-tight tabular-nums', String(slot + 1)), icon, state);
-    slotStates.push(state);
+    const { icon, disc } = buildSpool();
+    spools.push(disc);
+    item.setAttribute('role', 'img');
+    item.append(node('div', 'text-center font-mono text-xs tabular-nums text-bambu-gray-light', String(slot + 1)), icon);
     slots.append(item);
     return item;
   });
-  const routing = svgNode('svg', { viewBox: '0 0 400 46', preserveAspectRatio: 'none', class: 'block h-10 w-full', 'aria-hidden': 'true' });
+  const routing = svgNode('svg', { viewBox: '0 0 400 66', preserveAspectRatio: 'none', class: 'block h-14 w-full', 'aria-hidden': 'true' });
   const css = svgNode('style', {});
   css.textContent = '@keyframes bmcu-route{to{stroke-dashoffset:-18}} @keyframes bmcu-route-reverse{to{stroke-dashoffset:18}} @media (prefers-reduced-motion:reduce){.bmcu-route-moving{animation:none!important}}';
   routing.append(css);
@@ -100,7 +79,9 @@ function buildLoader(): LoaderNodes {
     return svgNode('path', { d, fill: 'none', stroke: 'transparent', 'stroke-width': '3', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' });
   });
   routing.append(...flowPaths);
-  const flowLabel = node('div', 'mx-auto w-fit max-w-full rounded border border-[#566166] bg-[#252e31] px-3 py-1 text-center text-[11px] font-medium text-bambu-gray-light shadow-sm');
+  routing.append(svgNode('circle', { cx: '200', cy: '45', r: '5', fill: '#8c9da1' }),
+    svgNode('path', { d: 'M200 50 V57 M192 57 H208 L204 64 H196 Z', fill: '#8c9da1', stroke: '#8c9da1', 'stroke-width': '2', 'vector-effect': 'non-scaling-stroke' }));
+  const flowLabel = node('div', 'mt-1 text-center text-[11px] text-bambu-gray-light');
   deck.append(slots, routing, flowLabel);
   const gauges = node('div', 'mt-4 grid gap-3');
   gauges.style.gridTemplateColumns = 'repeat(auto-fit, minmax(min(100%, 9rem), 1fr))';
@@ -140,10 +121,10 @@ function buildLoader(): LoaderNodes {
   footer.append(filament, faults);
   details.append(summary, diagnostics, footer);
   root.append(heading, deck, gauges, warning, details);
-  return { root, name, badge, slots, slotNodes, slotStates, filamentIndicators, flowPaths, flowLabel, buffer, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, diagnostics, warning, filament, faults };
+  return { root, name, badge, slots, slotNodes, spools, flowPaths, flowLabel, buffer, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, diagnostics, warning, filament, faults };
 }
 
-function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean) {
+function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean, ams?: AMSUnit) {
   const ageSeconds = link.statusAgeS == null ? null : Math.max(0, link.statusAgeS + elapsedSeconds);
   const live = !outdated && link.state === 'online' && ageSeconds != null && ageSeconds < 15;
   const known = link.state !== 'no_data';
@@ -162,9 +143,14 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
     const isSelected = selected === index;
     const present = link.activeMask == null ? null : (link.activeMask & (1 << index)) !== 0;
     const motion = link.motion?.[index];
-    const indicator = view.filamentIndicators[index];
-    indicator.setAttribute('fill', present ? (live ? '#7de1ba' : '#bdac8e') : '#21292b');
-    indicator.setAttribute('stroke-dasharray', present == null ? '2 2' : 'none');
+    const tray = present ? ams?.tray.find((item) => item.id === index) : undefined;
+    const color = tray?.tray_color && /^[\da-f]{6}([\da-f]{2})?$/i.test(tray.tray_color) ? `#${tray.tray_color.slice(0, 6)}` : null;
+    const spool = view.spools[index];
+    spool.setAttribute('fill', present ? color ?? '#798a8d' : 'none');
+    spool.setAttribute('opacity', present == null ? '0.25' : present ? '1' : '0.35');
+    spool.setAttribute('stroke', isSelected ? (live ? '#6ee7b7' : '#d49c47') : '#8c9da1');
+    spool.setAttribute('stroke-width', isSelected ? '3' : '1.5');
+    spool.setAttribute('stroke-dasharray', present == null ? '3 3' : 'none');
     const path = view.flowPaths[index];
     path.setAttribute('stroke', isSelected ? (live ? '#36c88c' : '#d49c47') : 'transparent');
     const moving = live && isSelected && (motion === 1 || motion === 4);
@@ -175,9 +161,12 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
       path.setAttribute('data-animation', animation);
       path.style.animation = animation;
     }
-    text(view.slotStates[index], present == null ? 'Unknown' : present ? 'Present' : 'Empty');
-    slot.setAttribute('aria-label', `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${live ? '' : ', last reported'}`);
-    style(slot, `min-w-0 rounded-md border px-1.5 pb-1.5 pt-2 text-left shadow-[inset_0_1px_0_#ffffff12,0_2px_2px_#0004] ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-[#465256] bg-[#252d30] text-bambu-gray-light'}`);
+    const material = tray?.tray_type ? `, ${tray.tray_type}` : '';
+    const description = `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${material}${color ? `, ${color}` : ''}${live ? '' : ', last reported'}`;
+    slot.setAttribute('aria-label', description);
+    slot.title = description;
+    slot.dataset.selected = isSelected && live ? 'true' : 'false';
+    style(slot, 'min-w-0 text-center');
   });
   const pull = selected != null && link.pullPercent != null && Number.isFinite(link.pullPercent) && link.pullPercent >= 0 && link.pullPercent <= 100 ? link.pullPercent : null;
   const position = pull == null ? 'Unavailable' : pull < 49 ? 'Pulled' : pull > 51 ? 'Pressed' : 'Near neutral';
@@ -217,17 +206,21 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   style(view.faults, '');
 }
 
-export function SlotStateGrid({ links, elapsedSeconds = 0, outdated = false, deviceId, liveConnected = false }: {
+export function SlotStateGrid({ links, elapsedSeconds = 0, outdated = false, deviceId, liveConnected = false, filamentUnits }: {
   links: BMCULinkSnapshot[];
   elapsedSeconds?: number;
   outdated?: boolean;
   deviceId?: string;
   liveConnected?: boolean;
+  filamentUnits?: AMSUnit[];
 }) {
   const container = useRef<HTMLDivElement>(null);
   const nodes = useRef(new Map<number, LoaderNodes>());
   const live = useRef<{ deviceId: string; links: BMCULinkSnapshot[]; at: number } | null>(null);
   const isOutdated = useRef(outdated);
+  const units = useRef(filamentUnits);
+
+  useLayoutEffect(() => { units.current = filamentUnits; }, [filamentUnits]);
 
   const renderLinks = useCallback((values: BMCULinkSnapshot[], elapsed: number, stale: boolean) => {
     const root = container.current;
@@ -239,7 +232,10 @@ export function SlotStateGrid({ links, elapsedSeconds = 0, outdated = false, dev
       let view = nodes.current.get(link.linkIndex);
       if (!view) { view = buildLoader(); nodes.current.set(link.linkIndex, view); }
       if (root.children[index] !== view.root) root.insertBefore(view.root, root.children[index] ?? null);
-      updateLoader(view, link, elapsed, stale);
+      const amsIndex = link.amsIndex;
+      // Never guess from the link name/order; duplicate firmware AMS IDs are ambiguous.
+      const unique = amsIndex != null && values.filter((item) => item.amsIndex === amsIndex).length === 1;
+      updateLoader(view, link, elapsed, stale, unique ? units.current?.find((item) => item.id === amsIndex) : undefined);
     });
   }, []);
 
@@ -251,7 +247,7 @@ export function SlotStateGrid({ links, elapsedSeconds = 0, outdated = false, dev
     } else {
       renderLinks(links, elapsedSeconds, outdated);
     }
-  }, [links, elapsedSeconds, outdated, deviceId, liveConnected, renderLinks]);
+  }, [links, elapsedSeconds, outdated, deviceId, liveConnected, filamentUnits, renderLinks]);
 
   useLayoutEffect(() => {
     live.current = null;

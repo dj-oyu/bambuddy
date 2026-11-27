@@ -73,6 +73,7 @@ class MonitorSummary(BaseModel):
 class LinkSnapshot(BaseModel):
     linkIndex: int
     linkId: str
+    amsIndex: int | None = Field(default=None, description="AMS number reported by the BMCU firmware, when known.")
     state: LinkState = Field(
         description="How much is known about this link's loader view. Every field below is null when this is `no_data`."
     )

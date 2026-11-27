@@ -283,13 +283,16 @@ class StreamReceiver(asyncio.DatagramProtocol):
                 if frame.header.pico_boot_id == state.boot_id and beat.uptime_ms < state.uptime_ms:
                     continue
                 if frame.header.pico_boot_id != state.boot_id:
+                    preserve_hello = state.boot_id == 0 and self.persistence.rehydrated_boot_ids.get(device) == u64_hex(
+                        frame.header.pico_boot_id
+                    )
                     state.boot_id = frame.header.pico_boot_id
                     state.seen_boots.add(state.boot_id)
                     state.seen_sequences.clear()
                     state.link_online_since.clear()
                     state.pico_metrics.clear()
                     state.pico_metrics_sequence = 0
-                    clear_live_state(self.persistence, device)
+                    clear_live_state(self.persistence, device, preserve_hello=preserve_hello)
                 received_m = time.monotonic()
                 state.observe_links(beat, received_m)
                 state.heartbeat_at = received_m
@@ -435,7 +438,7 @@ def subtract_interval(intervals, first, last):
     return result
 
 
-def clear_live_state(persistence, device_id):
+def clear_live_state(persistence, device_id, *, preserve_hello=False):
     for name in (
         "current_state",
         "current_state_seen",
@@ -445,10 +448,13 @@ def clear_live_state(persistence, device_id):
         "last_event_seen",
         "last_hello",
     ):
+        if name == "last_hello" and preserve_hello:
+            continue
         values = getattr(persistence, name)
         for key in list(values):
             if key[0] == device_id:
                 values.pop(key, None)
+    persistence.rehydrated_boot_ids.pop(device_id, None)
 
 
 async def persist_batch(persistence, device_id, batch, states, counters, *, tracker=None, overflow=()):
@@ -700,13 +706,16 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
         if state.boot_id != frame.header.pico_boot_id:
             if frame.header.pico_boot_id in state.seen_boots:
                 continue
+            preserve_hello = state.boot_id == 0 and persistence.rehydrated_boot_ids.get(device_id) == u64_hex(
+                frame.header.pico_boot_id
+            )
             state.boot_id = frame.header.pico_boot_id
             state.seen_boots.add(state.boot_id)
             state.seen_sequences.clear()
             state.link_online_since.clear()
             state.pico_metrics.clear()
             state.pico_metrics_sequence = 0
-            clear_live_state(persistence, device_id)
+            clear_live_state(persistence, device_id, preserve_hello=preserve_hello)
         if not state.heartbeat_at:
             state.observe_links(beat, received_m)
             state.heartbeat_at = received_m
@@ -723,13 +732,14 @@ async def persist_batch(persistence, device_id, batch, states, counters, *, trac
         None,
     )
     if new_boot is not None:
+        preserve_hello = state.boot_id == 0 and persistence.rehydrated_boot_ids.get(device_id) == u64_hex(new_boot)
         state.boot_id = new_boot
         state.seen_boots.add(new_boot)
         state.seen_sequences.clear()
         state.link_online_since.clear()
         state.pico_metrics.clear()
         state.pico_metrics_sequence = 0
-        clear_live_state(persistence, device_id)
+        clear_live_state(persistence, device_id, preserve_hello=preserve_hello)
     for frame, semantic, received in decoded:
         # Delayed datagrams must not roll the live view back.
         category = "status" if isinstance(semantic, (BMCUStatus, BMCUFullStatusRecord)) else type(semantic)
