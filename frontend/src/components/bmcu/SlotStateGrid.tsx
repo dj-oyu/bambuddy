@@ -10,18 +10,22 @@ type LoaderNodes = {
   root: HTMLDivElement;
   name: HTMLSpanElement;
   badge: HTMLSpanElement;
-  age: HTMLParagraphElement;
-  selection: HTMLParagraphElement;
   slots: HTMLDivElement;
   slotNodes: HTMLDivElement[];
   slotStates: HTMLSpanElement[];
   spoolIcons: SVGSVGElement[];
   flowPaths: SVGPathElement[];
   flowLabel: HTMLDivElement;
-  values: HTMLDivElement;
-  motion: HTMLSpanElement;
-  pull: HTMLSpanElement;
-  pressure: HTMLSpanElement;
+  buffer: HTMLDivElement;
+  bufferState: HTMLSpanElement;
+  bufferMarker: SVGRectElement;
+  bufferSpring: SVGPathElement;
+  pressure: HTMLDivElement;
+  pressureState: HTMLSpanElement;
+  pressureFill: HTMLDivElement;
+  pressureTrack: HTMLDivElement;
+  pressureCaption: HTMLDivElement;
+  diagnostics: HTMLDivElement;
   warning: HTMLDivElement;
   filament: HTMLSpanElement;
   faults: HTMLSpanElement;
@@ -47,8 +51,6 @@ function buildLoader(): LoaderNodes {
   const name = node('span', 'font-medium text-white');
   const badge = node('span');
   heading.append(name, badge);
-  const age = node('p', 'mt-2 text-xs text-bambu-gray');
-  const selection = node('p', 'mt-4 text-sm font-medium text-bambu-gray-light');
   const slots = node('div');
   const slotStates: HTMLSpanElement[] = [];
   const spoolIcons: SVGSVGElement[] = [];
@@ -77,24 +79,43 @@ function buildLoader(): LoaderNodes {
   });
   routing.append(...flowPaths);
   const flowLabel = node('div', 'text-center text-[10px] font-medium uppercase tracking-widest text-bambu-gray', 'BMCU');
-  const values = node('div');
-  const addValue = (label: string) => {
-    const block = node('div');
-    const value = node('span', 'text-white');
-    block.append(node('span', 'block text-bambu-gray', label), value);
-    values.append(block);
-    return value;
-  };
-  const motion = addValue('Motion');
-  const pull = addValue('Pull');
-  const pressure = addValue('Pressure');
+  const gauges = node('div', 'mt-4 grid gap-3 sm:grid-cols-2');
+  const buffer = node('div', 'rounded-lg border border-bambu-dark-tertiary bg-bambu-dark/35 p-3');
+  buffer.setAttribute('role', 'img');
+  const bufferHeading = node('div', 'flex items-center justify-between gap-2 text-xs');
+  const bufferState = node('span', 'font-medium text-white');
+  bufferHeading.append(node('span', 'text-bambu-gray-light', 'Buffer position'), bufferState);
+  const gauge = svgNode('svg', { viewBox: '0 0 200 36', class: 'mt-2 h-9 w-full', 'aria-hidden': 'true' });
+  gauge.append(svgNode('path', { d: 'M10 18 H190', stroke: '#475569', 'stroke-width': '2', 'stroke-linecap': 'round' }),
+    svgNode('path', { d: 'M100 4 V32', stroke: '#94a3b8', 'stroke-width': '1', 'stroke-dasharray': '2 3' }));
+  const bufferSpring = svgNode('path', { d: '', fill: 'none', stroke: '#6ee7b7', 'stroke-width': '2', 'stroke-linejoin': 'round' });
+  const bufferMarker = svgNode('rect', { x: '96', y: '8', width: '8', height: '20', rx: '3', fill: '#6ee7b7', stroke: '#163d32', 'stroke-width': '2' });
+  gauge.append(bufferSpring, bufferMarker);
+  const scale = node('div', 'flex justify-between text-[10px] text-bambu-gray');
+  scale.append(node('span', '', 'Pulled'), node('span', '', 'Neutral'), node('span', '', 'Pressed'));
+  buffer.append(bufferHeading, gauge, scale);
+  const pressure = node('div', 'rounded-lg border border-bambu-dark-tertiary bg-bambu-dark/35 p-3');
+  pressure.setAttribute('role', 'img');
+  const pressureHeading = node('div', 'flex items-center justify-between gap-2 text-xs');
+  const pressureState = node('span', 'font-medium text-white');
+  pressureHeading.append(node('span', 'text-bambu-gray-light', 'Pressure response'), pressureState);
+  const pressureTrack = node('div', 'mt-4 h-2 overflow-hidden rounded-full bg-slate-600/70');
+  const pressureFill = node('div', 'h-full rounded-full bg-emerald-400 motion-safe:transition-[width] motion-safe:duration-300');
+  pressureTrack.append(pressureFill);
+  const pressureCaption = node('div', 'mt-2 text-[10px] text-bambu-gray', 'Relative response · not force');
+  pressure.append(pressureHeading, pressureTrack, pressureCaption);
+  gauges.append(buffer, pressure);
   const warning = node('div', 'mt-3 rounded bg-amber-500/10 px-2 py-1.5 text-xs text-amber-300');
-  const footer = node('div', 'mt-3 flex items-center justify-between text-xs text-bambu-gray');
+  const details = node('details', 'mt-3 text-xs text-bambu-gray');
+  const summary = node('summary', 'cursor-pointer hover:text-bambu-gray-light', 'Diagnostics');
+  const diagnostics = node('div', 'mt-2 space-y-1 font-mono');
+  const footer = node('div', 'flex flex-wrap items-center justify-between gap-2');
   const filament = node('span');
   const faults = node('span');
   footer.append(filament, faults);
-  root.append(heading, age, selection, slots, routing, flowLabel, values, warning, footer);
-  return { root, name, badge, age, selection, slots, slotNodes, slotStates, spoolIcons, flowPaths, flowLabel, values, motion, pull, pressure, warning, filament, faults };
+  details.append(summary, diagnostics, footer);
+  root.append(heading, slots, routing, flowLabel, gauges, warning, details);
+  return { root, name, badge, slots, slotNodes, slotStates, spoolIcons, flowPaths, flowLabel, buffer, bufferState, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, pressureCaption, diagnostics, warning, filament, faults };
 }
 
 function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean) {
@@ -104,12 +125,13 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   text(view.name, link.linkId);
   text(view.badge, live ? 'Live' : known ? 'Stale' : 'no data');
   style(view.badge, `inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${live ? 'bg-emerald-500/10 text-emerald-400' : known ? 'bg-amber-500/10 text-amber-400' : 'bg-bambu-dark-tertiary text-bambu-gray-light'}`);
-  view.age.hidden = ageSeconds == null;
-  text(view.age, ageSeconds == null ? '' : `Last STATUS ${formatBMCUAge(ageSeconds)}`);
+  view.badge.title = ageSeconds == null ? 'No BMCU status received' : `BMCU status ${formatBMCUAge(ageSeconds)}`;
+  view.badge.setAttribute('aria-label', `${view.badge.textContent}: ${view.badge.title}`);
   const selected = Number.isInteger(link.currentSlot) && link.currentSlot != null && link.currentSlot >= 0 && link.currentSlot < 4 ? link.currentSlot : null;
-  text(view.selection, !known ? 'Selected slot: unknown' : link.currentSlot == null ? (live ? 'No slot selected' : 'Last reported: no slot selected') : selected == null ? 'Selected slot: unknown' : `${live ? 'Selected slot' : 'Last selected slot'}: ${selected + 1}`);
   const currentMotion = selected == null ? undefined : link.motion?.[selected];
-  text(view.flowLabel, live && currentMotion === 1 ? 'BMCU · load requested' : live && currentMotion === 4 ? 'BMCU · unload requested' : live && currentMotion === 2 ? 'BMCU · in use' : 'BMCU');
+  const motionNames: Record<number, string> = { 0: 'Idle', 1: 'Loading requested', 2: 'In use', 3: 'Preparing to unload', 4: 'Unloading requested', 5: 'Preparing to use', 6: 'Stopped' };
+  const motionState = selected == null ? (known && link.currentSlot == null ? 'No active slot' : 'Slot unknown') : currentMotion == null ? 'Motion unknown' : motionNames[currentMotion] ?? 'Motion unknown';
+  text(view.flowLabel, live ? motionState : known ? `${motionState} · last reported` : 'No data');
   style(view.slots, `mt-3 grid grid-cols-4 gap-2 ${live ? '' : 'opacity-70'}`);
   view.slotNodes.forEach((slot, index) => {
     const isSelected = selected === index;
@@ -130,10 +152,39 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
     slot.setAttribute('aria-label', `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${live ? '' : ', last reported'}`);
     style(slot, `min-w-0 rounded-lg border px-2 py-3 text-left ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-bambu-dark-tertiary bg-bambu-dark/30 text-bambu-gray-light'}`);
   });
-  style(view.values, `mt-4 grid grid-cols-3 gap-2 text-xs ${live ? '' : 'opacity-50'}`);
-  text(view.motion, link.motion == null ? '—' : link.motion.join(', '));
-  text(view.pull, link.pullPercent == null ? '—' : `${link.pullPercent}%`);
-  text(view.pressure, link.pressure == null ? '—' : String(link.pressure));
+  const pull = selected != null && link.pullPercent != null && Number.isFinite(link.pullPercent) && link.pullPercent >= 0 && link.pullPercent <= 100 ? link.pullPercent : null;
+  const position = pull == null ? 'Unavailable' : pull < 49 ? 'Pulled' : pull > 51 ? 'Pressed' : 'Near neutral';
+  text(view.bufferState, position);
+  const x = pull == null ? 100 : 10 + pull * 1.8;
+  view.bufferMarker.setAttribute('x', String(x - 4));
+  const step = Math.max(0, x - 16) / 8;
+  const spring = Array.from({ length: 7 }, (_, i) => `L${(10 + step * (i + 1)).toFixed(1)} ${i % 2 ? 22 : 14}`).join(' ');
+  view.bufferSpring.setAttribute('d', `M10 18 ${spring} L${Math.max(10, x - 4).toFixed(1)} 18`);
+  view.bufferSpring.setAttribute('opacity', pull == null ? '0' : live ? '1' : '0.45');
+  view.bufferMarker.setAttribute('opacity', pull == null ? '0' : live ? '1' : '0.45');
+  view.buffer.setAttribute('aria-label', pull == null ? 'Buffer position unavailable' : `Buffer position ${pull}%, ${position}; 50% is neutral${live ? '' : ', last reported'}`);
+  view.buffer.title = view.buffer.getAttribute('aria-label') || '';
+  view.buffer.style.opacity = live ? '1' : '0.6';
+
+  const rawPressure = link.pressure;
+  const idle = rawPressure === 0xffff || rawPressure === 0xff74;
+  const jam = rawPressure === 0xf06f;
+  const protocolCode = rawPressure != null && [0x4700, 0x2b00, 0x1e34, 0xf9c6].includes(rawPressure);
+  const expected = pull == null ? null : Math.floor(Math.max(0, pull - 50) * 65535 / 50);
+  // The wire field also carries phase codes; only draw a relative level when
+  // this report agrees with the selected buffer position's encoded response.
+  const measured = rawPressure != null && expected != null && !idle && !jam && !protocolCode && Math.abs(rawPressure - expected) <= 1;
+  const level = measured && rawPressure != null ? Math.round(rawPressure * 100 / 65535) : null;
+  const response = jam ? 'Jam reported' : idle || rawPressure == null || selected == null ? 'Unavailable' : level != null ? `${level}%` : 'Controller code';
+  text(view.pressureState, response);
+  style(view.pressureState, `font-medium ${jam ? 'text-red-400' : 'text-white'}`);
+  view.pressureTrack.hidden = level == null;
+  view.pressureCaption.hidden = level == null;
+  view.pressureFill.style.width = `${level ?? 0}%`;
+  view.pressure.setAttribute('aria-label', `Pressure response: ${response}${live ? '' : ', last reported'}`);
+  view.pressure.title = level != null ? 'Relative response encoded from buffer position; not a force measurement' : jam ? 'BMCU reported the jam code' : 'The pressure field is unavailable or contains a controller code';
+  view.pressure.style.opacity = live ? '1' : '0.6';
+  text(view.diagnostics, `Motion ${link.motion?.join(', ') ?? '—'} · Pull ${pull == null ? '—' : `${pull}%`} · Pressure ${rawPressure == null ? '—' : `0x${rawPressure.toString(16).toUpperCase().padStart(4, '0')}`}`);
   view.warning.hidden = live;
   text(view.warning, outdated ? 'Loader updates are delayed.' : !known ? 'No loader state has ever been received for this link.' : 'Link offline or waiting for a fresh STATUS report.');
   text(view.filament, link.activeMask == null ? 'filament —' : `filament 0x${link.activeMask.toString(16).padStart(2, '0')}`);
@@ -186,5 +237,5 @@ export function SlotStateGrid({ links, elapsedSeconds = 0, outdated = false, dev
     });
   }, [deviceId, renderLinks]);
 
-  return <Card><CardHeader><h2 className="font-semibold text-white">Loader state</h2><p className="mt-1 text-xs text-bambu-gray">Selected slot and filament presence reported by each BMCU</p></CardHeader><CardContent><div ref={container} className="grid gap-3 sm:grid-cols-2" /></CardContent></Card>;
+  return <Card><CardHeader><h2 className="font-semibold text-white">Loader state</h2><p className="mt-1 text-xs text-bambu-gray">Filament paths and buffer response</p></CardHeader><CardContent><div ref={container} className="grid gap-3 sm:grid-cols-2" /></CardContent></Card>;
 }
