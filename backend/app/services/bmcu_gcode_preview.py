@@ -56,7 +56,10 @@ def parse_plate(path: Path, plate: int | None) -> tuple[int, PlannedLayers]:
                 if len(candidates) != 1:
                     raise PreviewUnavailable("Current plate is unknown")
                 selected = candidates[0]
-                plate = int(re.search(r"plate_(\d+)\.gcode$", selected.filename).group(1))
+                match = re.search(r"plate_(\d+)\.gcode$", selected.filename)
+                if match is None:
+                    raise PreviewUnavailable("Current plate G-code is unavailable")
+                plate = int(match.group(1))
             else:
                 matches = [entry for entry in candidates if entry.filename == f"Metadata/plate_{plate}.gcode"]
                 if len(matches) != 1:
@@ -318,6 +321,8 @@ async def preview_layers(path: Path, plate: int | None, request, is_current=None
         if _cache_key == key and time.monotonic() < _cache_until:
             if _cache_error:
                 raise PreviewUnavailable(_cache_error)
+            if _cache_value is None:
+                raise PreviewUnavailable("G-code preview cache is unavailable")
             return _cache_value
         if _job_task is not None and _job_task.done() and _job_waiters == 0:
             _job_task = None

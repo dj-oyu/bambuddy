@@ -744,10 +744,13 @@ async def get_bmcu_gcode_window(
     from backend.app.main import running_print_archive
     from backend.app.services.bmcu_gcode_preview import PreviewUnavailable, preview_layers
     from backend.app.services.print_log import open_run_on_printer
+    from backend.app.services.printer_lifecycle import PRINTING_OR_PAUSED_STATES
 
     client = printer_manager.get_client(printer_id)
-    state = client.state if client else None
-    if not state or not state.connected or state.state not in ("RUNNING", "PAUSE"):
+    if client is None:
+        raise HTTPException(409, "A connected active print is required")
+    state = client.state
+    if not state.connected or state.state not in PRINTING_OR_PAUSED_STATES:
         raise HTTPException(409, "A connected active print is required")
     if not getattr(client, "_last_message_time", 0) or time.time() - client._last_message_time > 30:
         raise HTTPException(409, "Printer telemetry is stale")
@@ -784,7 +787,7 @@ async def get_bmcu_gcode_window(
         return (
             printer_manager.get_client(printer_id) is client
             and observed.connected
-            and observed.state in ("RUNNING", "PAUSE")
+            and observed.state in PRINTING_OR_PAUSED_STATES
             and (getattr(observed, "subtask_id", None), observed.gcode_file, resolve_plate_id(observed)) == job[1:]
             and not getattr(observed, "skipped_objects", None)
         )
@@ -805,7 +808,7 @@ async def get_bmcu_gcode_window(
     if (
         printer_manager.get_client(printer_id) is not client
         or not current.connected
-        or current.state not in ("RUNNING", "PAUSE")
+        or current.state not in PRINTING_OR_PAUSED_STATES
         or time.time() - client._last_message_time > 30
         or current_job != job
         or current_run is None
