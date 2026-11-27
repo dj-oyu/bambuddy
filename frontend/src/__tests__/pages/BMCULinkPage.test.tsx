@@ -9,6 +9,10 @@ import { SlotStateGrid } from '../../components/bmcu/SlotStateGrid';
 import type { BMCUMonitorDetail, BMCUMonitorSummary, BMCUTimelineResponse } from '../../api/bmcuMonitors';
 import fixture from '../fixtures/bmcuMonitorApi.json';
 
+vi.mock('../../components/bmcu/LayerStackView', () => ({
+  LayerStackView: ({ onUnavailable }: { onUnavailable: () => void }) => <button onClick={onUnavailable}>Simulate WebGL loss</button>,
+}));
+
 vi.mock('../../api/bmcuMonitors', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/bmcuMonitors')>();
   return {
@@ -118,6 +122,10 @@ describe('BMCULinkPage', () => {
     expect(screen.getByRole('img', { name: 'Planned extrusion paths, layers 1 to 2' })).toBeTruthy();
     expect(screen.getByText('Tool unknown')).toBeTruthy();
     expect(context.stroke).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '3D layers' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Simulate WebGL loss' }));
+    expect(await screen.findByText('3D view unavailable; showing the 2D preview.')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Planned extrusion paths, layers 1 to 2' })).toBeTruthy();
     canvas.mockRestore();
   });
 

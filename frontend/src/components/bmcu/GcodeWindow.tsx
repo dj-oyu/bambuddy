@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, type BMCUGcodeWindow } from '../../api/client';
 import { Card, CardContent, CardHeader } from '../Card';
 
-const toolColor = (tool: number) => tool < 0 ? '#94a3b8' : `hsl(${(tool * 137.508 + 145) % 360} 75% 65%)`;
+const toolColor = (tool: number) => tool < 0 ? '#94a3b8' : `hsl(${(tool * 137.508 + 145) % 360}, 75%, 65%)`;
+const LayerStackView = lazy(() => import('./LayerStackView').then(({ LayerStackView }) => ({ default: LayerStackView })));
 
 function ToolpathCanvas({ data }: { data: BMCUGcodeWindow }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const [view3d, setView3d] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+  const handleUnavailable = useCallback(() => { setView3d(false); setUnavailable(true); }, []);
   const layers = useMemo(() => data.layers.map((encoded) => {
     const binary = atob(encoded);
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
@@ -53,11 +57,17 @@ function ToolpathCanvas({ data }: { data: BMCUGcodeWindow }) {
       }
     });
     ctx.globalAlpha = 1;
-  }, [layers]);
+  }, [layers, view3d]);
 
   if (!tools.length) return <p className="p-4 text-sm text-bambu-gray">No extrusion paths in these layers.</p>;
   return <>
-    <canvas ref={canvas} width={640} height={280} className="w-full rounded-lg bg-bambu-dark/60" role="img" aria-label={`Planned extrusion paths, layers ${data.firstLayer} to ${data.lastLayer}`} />
+    <div className="flex items-center gap-2 text-xs">
+      <button type="button" className="rounded border border-bambu-dark-tertiary px-2 py-1 text-bambu-gray-light" aria-pressed={!view3d} onClick={() => setView3d(false)}>2D</button>
+      <button type="button" className="rounded border border-bambu-dark-tertiary px-2 py-1 text-bambu-gray-light" aria-pressed={view3d} onClick={() => { setUnavailable(false); setView3d(true); }}>3D layers</button>
+    </div>
+    {view3d ? <Suspense fallback={<p className="text-sm text-bambu-gray">Loading 3D view…</p>}><LayerStackView layers={layers} toolColor={toolColor} onUnavailable={handleUnavailable} /></Suspense> :
+      <canvas ref={canvas} width={640} height={280} className="w-full rounded-lg bg-bambu-dark/60" role="img" aria-label={`Planned extrusion paths, layers ${data.firstLayer} to ${data.lastLayer}`} />}
+    {unavailable && <p role="status" className="text-xs text-amber-400">3D view unavailable; showing the 2D preview.</p>}
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bambu-gray-light" aria-label="Planned logical tools">
       {tools.map((tool) => <span key={tool} className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: toolColor(tool) }} />{tool < 0 ? 'Tool unknown' : `Tool ${tool}`}</span>)}
     </div>
