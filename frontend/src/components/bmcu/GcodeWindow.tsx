@@ -60,7 +60,6 @@ export function GcodeWindow({ now }: { now: number }) {
         <Suspense fallback={<p className="text-sm text-bambu-gray">Loading virtual camera…</p>}>
           <VirtualPrintCamera key={`${job.archiveId}:${job.plate}`} gcodeUrl={`${api.getArchiveGcode(job.archiveId)}?plate=${job.plate}`} reportedLayer={job.reportedLayer} toolColor={toolColor} />
         </Suspense>
-        <p className="text-xs text-bambu-gray">Estimated from the print plan · drag to rotate</p>
       </>}
     </CardContent>
   </Card>;
