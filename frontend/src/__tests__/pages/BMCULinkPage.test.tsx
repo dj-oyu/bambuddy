@@ -6,7 +6,7 @@ import { BMCULinkPage } from '../../pages/BMCULinkPage';
 import { bmcuLinkApi } from '../../api/client';
 import { bmcuMonitorsApi } from '../../api/bmcuMonitors';
 import { SlotStateGrid } from '../../components/bmcu/SlotStateGrid';
-import type { BMCUMetricPoint, BMCUMonitorDetail, BMCUMonitorSummary, BMCUTimelineResponse } from '../../api/bmcuMonitors';
+import type { BMCUMonitorDetail, BMCUMonitorSummary, BMCUTimelineResponse } from '../../api/bmcuMonitors';
 import fixture from '../fixtures/bmcuMonitorApi.json';
 
 vi.mock('../../api/bmcuMonitors', async (importOriginal) => {
@@ -56,10 +56,9 @@ describe('BMCULinkPage', () => {
       queueDepth: 2, counters: { datagrams_received: 120, records_persisted: 450, gaps_detected: 4 },
     });
     vi.mocked(bmcuMonitorsApi.timeline).mockResolvedValue(fixture.timeline as BMCUTimelineResponse);
-    vi.mocked(bmcuMonitorsApi.metrics).mockResolvedValue(fixture.metrics as BMCUMetricPoint[]);
   });
 
-  it('renders monitor, loader state, integrated timeline and hardware metrics', async () => {
+  it('renders monitor, loader state, and integrated timeline', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
 
@@ -71,9 +70,8 @@ describe('BMCULinkPage', () => {
     expect(screen.getByText('Missing sequences detected')).toBeTruthy();
     expect(screen.getByText('Loader timeline')).toBeTruthy();
     expect(screen.getByText('control error')).toBeTruthy();
-    expect(screen.getByText('Pico hardware')).toBeTruthy();
-    expect(screen.getByText('42.1 °C')).toBeTruthy();
-    expect(screen.getByText('-55 dBm')).toBeTruthy();
+    expect(screen.queryByText('Pico hardware')).toBeNull();
+    expect(bmcuMonitorsApi.metrics).not.toHaveBeenCalled();
     expect(await screen.findByText('printer_transaction')).toBeTruthy();
     expect(bmcuLinkApi.getEvents).toHaveBeenCalledWith(fixture.detail.deviceId, { kind: undefined, limit: 50, offset: 0 });
   });
