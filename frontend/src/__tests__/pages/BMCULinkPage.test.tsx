@@ -129,4 +129,19 @@ describe('BMCULinkPage', () => {
     expect(screen.getByText('Stale')).toBeTruthy();
     expect(screen.getByText('Last STATUS 16s ago')).toBeTruthy();
   });
+
+  it('animates only the selected live loading or unloading command', () => {
+    const link = { ...(fixture.detail as BMCUMonitorDetail).links[0], state: 'online', statusAgeS: 1, currentSlot: 1, motion: [0, 1, 0, 0] } as const;
+    const { container, rerender } = render(<SlotStateGrid links={[link]} />);
+    expect(screen.getByText('BMCU · load requested')).toBeTruthy();
+    expect(container.querySelectorAll('.bmcu-route-moving')).toHaveLength(1);
+    rerender(<SlotStateGrid links={[{ ...link, motion: [0, 2, 0, 0] }]} />);
+    expect(screen.getByText('BMCU · in use')).toBeTruthy();
+    expect(container.querySelectorAll('.bmcu-route-moving')).toHaveLength(0);
+    rerender(<SlotStateGrid links={[{ ...link, motion: [0, 4, 0, 0] }]} />);
+    expect(screen.getByText('BMCU · unload requested')).toBeTruthy();
+    expect(container.querySelector('.bmcu-route-moving')?.getAttribute('style')).toContain('bmcu-route-reverse');
+    rerender(<SlotStateGrid links={[link]} elapsedSeconds={20} />);
+    expect(container.querySelectorAll('.bmcu-route-moving')).toHaveLength(0);
+  });
 });

@@ -15,6 +15,9 @@ type LoaderNodes = {
   slots: HTMLDivElement;
   slotNodes: HTMLDivElement[];
   slotStates: HTMLSpanElement[];
+  spoolIcons: SVGSVGElement[];
+  flowPaths: SVGPathElement[];
+  flowLabel: HTMLDivElement;
   values: HTMLDivElement;
   motion: HTMLSpanElement;
   pull: HTMLSpanElement;
@@ -32,6 +35,11 @@ const node = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', tex
 };
 const text = (element: HTMLElement, value: string) => { if (element.textContent !== value) element.textContent = value; };
 const style = (element: HTMLElement, value: string) => { if (element.className !== value) element.className = value; };
+const svgNode = <K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<string, string>) => {
+  const result = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attributes)) result.setAttribute(key, value);
+  return result;
+};
 
 function buildLoader(): LoaderNodes {
   const root = node('div', 'rounded-xl border border-bambu-dark-tertiary bg-bambu-dark/40 p-4 sm:p-5');
@@ -43,15 +51,32 @@ function buildLoader(): LoaderNodes {
   const selection = node('p', 'mt-4 text-sm font-medium text-bambu-gray-light');
   const slots = node('div');
   const slotStates: HTMLSpanElement[] = [];
+  const spoolIcons: SVGSVGElement[] = [];
   const slotNodes = [0, 1, 2, 3].map((slot) => {
     const item = node('div');
     const label = node('div', 'flex items-center justify-between text-[10px] font-medium uppercase tracking-wide', 'Slot');
     const state = node('span', 'mt-2 block text-[11px]');
-    item.append(label, node('div', 'mt-2 text-xl font-semibold tabular-nums', String(slot + 1)), state);
+    const icon = svgNode('svg', { viewBox: '0 0 40 40', class: 'mt-2 h-9 w-9', 'aria-hidden': 'true', fill: 'none' });
+    icon.append(svgNode('circle', { cx: '20', cy: '20', r: '16', stroke: 'currentColor', 'stroke-width': '2' }),
+      svgNode('circle', { cx: '20', cy: '20', r: '9', stroke: 'currentColor', 'stroke-width': '2', opacity: '.65' }),
+      svgNode('circle', { cx: '20', cy: '20', r: '3', fill: 'currentColor' }));
+    spoolIcons.push(icon);
+    item.append(label, icon, node('div', 'mt-2 text-lg font-semibold tabular-nums', String(slot + 1)), state);
     slotStates.push(state);
     slots.append(item);
     return item;
   });
+  const routing = svgNode('svg', { viewBox: '0 0 400 42', preserveAspectRatio: 'none', class: 'h-9 w-full', 'aria-hidden': 'true' });
+  const css = svgNode('style', {});
+  css.textContent = '@keyframes bmcu-route{to{stroke-dashoffset:-18}} @keyframes bmcu-route-reverse{to{stroke-dashoffset:18}} @media (prefers-reduced-motion:reduce){.bmcu-route-moving{animation:none!important}}';
+  routing.append(css);
+  const flowPaths = [50, 150, 250, 350].map((x) => {
+    const d = `M${x} 0 V12 H200 V40`;
+    routing.append(svgNode('path', { d, fill: 'none', stroke: '#4b5563', 'stroke-width': '2', 'vector-effect': 'non-scaling-stroke' }));
+    return svgNode('path', { d, fill: 'none', stroke: 'transparent', 'stroke-width': '3', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' });
+  });
+  routing.append(...flowPaths);
+  const flowLabel = node('div', 'text-center text-[10px] font-medium uppercase tracking-widest text-bambu-gray', 'BMCU');
   const values = node('div');
   const addValue = (label: string) => {
     const block = node('div');
@@ -68,8 +93,8 @@ function buildLoader(): LoaderNodes {
   const filament = node('span');
   const faults = node('span');
   footer.append(filament, faults);
-  root.append(heading, age, selection, slots, values, warning, footer);
-  return { root, name, badge, age, selection, slots, slotNodes, slotStates, values, motion, pull, pressure, warning, filament, faults };
+  root.append(heading, age, selection, slots, routing, flowLabel, values, warning, footer);
+  return { root, name, badge, age, selection, slots, slotNodes, slotStates, spoolIcons, flowPaths, flowLabel, values, motion, pull, pressure, warning, filament, faults };
 }
 
 function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean) {
@@ -83,10 +108,24 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   text(view.age, ageSeconds == null ? '' : `Last STATUS ${formatBMCUAge(ageSeconds)}`);
   const selected = Number.isInteger(link.currentSlot) && link.currentSlot != null && link.currentSlot >= 0 && link.currentSlot < 4 ? link.currentSlot : null;
   text(view.selection, !known ? 'Selected slot: unknown' : link.currentSlot == null ? (live ? 'No slot selected' : 'Last reported: no slot selected') : selected == null ? 'Selected slot: unknown' : `${live ? 'Selected slot' : 'Last selected slot'}: ${selected + 1}`);
+  const currentMotion = selected == null ? undefined : link.motion?.[selected];
+  text(view.flowLabel, live && currentMotion === 1 ? 'BMCU · load requested' : live && currentMotion === 4 ? 'BMCU · unload requested' : live && currentMotion === 2 ? 'BMCU · in use' : 'BMCU');
   style(view.slots, `mt-3 grid grid-cols-4 gap-2 ${live ? '' : 'opacity-70'}`);
   view.slotNodes.forEach((slot, index) => {
     const isSelected = selected === index;
     const present = link.activeMask == null ? null : (link.activeMask & (1 << index)) !== 0;
+    const motion = link.motion?.[index];
+    view.spoolIcons[index].setAttribute('style', `color:${present == null ? '#64748b' : present ? '#6ee7b7' : '#64748b'};opacity:${present === false ? '0.45' : '1'}`);
+    const path = view.flowPaths[index];
+    path.setAttribute('stroke', isSelected ? (live ? '#36c88c' : '#d49c47') : 'transparent');
+    const moving = live && isSelected && (motion === 1 || motion === 4);
+    path.setAttribute('class', moving ? 'bmcu-route-moving' : '');
+    path.setAttribute('stroke-dasharray', moving ? '6 12' : 'none');
+    const animation = moving ? `${motion === 4 ? 'bmcu-route-reverse' : 'bmcu-route'} 0.9s linear infinite` : '';
+    if (path.getAttribute('data-animation') !== animation) {
+      path.setAttribute('data-animation', animation);
+      path.style.animation = animation;
+    }
     text(view.slotStates[index], present == null ? 'Unknown' : present ? 'Present' : 'Empty');
     slot.setAttribute('aria-label', `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${live ? '' : ', last reported'}`);
     style(slot, `min-w-0 rounded-lg border px-2 py-3 text-left ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-bambu-dark-tertiary bg-bambu-dark/30 text-bambu-gray-light'}`);
