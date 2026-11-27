@@ -825,12 +825,17 @@ async def get_bmcu_gcode_window(
     packed_layers = result["layers"][first - 1 : layer - 1]
     if sum(len(part) for part in packed_layers) > 1_400_000:
         raise HTTPException(409, "Selected layers exceed the preview size limit")
+    # PrinterState defaults progress to zero before any report. Do not present
+    # that default as a real 0% when the most recent message lacks the field.
+    raw = current.raw_data if isinstance(current.raw_data, dict) else {}
+    progress = current.progress if current.progress > 0 or "mc_percent" in raw else None
     return {
         "archiveId": archive_id,
+        "jobName": getattr(current, "subtask_name", None) or getattr(current, "current_print", None),
         "plate": result["plate"],
         "reportedLayer": layer,
         "totalLayers": current.total_layers,
-        "progress": current.progress,
+        "progress": progress,
         "firstLayer": first,
         "lastLayer": layer - 1,
         "layers": packed_layers,

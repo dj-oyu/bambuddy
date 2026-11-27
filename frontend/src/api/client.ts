@@ -702,6 +702,7 @@ export interface UsbCamera {
 
 export interface BMCUGcodeWindow {
   archiveId: number;
+  jobName: string | null;
   plate: number;
   reportedLayer: number;
   totalLayers: number | null;

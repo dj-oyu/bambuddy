@@ -89,11 +89,12 @@ export function GcodeWindow({ now }: { now: number }) {
       {printer && preview.isError && <p role="status" className="text-sm text-amber-400">Preview unavailable: {preview.error.message}</p>}
       {printer && !preview.isError && stale && <p role="status" className="text-sm text-amber-400">Preview is out of date; waiting for a fresh printer report.</p>}
       {printer && !preview.isError && !stale && preview.data && <>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bambu-gray-light"><span>Layers {preview.data.firstLayer}–{preview.data.lastLayer}</span><span>Reported layer {preview.data.reportedLayer}/{preview.data.totalLayers || '—'}</span><span>Progress {preview.data.progress == null ? '—' : `${preview.data.progress}%`}</span><span>As of {new Date(preview.dataUpdatedAt).toLocaleTimeString()}</span></div>
+        <p className="text-sm text-bambu-gray-light">{preview.data.jobName || 'Unnamed job'} · Plate {preview.data.plate}</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bambu-gray-light"><span>Layers {preview.data.firstLayer}–{preview.data.lastLayer}</span><span>Reported layer {preview.data.reportedLayer}/{preview.data.totalLayers || '—'}</span><span>Reported progress {preview.data.progress == null ? '—' : `${preview.data.progress}%`}</span><span>As of {new Date(preview.dataUpdatedAt).toLocaleTimeString()}</span></div>
         <ToolpathCanvas data={preview.data} />
         {preview.data.truncatedReason && <p className="text-xs text-amber-400">Only earlier layers were parsed: {preview.data.truncatedReason}</p>}
         <p className="text-xs text-bambu-gray-light">Filament comparison: Pending — physical slot mapping and historical colors are not verified.</p>
-        <p className="text-xs text-bambu-gray">From the original archive: injected or edited G-code may not be reflected. Planned paths only, not a camera or proof of extrusion. Colors identify logical tools, not actual filament colors. Object skips may not be reflected. Layer-report freshness is unknown.</p>
+        <p className="text-xs text-bambu-gray">From the original archive: injected or edited G-code may not be reflected. Planned paths only, not a camera or proof of extrusion. Colors identify logical tools, not actual filament colors. Object skips may not be reflected. Layer and progress report freshness is unknown.</p>
       </>}
     </CardContent>
   </Card>;

@@ -115,6 +115,7 @@ async def test_route_requires_verified_print_and_rechecks_job(monkeypatch):
         layer_num=25,
         total_layers=100,
         progress=25,
+        raw_data={},
         subtask_id="1",
         gcode_file="plate.gcode",
     )
@@ -138,6 +139,12 @@ async def test_route_requires_verified_print_and_rechecks_job(monkeypatch):
     assert get_archive.await_count == 2
     assert all(call.kwargs == {"printing_only": True, "by_name": False} for call in get_archive.await_args_list)
     assert check_archive.await_count == 2
+    state.progress = 0
+    unknown = await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock())
+    assert unknown["progress"] is None
+    state.raw_data = {"mc_percent": 0}
+    zero = await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock())
+    assert zero["progress"] == 0
 
 
 @pytest.mark.asyncio

@@ -100,7 +100,7 @@ describe('BMCULinkPage', () => {
   it('only loads planned G-code for an explicitly selected printer', async () => {
     vi.mocked(api.getPrinters).mockResolvedValue([{ id: 1, name: 'My printer' } as Printer]);
     vi.mocked(api.getBMCUGcodeWindow).mockResolvedValue({
-      archiveId: 1, plate: 1, reportedLayer: 3, totalLayers: 10, progress: 20,
+      archiveId: 1, jobName: 'Test job', plate: 1, reportedLayer: 3, totalLayers: 10, progress: 20,
       firstLayer: 1, lastLayer: 2, layers: ['', ''], layerFreshness: 'unknown',
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -110,7 +110,7 @@ describe('BMCULinkPage', () => {
     fireEvent.change(option.closest('select')!, { target: { value: '1' } });
     expect(await screen.findByText('Layers 1–2')).toBeTruthy();
     expect(api.getBMCUGcodeWindow).toHaveBeenCalledWith(1, expect.any(AbortSignal));
-    expect(screen.getByText(/Layer-report freshness is unknown/)).toBeTruthy();
+    expect(screen.getByText(/Layer and progress report freshness is unknown/)).toBeTruthy();
   });
 
   it('marks an aging loader snapshot as stale between updates', () => {

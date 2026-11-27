@@ -284,8 +284,7 @@ def _lock():
 async def _run_parser(path: Path, plate: int | None):
     process = await asyncio.create_subprocess_exec(
         sys.executable,
-        "-m",
-        "backend.app.services.bmcu_gcode_preview",
+        str(Path(__file__).resolve()),
         str(path),
         "" if plate is None else str(plate),
         stdout=asyncio.subprocess.PIPE,
