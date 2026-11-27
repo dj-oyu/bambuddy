@@ -732,6 +732,7 @@ async def get_bmcu_gcode_window(
     auth_result=Depends(require_ownership_permission(Permission.ARCHIVES_READ_ALL, Permission.ARCHIVES_READ_OWN)),
     printer_scope: PrinterScope = RequestPrinterScope,
     db: AsyncSession = Depends(get_db, scope="function"),
+    metadata_only: bool = False,
 ):
     """Last planned layers for a strictly identified running print.
 
@@ -777,6 +778,36 @@ async def get_bmcu_gcode_window(
     path = settings.base_dir / archive.file_path
     archive_id = archive.id
     plate = resolve_plate_id(state)
+    if metadata_only:
+        try:
+            with zipfile.ZipFile(path) as source:
+                entries = source.infolist()
+                if len(entries) > 1024:
+                    raise HTTPException(409, "Archive has too many entries")
+                candidates = [
+                    int(match.group(1))
+                    for entry in entries
+                    if (match := re.fullmatch(r"Metadata/plate_([1-9]\d*)\.gcode", entry.filename))
+                ]
+                if plate is None:
+                    if len(candidates) != 1:
+                        raise HTTPException(409, "Current plate is unknown")
+                    plate = candidates[0]
+                elif candidates.count(plate) != 1:
+                    raise HTTPException(409, "Current plate G-code is unavailable")
+                if source.getinfo(f"Metadata/plate_{plate}.gcode").file_size > 64 * 1024 * 1024:
+                    raise HTTPException(409, "G-code exceeds the virtual camera size limit")
+        except (OSError, zipfile.BadZipFile) as exc:
+            raise HTTPException(409, "G-code archive is unavailable") from exc
+        raw = state.raw_data if isinstance(state.raw_data, dict) else {}
+        return {
+            "archiveId": archive_id,
+            "jobName": getattr(state, "subtask_name", None) or getattr(state, "current_print", None),
+            "plate": plate,
+            "reportedLayer": state.layer_num,
+            "totalLayers": state.total_layers,
+            "progress": state.progress if state.progress > 0 or "mc_percent" in raw else None,
+        }
     job = (archive_id, getattr(state, "subtask_id", None), state.gcode_file, plate)
     # Parsing may take tens of seconds. Do not hold a DB connection while the
     # shared worker runs; reopen a transaction for the identity recheck.

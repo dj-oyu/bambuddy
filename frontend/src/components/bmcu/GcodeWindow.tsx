@@ -1,110 +1,66 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, type BMCUGcodeWindow } from '../../api/client';
+import { api } from '../../api/client';
 import { Card, CardContent, CardHeader } from '../Card';
 
-const toolColor = (tool: number) => tool < 0 ? '#94a3b8' : `hsl(${(tool * 137.508 + 145) % 360}, 75%, 65%)`;
-const LayerStackView = lazy(() => import('./LayerStackView').then(({ LayerStackView }) => ({ default: LayerStackView })));
-
-function ToolpathCanvas({ data }: { data: BMCUGcodeWindow }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const [view3d, setView3d] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
-  const handleUnavailable = useCallback(() => { setView3d(false); setUnavailable(true); }, []);
-  const layers = useMemo(() => data.layers.map((encoded) => {
-    const binary = atob(encoded);
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    const view = new DataView(bytes.buffer);
-    const values = new Float32Array(bytes.length / 4);
-    for (let i = 0; i < values.length; i++) values[i] = view.getFloat32(i * 4, true);
-    return values;
-  }), [data.layers]);
-  const tools = useMemo(() => {
-    const seen = new Set<number>();
-    for (const layer of layers) for (let i = 4; i < layer.length; i += 5) seen.add(layer[i]);
-    return [...seen].sort((a, b) => a - b);
-  }, [layers]);
-
-  useEffect(() => {
-    const ctx = canvas.current?.getContext('2d');
-    if (!ctx) return;
-    const width = ctx.canvas.width, height = ctx.canvas.height, pad = 18;
-    ctx.clearRect(0, 0, width, height);
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const layer of layers) for (let i = 0; i + 4 < layer.length; i += 5) {
-      minX = Math.min(minX, layer[i], layer[i + 2]); maxX = Math.max(maxX, layer[i], layer[i + 2]);
-      minY = Math.min(minY, layer[i + 1], layer[i + 3]); maxY = Math.max(maxY, layer[i + 1], layer[i + 3]);
-    }
-    if (!Number.isFinite(minX)) return;
-    const scale = Math.min((width - 2 * pad) / Math.max(maxX - minX, 1), (height - 2 * pad) / Math.max(maxY - minY, 1));
-    const offsetX = (width - (maxX - minX) * scale) / 2;
-    const offsetY = (height - (maxY - minY) * scale) / 2;
-    ctx.lineWidth = 1.2;
-    ctx.lineCap = 'round';
-    layers.forEach((layer, index) => {
-      ctx.globalAlpha = 0.2 + 0.8 * (index + 1) / layers.length;
-      const layerTools = new Set<number>();
-      for (let i = 4; i < layer.length; i += 5) layerTools.add(layer[i]);
-      for (const tool of layerTools) {
-        ctx.strokeStyle = toolColor(tool);
-        ctx.beginPath();
-        for (let i = 0; i + 4 < layer.length; i += 5) {
-          if (layer[i + 4] !== tool) continue;
-          ctx.moveTo(offsetX + (layer[i] - minX) * scale, height - offsetY - (layer[i + 1] - minY) * scale);
-          ctx.lineTo(offsetX + (layer[i + 2] - minX) * scale, height - offsetY - (layer[i + 3] - minY) * scale);
-        }
-        ctx.stroke();
-      }
-    });
-    ctx.globalAlpha = 1;
-  }, [layers, view3d]);
-
-  if (!tools.length) return <p className="p-4 text-sm text-bambu-gray">No extrusion paths in these layers.</p>;
-  return <>
-    <div className="flex items-center gap-2 text-xs">
-      <button type="button" className="rounded border border-bambu-dark-tertiary px-2 py-1 text-bambu-gray-light" aria-pressed={!view3d} onClick={() => setView3d(false)}>2D</button>
-      <button type="button" className="rounded border border-bambu-dark-tertiary px-2 py-1 text-bambu-gray-light" aria-pressed={view3d} onClick={() => { setUnavailable(false); setView3d(true); }}>3D layers</button>
-    </div>
-    {view3d ? <Suspense fallback={<p className="text-sm text-bambu-gray">Loading 3D view…</p>}><LayerStackView layers={layers} toolColor={toolColor} onUnavailable={handleUnavailable} /></Suspense> :
-      <canvas ref={canvas} width={640} height={280} className="w-full rounded-lg bg-bambu-dark/60" role="img" aria-label={`Planned extrusion paths, layers ${data.firstLayer} to ${data.lastLayer}`} />}
-    {unavailable && <p role="status" className="text-xs text-amber-400">3D view unavailable; showing the 2D preview.</p>}
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bambu-gray-light" aria-label="Planned logical tools">
-      {tools.map((tool) => <span key={tool} className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: toolColor(tool) }} />{tool < 0 ? 'Tool unknown' : `Tool ${tool}`}</span>)}
-    </div>
-  </>;
-}
+const VirtualPrintCamera = lazy(() => import('./VirtualPrintCamera').then(({ VirtualPrintCamera }) => ({ default: VirtualPrintCamera })));
 
 export function GcodeWindow({ now }: { now: number }) {
   const [printer, setPrinter] = useState('');
   const printers = useQuery({ queryKey: ['bmcu-preview-printers'], queryFn: api.getPrinters });
-  const preview = useQuery({
-    queryKey: ['bmcu-gcode-window', printer],
-    queryFn: ({ signal }) => api.getBMCUGcodeWindow(Number(printer), signal),
-    enabled: printer !== '', retry: false,
-    refetchInterval: (query) => query.state.error ? 60_000 : 15_000,
+  const context = useQuery({
+    queryKey: ['bmcu-print-context', printer],
+    queryFn: ({ signal }) => api.getBMCUPrintContext(Number(printer), signal),
+    enabled: printer !== '', retry: false, refetchInterval: 5000,
   });
-  const stale = preview.dataUpdatedAt > 0 && now - preview.dataUpdatedAt > 30_000;
+  const status = useQuery({
+    queryKey: ['bmcu-preview-printer-status', printer],
+    queryFn: () => api.getPrinterStatus(Number(printer)),
+    enabled: printer !== '', refetchInterval: 15000,
+  });
+  const plateFilaments = useQuery({
+    queryKey: ['bmcu-preview-filaments', context.data?.archiveId, context.data?.plate],
+    queryFn: () => api.getArchiveFilamentRequirements(context.data!.archiveId, context.data!.plate),
+    enabled: !!context.data, staleTime: 300_000, retry: false,
+  });
+  const colors = useMemo(() => {
+    const result = new Map<number, string>();
+    for (const filament of plateFilaments.data?.filaments ?? []) {
+      if (/^#[\da-f]{6}([\da-f]{2})?$/i.test(filament.color)) result.set(filament.slot_id - 1, filament.color.slice(0, 7));
+    }
+    const snapshot = status.data;
+    const mapping = snapshot?.connected && snapshot.current_archive_id === context.data?.archiveId ? snapshot.ams_mapping : [];
+    for (const [tool, mapped] of (mapping ?? []).entries()) {
+      if (!Number.isInteger(mapped) || mapped < 0 || mapped >= 128) continue;
+      const unit = snapshot?.ams?.find((item) => item.id === Math.floor(mapped / 4));
+      const color = unit?.tray.find((tray) => tray.id === mapped % 4)?.tray_color;
+      if (color && /^[\da-f]{6}([\da-f]{2})?$/i.test(color)) result.set(tool, `#${color.slice(0, 6)}`);
+    }
+    return result;
+  }, [plateFilaments.data, status.data, context.data?.archiveId]);
+  const toolColor = useCallback((tool: number) => colors.get(tool) ?? '#9aa8b8', [colors]);
+  const stale = context.dataUpdatedAt > 0 && now - context.dataUpdatedAt > 30_000;
+  const job = context.data;
 
   return <Card className="h-full">
-    <CardHeader><h2 className="font-semibold text-white">Recent layer preview</h2><p className="mt-1 text-xs text-bambu-gray">Planned extrusion paths · up to 20 layers before the reported layer</p></CardHeader>
+    <CardHeader><h2 className="font-semibold text-white">Virtual camera</h2></CardHeader>
     <CardContent className="space-y-3">
-      <label className="block text-xs text-bambu-gray-light" htmlFor="bmcu-preview-printer">Printer</label>
+      <label className="sr-only" htmlFor="bmcu-preview-printer">Printer</label>
       <select id="bmcu-preview-printer" value={printer} onChange={(event) => setPrinter(event.target.value)} className="w-full rounded-lg border border-bambu-dark-tertiary bg-bambu-dark px-3 py-2 text-sm text-white">
         <option value="">Select printer…</option>
         {printers.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select>
       {printers.isError && <p role="status" className="text-sm text-amber-400">Could not load printers.</p>}
-      {!printer && <p className="text-sm text-bambu-gray">Select the printer associated with this BMCU to load its current job.</p>}
-      {printer && preview.isLoading && <p role="status" className="text-sm text-bambu-gray">Preparing G-code preview…</p>}
-      {printer && preview.isError && <p role="status" className="text-sm text-amber-400">Preview unavailable: {preview.error.message}</p>}
-      {printer && !preview.isError && stale && <p role="status" className="text-sm text-amber-400">Preview is out of date; waiting for a fresh printer report.</p>}
-      {printer && !preview.isError && !stale && preview.data && <>
-        <p className="text-sm text-bambu-gray-light">{preview.data.jobName || 'Unnamed job'} · Plate {preview.data.plate}</p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bambu-gray-light"><span>Layers {preview.data.firstLayer}–{preview.data.lastLayer}</span><span>Reported layer {preview.data.reportedLayer}/{preview.data.totalLayers || '—'}</span><span>Reported progress {preview.data.progress == null ? '—' : `${preview.data.progress}%`}</span><span>As of {new Date(preview.dataUpdatedAt).toLocaleTimeString()}</span></div>
-        <ToolpathCanvas data={preview.data} />
-        {preview.data.truncatedReason && <p className="text-xs text-amber-400">Only earlier layers were parsed: {preview.data.truncatedReason}</p>}
-        <p className="text-xs text-bambu-gray-light">Filament comparison: Pending — physical slot mapping and historical colors are not verified.</p>
-        <p className="text-xs text-bambu-gray">From the original archive: injected or edited G-code may not be reflected. Planned paths only, not a camera or proof of extrusion. Colors identify logical tools, not actual filament colors. Object skips may not be reflected. Layer and progress report freshness is unknown.</p>
+      {!printer && <p className="text-sm text-bambu-gray">Select a printer to view its current print.</p>}
+      {printer && context.isLoading && <p role="status" className="text-sm text-bambu-gray">Loading print…</p>}
+      {printer && context.isError && <p role="status" className="text-sm text-amber-400">Virtual camera unavailable: {context.error.message}</p>}
+      {printer && !context.isError && stale && <p role="status" className="text-sm text-amber-400">Printer updates delayed.</p>}
+      {printer && !context.isError && job && <>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-bambu-gray-light"><span className="truncate">{job.jobName || 'Current print'} · Plate {job.plate}</span><span>Layer {job.reportedLayer}/{job.totalLayers || '—'}{job.progress == null ? '' : ` · ${job.progress}%`}</span></div>
+        <Suspense fallback={<p className="text-sm text-bambu-gray">Loading virtual camera…</p>}>
+          <VirtualPrintCamera key={`${job.archiveId}:${job.plate}`} gcodeUrl={`${api.getArchiveGcode(job.archiveId)}?plate=${job.plate}`} reportedLayer={job.reportedLayer} toolColor={toolColor} />
+        </Suspense>
+        <p className="text-xs text-bambu-gray">Estimated from the print plan · drag to rotate</p>
       </>}
     </CardContent>
   </Card>;

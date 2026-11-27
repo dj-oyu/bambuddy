@@ -189,7 +189,7 @@ function readAxis(line: string, axis: string): number | undefined {
  * Bambu writes relative and plenty of third-party files do not. Anything the
  * parser cannot make sense of is skipped rather than guessed at.
  */
-export function parseGcodeToolpath(gcode: string): ParsedToolpath {
+export function parseGcodeToolpath(gcode: string, { markedLayersOnly = false } = {}): ParsedToolpath {
   const layers: ToolpathLayer[] = [];
 
   let x = 0;
@@ -228,7 +228,7 @@ export function parseGcodeToolpath(gcode: string): ParsedToolpath {
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
   const flushLayer = () => {
-    if (current.length === 0) return;
+    if (markedLayersOnly ? !sawLayerMarker : current.length === 0) return;
     layers.push({ z: currentZ, paths: current.toFloat32Array(), widths: current.widths });
     current = new PathBuffer();
     layerHasExtrusion = false;
@@ -243,6 +243,12 @@ export function parseGcodeToolpath(gcode: string): ParsedToolpath {
    * by linear moves and by each chord an arc is flattened into.
    */
   const emit = (nx: number, ny: number, nz: number, extruding: boolean) => {
+    if (markedLayersOnly && !sawLayerMarker) {
+      // Startup moves establish coordinates and extrusion mode before layer one.
+      x = nx; y = ny; z = nz;
+      hasPosition = true;
+      return;
+    }
     if (extruding) {
       if (!sawLayerMarker && layerHasExtrusion && nz !== currentZ) flushLayer();
       if (!layerHasExtrusion) {
@@ -299,8 +305,8 @@ export function parseGcodeToolpath(gcode: string): ParsedToolpath {
       } else if (key === 'CHANGE_LAYER' || key === 'LAYER_CHANGE') {
         // An explicit marker is authoritative: it is the only thing that
         // distinguishes a real layer change from a travel Z-hop.
-        sawLayerMarker = true;
         flushLayer();
+        sawLayerMarker = true;
       } else if (key === 'Z_HEIGHT' || key === 'Z') {
         const parsed = Number.parseFloat(value);
         if (Number.isFinite(parsed)) pendingZ = parsed;

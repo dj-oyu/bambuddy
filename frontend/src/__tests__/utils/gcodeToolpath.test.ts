@@ -464,3 +464,23 @@ G1 X40 Y10 E0.5
     expect(filterLayersByType(parsed.layers, new Set())).toBe(parsed.layers);
   });
 });
+
+describe('marked printer layers', () => {
+  it('retains startup coordinates, skips purge and preserves empty layer numbers', () => {
+    const slice = [
+      'G1 X20 Y20 Z0.2', 'G1 X80 E20', '; CHANGE_LAYER', 'G1 X81 E21',
+      '; LAYER_CHANGE', '; CHANGE_LAYER', 'G1 Z0.6', 'G1 X82 E22',
+    ].join('\n');
+    const result = parseGcodeToolpath(slice, { markedLayersOnly: true });
+    expect(result.layers).toHaveLength(3);
+    expect(result.segmentCount).toBe(2);
+    expect(result.layers[0].paths[0]).toBe(80);
+    expect(result.layers[1].paths).toHaveLength(0);
+    expect(result.layers[2].z).toBeCloseTo(0.6);
+    expect(parseGcodeToolpath(slice).segmentCount).toBe(3);
+  });
+
+  it('returns no registered layers for an unmarked file', () => {
+    expect(parseGcodeToolpath(GCODE, { markedLayersOnly: true }).layers).toHaveLength(0);
+  });
+});
