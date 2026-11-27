@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BMCULinkPage } from '../../pages/BMCULinkPage';
-import { bmcuLinkApi } from '../../api/client';
+import { api, bmcuLinkApi, type Printer } from '../../api/client';
 import { bmcuMonitorsApi } from '../../api/bmcuMonitors';
 import { SlotStateGrid } from '../../components/bmcu/SlotStateGrid';
 import type { BMCUMonitorDetail, BMCUMonitorSummary, BMCUTimelineResponse } from '../../api/bmcuMonitors';
@@ -25,7 +25,7 @@ vi.mock('../../api/bmcuMonitors', async (importOriginal) => {
 
 vi.mock('../../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/client')>();
-  return { ...actual, bmcuLinkApi: { ...actual.bmcuLinkApi, getEvents: vi.fn() } };
+  return { ...actual, api: { ...actual.api, getPrinters: vi.fn(), getBMCUGcodeWindow: vi.fn() }, bmcuLinkApi: { ...actual.bmcuLinkApi, getEvents: vi.fn() } };
 });
 
 vi.mock('recharts', () => ({
@@ -44,6 +44,7 @@ vi.mock('recharts', () => ({
 
 describe('BMCULinkPage', () => {
   beforeEach(() => {
+    vi.mocked(api.getPrinters).mockResolvedValue([]);
     vi.mocked(bmcuLinkApi.getEvents).mockResolvedValue([{
       id: -1, device_id: fixture.detail.deviceId, kind: 'event', kind_id: 3,
       protocol: 1, received_at_us: 1000, server_received_at: new Date().toISOString(),
@@ -94,6 +95,22 @@ describe('BMCULinkPage', () => {
     fireEvent.click(secondButton);
     expect(await within(secondButton.parentElement!).findByText('192.0.2.20')).toBeTruthy();
     expect(screen.queryByText('192.0.2.10')).toBeNull();
+  });
+
+  it('only loads planned G-code for an explicitly selected printer', async () => {
+    vi.mocked(api.getPrinters).mockResolvedValue([{ id: 1, name: 'My printer' } as Printer]);
+    vi.mocked(api.getBMCUGcodeWindow).mockResolvedValue({
+      archiveId: 1, plate: 1, reportedLayer: 3, totalLayers: 10, progress: 20,
+      firstLayer: 1, lastLayer: 2, layers: ['', ''], layerFreshness: 'unknown',
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
+    const option = await screen.findByRole('option', { name: 'My printer' });
+    expect(api.getBMCUGcodeWindow).not.toHaveBeenCalled();
+    fireEvent.change(option.closest('select')!, { target: { value: '1' } });
+    expect(await screen.findByText('Layers 1–2')).toBeTruthy();
+    expect(api.getBMCUGcodeWindow).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    expect(screen.getByText(/Layer-report freshness is unknown/)).toBeTruthy();
   });
 
   it('marks an aging loader snapshot as stale between updates', () => {

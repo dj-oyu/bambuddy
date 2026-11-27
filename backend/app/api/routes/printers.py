@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
@@ -21,6 +21,7 @@ from backend.app.core.auth import (
     RequirePrinterPermissionIfAuthEnabled,
     is_auth_enabled,
     require_media_token_printer_permission,
+    require_ownership_permission,
 )
 from backend.app.core.config import settings
 from backend.app.core.database import get_db
@@ -721,6 +722,118 @@ async def get_printer_status(
     if not printer:
         raise HTTPException(404, "Printer not found")
     return await _printer_status(db, printer)
+
+
+@router.get("/{printer_id}/bmcu-gcode-window")
+async def get_bmcu_gcode_window(
+    printer_id: int,
+    request: Request,
+    _=RequirePrinterPermissionIfAuthEnabled(Permission.PRINTERS_READ),
+    auth_result=Depends(require_ownership_permission(Permission.ARCHIVES_READ_ALL, Permission.ARCHIVES_READ_OWN)),
+    printer_scope: PrinterScope = RequestPrinterScope,
+    db: AsyncSession = Depends(get_db, scope="function"),
+):
+    """Last planned layers for a strictly identified running print.
+
+    This is an estimate based on the printer's last reported layer, not a
+    camera or a check of what was actually extruded. No name-based matching.
+    """
+    import time
+
+    from backend.app.api.routes.archives import _ensure_archive_visible
+    from backend.app.main import running_print_archive
+    from backend.app.services.bmcu_gcode_preview import PreviewUnavailable, preview_layers
+    from backend.app.services.print_log import open_run_on_printer
+
+    client = printer_manager.get_client(printer_id)
+    state = client.state if client else None
+    if not state or not state.connected or state.state not in ("RUNNING", "PAUSE"):
+        raise HTTPException(409, "A connected active print is required")
+    if not getattr(client, "_last_message_time", 0) or time.time() - client._last_message_time > 30:
+        raise HTTPException(409, "Printer telemetry is stale")
+    if getattr(state, "skipped_objects", None):
+        raise HTTPException(409, "Object skips are not supported in this preview")
+    if not state.layer_num or state.layer_num < 2:
+        raise HTTPException(409, "No earlier reported layer is available")
+    archive = await running_print_archive(db, printer_id, state, printing_only=True, by_name=False)
+    if archive is None:
+        raise HTTPException(409, "The running print cannot be securely matched to an archive")
+    run = await open_run_on_printer(db, printer_id)
+    reported_subtask = str(getattr(state, "subtask_id", "") or "").strip()
+    if (
+        run is None
+        or run.archive_id != archive.id
+        or (reported_subtask not in ("", "0") and str(run.subtask_id or "").strip() != reported_subtask)
+    ):
+        raise HTTPException(409, "The running print cannot be securely matched to an archive")
+    run_id = run.id
+    user, can_read_all = auth_result
+    archive = await _ensure_archive_visible(archive, user, can_read_all, printer_scope)
+    if not archive.file_path:
+        raise HTTPException(409, "G-code archive is unavailable")
+    path = settings.base_dir / archive.file_path
+    archive_id = archive.id
+    plate = resolve_plate_id(state)
+    job = (archive_id, getattr(state, "subtask_id", None), state.gcode_file, plate)
+    # Parsing may take tens of seconds. Do not hold a DB connection while the
+    # shared worker runs; reopen a transaction for the identity recheck.
+    await db.close()
+
+    def is_current():
+        observed = client.state
+        return (
+            printer_manager.get_client(printer_id) is client
+            and observed.connected
+            and observed.state in ("RUNNING", "PAUSE")
+            and (getattr(observed, "subtask_id", None), observed.gcode_file, resolve_plate_id(observed)) == job[1:]
+            and not getattr(observed, "skipped_objects", None)
+        )
+
+    try:
+        result = await preview_layers(path, plate, request, is_current)
+    except PreviewUnavailable as exc:
+        raise HTTPException(409, str(exc)) from exc
+    current = client.state
+    current_archive = await running_print_archive(db, printer_id, current, printing_only=True, by_name=False)
+    current_run = await open_run_on_printer(db, printer_id)
+    current_job = (
+        current_archive.id if current_archive else None,
+        getattr(current, "subtask_id", None),
+        current.gcode_file,
+        resolve_plate_id(current),
+    )
+    if (
+        printer_manager.get_client(printer_id) is not client
+        or not current.connected
+        or current.state not in ("RUNNING", "PAUSE")
+        or time.time() - client._last_message_time > 30
+        or current_job != job
+        or current_run is None
+        or current_run.id != run_id
+        or current_run.archive_id != archive_id
+        or getattr(current, "skipped_objects", None)
+    ):
+        raise HTTPException(409, "The print changed while preparing the preview")
+    await _ensure_archive_visible(current_archive, user, can_read_all, printer_scope)
+    layer = current.layer_num
+    if not layer or layer < 2 or layer - 1 > len(result["layers"]):
+        raise HTTPException(409, result.get("truncatedReason") or "Reported layer does not match G-code markers")
+    first = max(1, layer - 20)
+    packed_layers = result["layers"][first - 1 : layer - 1]
+    if sum(len(part) for part in packed_layers) > 1_400_000:
+        raise HTTPException(409, "Selected layers exceed the preview size limit")
+    return {
+        "archiveId": archive_id,
+        "plate": result["plate"],
+        "reportedLayer": layer,
+        "totalLayers": current.total_layers,
+        "progress": current.progress,
+        "firstLayer": first,
+        "lastLayer": layer - 1,
+        "layers": packed_layers,
+        "layerFreshness": "unknown",
+        "truncatedReason": result.get("truncatedReason"),
+    }
 
 
 async def _printer_status(db: AsyncSession, printer: Printer) -> PrinterStatus:
