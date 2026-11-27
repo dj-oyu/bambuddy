@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BMCULinkPage } from '../../pages/BMCULinkPage';
 import { api, bmcuLinkApi, type Printer } from '../../api/client';
@@ -132,6 +132,11 @@ describe('BMCULinkPage', () => {
     expect(view.getAttribute('data-url')).toContain('/archives/1/gcode?plate=2');
     expect(view.getAttribute('data-layer')).toBe('3');
     await waitFor(() => expect(view.getAttribute('data-color')).toBe('#FEC600'));
+    act(() => client.setQueryData(['bmcu-print-context', '1'], {
+      archiveId: 1, jobName: 'Test job', plate: 2, reportedLayer: 4, totalLayers: 10, progress: 30,
+    }));
+    await waitFor(() => expect(view.getAttribute('data-layer')).toBe('4'));
+    expect(screen.getByRole('img', { name: 'Virtual print' })).toBe(view);
   });
 
   it('marks an aging loader snapshot as stale between updates', () => {

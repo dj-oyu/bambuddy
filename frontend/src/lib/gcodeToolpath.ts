@@ -196,6 +196,9 @@ export function parseGcodeToolpath(gcode: string, { markedLayersOnly = false } =
   let y = 0;
   let z = 0;
   let e = 0;
+  let relativePosition = false;
+  // G92 changes the coordinate origin, not the physical nozzle position.
+  let offsetX = 0, offsetY = 0, offsetZ = 0;
   let relativeExtrusion = false;
   let feature: number = ToolpathType.wall;
   let width = 0;
@@ -314,6 +317,14 @@ export function parseGcodeToolpath(gcode: string, { markedLayersOnly = false } =
       continue;
     }
 
+    if (/^G90(?:\s|;|$)/.test(line)) {
+      relativePosition = false;
+      continue;
+    }
+    if (/^G91(?:\s|;|$)/.test(line)) {
+      relativePosition = true;
+      continue;
+    }
     if (line.startsWith('M83')) {
       relativeExtrusion = true;
       continue;
@@ -322,8 +333,14 @@ export function parseGcodeToolpath(gcode: string, { markedLayersOnly = false } =
       relativeExtrusion = false;
       continue;
     }
-    if (line.startsWith('G92')) {
+    if (/^G92(?:\s|;|$)/.test(line)) {
+      const resetX = readAxis(line, 'X');
+      const resetY = readAxis(line, 'Y');
+      const resetZ = readAxis(line, 'Z');
       const resetE = readAxis(line, 'E');
+      if (resetX !== undefined) offsetX = x - resetX;
+      if (resetY !== undefined) offsetY = y - resetY;
+      if (resetZ !== undefined) offsetZ = z - resetZ;
       if (resetE !== undefined) e = resetE;
       continue;
     }
@@ -343,15 +360,18 @@ export function parseGcodeToolpath(gcode: string, { markedLayersOnly = false } =
     if (isArc && !/^G[23](\s|$)/.test(line)) continue;
     if (isLinear && !/^G[01](\s|$)/.test(line)) continue;
 
-    const nx = readAxis(line, 'X') ?? x;
-    const ny = readAxis(line, 'Y') ?? y;
-    const nz = readAxis(line, 'Z') ?? z;
+    const axisX = readAxis(line, 'X');
+    const axisY = readAxis(line, 'Y');
+    const axisZ = readAxis(line, 'Z');
+    const nx = axisX === undefined ? x : relativePosition ? x + axisX : axisX + offsetX;
+    const ny = axisY === undefined ? y : relativePosition ? y + axisY : axisY + offsetY;
+    const nz = axisZ === undefined ? z : relativePosition ? z + axisZ : axisZ + offsetZ;
     const rawE = readAxis(line, 'E');
 
     let extruded = 0;
     if (rawE !== undefined) {
       extruded = relativeExtrusion ? rawE : rawE - e;
-      e = rawE;
+      e = relativeExtrusion ? e + rawE : rawE;
     }
     const extruding = extruded > 0;
 
@@ -391,13 +411,14 @@ export function parseGcodeToolpath(gcode: string, { markedLayersOnly = false } =
         const maxStep = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - ARC_TOLERANCE_MM / radius)));
         const steps = Math.max(1, Math.min(ARC_MAX_CHORDS, Math.ceil(Math.abs(sweep) / Math.max(maxStep, 1e-3))));
 
+        const startZ = z;
         for (let step = 1; step <= steps; step += 1) {
           const fraction = step / steps;
           const angle = startAngle + sweep * fraction;
           emit(
             cx + radius * Math.cos(angle),
             cy + radius * Math.sin(angle),
-            z + (nz - z) * fraction,
+            startZ + (nz - startZ) * fraction,
             extruding,
           );
         }
