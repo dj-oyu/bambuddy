@@ -121,7 +121,11 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
     const moving = live && isSelected && (motion === 1 || motion === 4);
     path.setAttribute('class', moving ? 'bmcu-route-moving' : '');
     path.setAttribute('stroke-dasharray', moving ? '6 12' : 'none');
-    path.style.animation = moving ? `${motion === 4 ? 'bmcu-route-reverse' : 'bmcu-route'} 0.9s linear infinite` : '';
+    const animation = moving ? `${motion === 4 ? 'bmcu-route-reverse' : 'bmcu-route'} 0.9s linear infinite` : '';
+    if (path.getAttribute('data-animation') !== animation) {
+      path.setAttribute('data-animation', animation);
+      path.style.animation = animation;
+    }
     text(view.slotStates[index], present == null ? 'Unknown' : present ? 'Present' : 'Empty');
     slot.setAttribute('aria-label', `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${live ? '' : ', last reported'}`);
     style(slot, `min-w-0 rounded-lg border px-2 py-3 text-left ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-bambu-dark-tertiary bg-bambu-dark/30 text-bambu-gray-light'}`);
