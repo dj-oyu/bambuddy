@@ -141,21 +141,41 @@ describe('BMCULinkPage', () => {
 
     rerender(<SlotStateGrid links={[link]} elapsedSeconds={2} />);
     expect(screen.getByText('Stale')).toBeTruthy();
-    expect(screen.getByText('Last STATUS 16s ago')).toBeTruthy();
+    expect(screen.getByTitle('BMCU status 16s ago')).toBeTruthy();
+    expect(screen.queryByText(/Last STATUS/)).toBeNull();
   });
 
   it('animates only the selected live loading or unloading command', () => {
     const link = { ...(fixture.detail as BMCUMonitorDetail).links[0], state: 'online', statusAgeS: 1, currentSlot: 1, motion: [0, 1, 0, 0] } as const;
     const { container, rerender } = render(<SlotStateGrid links={[link]} />);
-    expect(screen.getByText('BMCU · load requested')).toBeTruthy();
+    expect(screen.getByText('Loading requested')).toBeTruthy();
     expect(container.querySelectorAll('.bmcu-route-moving')).toHaveLength(1);
     rerender(<SlotStateGrid links={[{ ...link, motion: [0, 2, 0, 0] }]} />);
-    expect(screen.getByText('BMCU · in use')).toBeTruthy();
+    expect(screen.getByText('In use')).toBeTruthy();
     expect(container.querySelectorAll('.bmcu-route-moving')).toHaveLength(0);
     rerender(<SlotStateGrid links={[{ ...link, motion: [0, 4, 0, 0] }]} />);
-    expect(screen.getByText('BMCU · unload requested')).toBeTruthy();
+    expect(screen.getByText('Unloading requested')).toBeTruthy();
     expect(container.querySelector('.bmcu-route-moving')?.getAttribute('style')).toContain('bmcu-route-reverse');
     rerender(<SlotStateGrid links={[link]} elapsedSeconds={20} />);
     expect(container.querySelectorAll('.bmcu-route-moving')).toHaveLength(0);
+  });
+
+  it('visualizes the buffer and distinguishes pressure readings from protocol codes', () => {
+    const link = { ...(fixture.detail as BMCUMonitorDetail).links[0], state: 'online', statusAgeS: 1, currentSlot: 1, pullPercent: 51, pressure: 1310 } as const;
+    const { rerender } = render(<SlotStateGrid links={[link]} />);
+    expect(screen.getByRole('img', { name: 'Buffer position 51%, Near neutral; 50% is neutral' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Pressure response: 2%' })).toBeTruthy();
+    expect(screen.queryByText(/Selected slot:/)).toBeNull();
+    const marker = screen.getByRole('img', { name: 'Buffer position 51%, Near neutral; 50% is neutral' }).querySelector('rect');
+    const middle = Number(marker?.getAttribute('x'));
+    rerender(<SlotStateGrid links={[{ ...link, pullPercent: 80, pressure: Math.floor(30 * 65535 / 50) }]} />);
+    expect(Number(marker?.getAttribute('x'))).toBeGreaterThan(middle);
+    expect(screen.getByRole('img', { name: 'Pressure response: 60%' })).toBeTruthy();
+    rerender(<SlotStateGrid links={[{ ...link, pressure: 0xffff }]} />);
+    expect(screen.getByRole('img', { name: 'Pressure response: Unavailable' })).toBeTruthy();
+    rerender(<SlotStateGrid links={[{ ...link, pressure: 0xf06f }]} />);
+    expect(screen.getByRole('img', { name: 'Pressure response: Jam reported' })).toBeTruthy();
+    rerender(<SlotStateGrid links={[{ ...link, pressure: 0x4700 }]} />);
+    expect(screen.getByRole('img', { name: 'Pressure response: Controller code' })).toBeTruthy();
   });
 });
