@@ -30,6 +30,8 @@ export interface BMCUMonitorSummary {
 export interface BMCULinkSnapshot {
   linkIndex: number;
   linkId: string;
+  /** AMS number from the BMCU firmware; absent on older firmware. */
+  amsIndex?: number | null;
   state: LinkState;
   /** Zero-based selected channel; null means none selected (state !== 'no_data')
    *  or unknown (state === 'no_data'). */

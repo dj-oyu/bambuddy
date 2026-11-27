@@ -185,6 +185,7 @@ async def detail(device_id: str, db: AsyncSession = Depends(get_db, scope="funct
             LinkSnapshot(
                 linkIndex=stored.link_index,
                 linkId=stored.link_id or f"bmcu-{stored.link_index}",
+                amsIndex=getattr(persistence.last_hello.get(key), "ams_index", None),
                 state=state,
                 currentSlot=snapshot["current_slot"] if snapshot else None,
                 # activeMask is filament presence (online_mask), not the
@@ -296,6 +297,7 @@ def _live_snapshot(device_id: str, initial_detail: dict, initial_stream: dict) -
                 {
                     "linkIndex": index,
                     "linkId": link_id,
+                    "amsIndex": getattr(persistence.last_hello.get(key), "ams_index", None),
                     "state": link_state,
                     "currentSlot": snapshot["current_slot"],
                     "activeMask": snapshot["online_mask"],
@@ -312,6 +314,7 @@ def _live_snapshot(device_id: str, initial_detail: dict, initial_stream: dict) -
                 {
                     "linkIndex": index,
                     "linkId": link_id,
+                    "amsIndex": getattr(persistence.last_hello.get(key), "ams_index", None),
                     "state": "no_data",
                     "currentSlot": None,
                     "activeMask": None,

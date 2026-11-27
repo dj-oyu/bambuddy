@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, Clock3, RadioTower, RefreshCw } from 'lucide-react';
 import { bmcuMonitorsApi } from '../api/bmcuMonitors';
+import { api } from '../api/client';
 import { MonitorCard } from '../components/bmcu/MonitorCard';
 import { LoaderHistory } from '../components/bmcu/LoaderHistory';
 import { GcodeWindow } from '../components/bmcu/GcodeWindow';
@@ -24,6 +25,16 @@ export function BMCULinkPage() {
 
   const monitors = useQuery({
     queryKey: ['bmcu-monitors'], queryFn: bmcuMonitorsApi.list, refetchInterval: historyIntervalMs,
+  });
+  const printers = useQuery({ queryKey: ['bmcu-preview-printers'], queryFn: api.getPrinters });
+  // With multiple bridges or printers there is no explicit pairing, so leave
+  // colors unknown instead of assigning another machine's filament.
+  const solePrinter = monitors.data?.length === 1 && printers.data?.length === 1 ? printers.data[0].id : undefined;
+  const filamentStatus = useQuery({
+    queryKey: ['bmcu-filament-printer', solePrinter],
+    queryFn: () => api.getPrinterStatus(solePrinter!),
+    enabled: solePrinter != null,
+    refetchInterval: 15000,
   });
   const selectedMonitor = monitors.data?.find((monitor) => monitor.deviceId === selection) ?? monitors.data?.[0];
   const selectedId = selectedMonitor?.deviceId;
@@ -109,7 +120,7 @@ export function BMCULinkPage() {
             <div className="min-w-0 space-y-5">
               <div className="grid items-start gap-5 2xl:grid-cols-2">
                 {detail.data ? (
-                  <SlotStateGrid deviceId={selectedId} liveConnected={liveConnected} links={detail.data.links} elapsedSeconds={Math.max(0, now - detail.dataUpdatedAt) / 1000} outdated={monitorOutdated} />
+                  <SlotStateGrid deviceId={selectedId} liveConnected={liveConnected} links={detail.data.links} elapsedSeconds={Math.max(0, now - detail.dataUpdatedAt) / 1000} outdated={monitorOutdated} filamentUnits={!filamentStatus.isError && filamentStatus.data?.connected ? filamentStatus.data.ams : undefined} />
                 ) : detail.isLoading ? <p className="text-sm text-bambu-gray">Loading loader state…</p> : <div />}
                 <GcodeWindow now={now} />
               </div>

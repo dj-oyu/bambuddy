@@ -54,6 +54,11 @@ class BMCUHello:
     firmware_major: int
     firmware_minor: int
     tick_hz: int
+    variant_flags: int | None = None
+
+    @property
+    def ams_index(self) -> int | None:
+        return None if self.variant_flags is None else (self.variant_flags >> 4) & 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,9 +261,10 @@ def decode_semantic(frame: BMCUEnvelope):
     if frame.kind not in SEMANTIC_KINDS:
         return None
     p = frame.payload
-    if frame.kind == 1 and len(p) == 9:
-        protocol, capabilities, major, minor, tick_hz = struct.unpack("<BHBBI", p)
-        return BMCUHello(protocol, capabilities, major, minor, tick_hz)
+    if frame.kind == 1 and (len(p) == 9 or len(p) >= 15):
+        protocol, capabilities, major, minor, tick_hz = struct.unpack_from("<BHBBI", p)
+        flags = struct.unpack_from("<H", p, 9)[0] if len(p) >= 15 else None
+        return BMCUHello(protocol, capabilities, major, minor, tick_hz, flags)
     if frame.kind == 2 and len(p) in (STATUS_SIZE, STATUS_SIZE_WITHOUT_CHANNEL_FLAGS):
         values = struct.unpack("<IHHHHBBB4B4BHBB", p[:STATUS_SIZE_WITHOUT_CHANNEL_FLAGS])
         return BMCUStatus(
