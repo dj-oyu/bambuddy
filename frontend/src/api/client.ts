@@ -715,6 +715,15 @@ export interface BMCUGcodeWindow {
   truncatedReason?: string | null;
 }
 
+export interface BMCUPrintContext {
+  archiveId: number;
+  jobName: string | null;
+  plate: number;
+  reportedLayer: number;
+  totalLayers: number | null;
+  progress: number | null;
+}
+
 export interface PrinterStatus {
   id: number;
   name: string;
@@ -5615,6 +5624,8 @@ export const api = {
   getPrinterStatus: (id: number) => printerStatusBatch(id),
   getBMCUGcodeWindow: (id: number, signal?: AbortSignal) =>
     request<BMCUGcodeWindow>(`/printers/${id}/bmcu-gcode-window`, { signal }),
+  getBMCUPrintContext: (id: number, signal?: AbortSignal) =>
+    request<BMCUPrintContext>(`/printers/${id}/bmcu-gcode-window?metadata_only=true`, { signal }),
   refreshPrinterStatus: (id: number) =>
     request<{ status: string }>(`/printers/${id}/refresh-status`, {
       method: 'POST',

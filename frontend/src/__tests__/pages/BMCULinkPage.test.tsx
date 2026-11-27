@@ -9,8 +9,8 @@ import { SlotStateGrid } from '../../components/bmcu/SlotStateGrid';
 import type { BMCUMonitorDetail, BMCUMonitorSummary, BMCUTimelineResponse } from '../../api/bmcuMonitors';
 import fixture from '../fixtures/bmcuMonitorApi.json';
 
-vi.mock('../../components/bmcu/LayerStackView', () => ({
-  LayerStackView: ({ onUnavailable }: { onUnavailable: () => void }) => <button onClick={onUnavailable}>Simulate WebGL loss</button>,
+vi.mock('../../components/bmcu/VirtualPrintCamera', () => ({
+  VirtualPrintCamera: ({ gcodeUrl, reportedLayer, toolColor }: { gcodeUrl: string; reportedLayer: number; toolColor: (tool: number) => string }) => <div role="img" aria-label="Virtual print" data-url={gcodeUrl} data-layer={reportedLayer} data-color={toolColor(1)} />,
 }));
 
 vi.mock('../../api/bmcuMonitors', async (importOriginal) => {
@@ -29,7 +29,7 @@ vi.mock('../../api/bmcuMonitors', async (importOriginal) => {
 
 vi.mock('../../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/client')>();
-  return { ...actual, api: { ...actual.api, getPrinters: vi.fn(), getBMCUGcodeWindow: vi.fn() }, bmcuLinkApi: { ...actual.bmcuLinkApi, getEvents: vi.fn() } };
+  return { ...actual, api: { ...actual.api, getPrinters: vi.fn(), getBMCUPrintContext: vi.fn(), getPrinterStatus: vi.fn(), getArchiveFilamentRequirements: vi.fn() }, bmcuLinkApi: { ...actual.bmcuLinkApi, getEvents: vi.fn() } };
 });
 
 vi.mock('recharts', () => ({
@@ -105,30 +105,19 @@ describe('BMCULinkPage', () => {
 
   it('only loads planned G-code for an explicitly selected printer', async () => {
     vi.mocked(api.getPrinters).mockResolvedValue([{ id: 1, name: 'My printer' } as Printer]);
-    const context = { canvas: { width: 640, height: 280 }, clearRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn() };
-    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
-    const bytes = new Uint8Array(new Float32Array([0, 0, 1, 1, -1]).buffer);
-    const encoded = btoa(String.fromCharCode(...bytes));
-    vi.mocked(api.getBMCUGcodeWindow).mockResolvedValue({
-      archiveId: 1, jobName: 'Test job', plate: 1, reportedLayer: 3, totalLayers: 10, progress: 20,
-      firstLayer: 1, lastLayer: 2, layers: [encoded, ''], layerFreshness: 'unknown',
-    });
+    vi.mocked(api.getBMCUPrintContext).mockResolvedValue({ archiveId: 1, jobName: 'Test job', plate: 2, reportedLayer: 3, totalLayers: 10, progress: 20 });
+    vi.mocked(api.getPrinterStatus).mockResolvedValue({ connected: true, current_archive_id: 1, ams_mapping: [0, 1], ams: [{ id: 0, tray: [{ id: 1, tray_color: 'FEC600FF' }] }] } as never);
+    vi.mocked(api.getArchiveFilamentRequirements).mockResolvedValue({ filaments: [] } as never);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
     const option = await screen.findByRole('option', { name: 'My printer' });
-    expect(api.getBMCUGcodeWindow).not.toHaveBeenCalled();
+    expect(api.getBMCUPrintContext).not.toHaveBeenCalled();
     fireEvent.change(option.closest('select')!, { target: { value: '1' } });
-    expect(await screen.findByText('Layers 1–2')).toBeTruthy();
-    expect(api.getBMCUGcodeWindow).toHaveBeenCalledWith(1, expect.any(AbortSignal));
-    expect(screen.getByText(/Layer and progress report freshness is unknown/)).toBeTruthy();
-    expect(screen.getByRole('img', { name: 'Planned extrusion paths, layers 1 to 2' })).toBeTruthy();
-    expect(screen.getByText('Tool unknown')).toBeTruthy();
-    expect(context.stroke).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: '3D layers' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Simulate WebGL loss' }));
-    expect(await screen.findByText('3D view unavailable; showing the 2D preview.')).toBeTruthy();
-    expect(screen.getByRole('img', { name: 'Planned extrusion paths, layers 1 to 2' })).toBeTruthy();
-    canvas.mockRestore();
+    const view = await screen.findByRole('img', { name: 'Virtual print' });
+    expect(api.getBMCUPrintContext).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    expect(view.getAttribute('data-url')).toContain('/archives/1/gcode?plate=2');
+    expect(view.getAttribute('data-layer')).toBe('3');
+    await waitFor(() => expect(view.getAttribute('data-color')).toBe('#FEC600'));
   });
 
   it('marks an aging loader snapshot as stale between updates', () => {

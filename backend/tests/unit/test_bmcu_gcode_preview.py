@@ -13,6 +13,50 @@ def archive(tmp_path, files):
     return path
 
 
+@pytest.mark.asyncio
+async def test_virtual_camera_context_uses_verified_run_and_unique_plate(tmp_path, monkeypatch):
+    import time
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from fastapi import HTTPException
+
+    from backend.app import main
+    from backend.app.api.routes import archives, printers
+    from backend.app.services import bmcu_gcode_preview as preview, print_log
+
+    archive(tmp_path, {"Metadata/plate_2.gcode": ";LAYER_CHANGE\nG392 S0\n"})
+    state = SimpleNamespace(
+        connected=True,
+        state="RUNNING",
+        skipped_objects=[],
+        layer_num=12,
+        total_layers=100,
+        progress=12,
+        raw_data={},
+        subtask_id="7",
+        gcode_file="job.3mf",
+    )
+    client = SimpleNamespace(state=state, _last_message_time=time.time())
+    row = SimpleNamespace(id=5, file_path="job.3mf")
+    monkeypatch.setattr(printers.settings, "base_dir", tmp_path)
+    monkeypatch.setattr(printers.printer_manager, "get_client", lambda _: client)
+    monkeypatch.setattr(printers, "resolve_plate_id", lambda _: None)
+    monkeypatch.setattr(main, "running_print_archive", AsyncMock(return_value=row))
+    monkeypatch.setattr(
+        print_log, "open_run_on_printer", AsyncMock(return_value=SimpleNamespace(id=4, archive_id=5, subtask_id="7"))
+    )
+    monkeypatch.setattr(archives, "_ensure_archive_visible", AsyncMock(return_value=row))
+    parser = AsyncMock(side_effect=AssertionError("context must not parse the archive"))
+    monkeypatch.setattr(preview, "preview_layers", parser)
+    context = await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock(), True)
+    assert (context["archiveId"], context["plate"], context["reportedLayer"]) == (5, 2, 12)
+    parser.assert_not_awaited()
+    archive(tmp_path, {"Metadata/plate_1.gcode": "", "Metadata/plate_2.gcode": ""})
+    with pytest.raises(HTTPException, match="Current plate is unknown"):
+        await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock(), True)
+
+
 def test_extracts_extrusion_layers_and_logical_tools(tmp_path):
     path = archive(
         tmp_path,
