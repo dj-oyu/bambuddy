@@ -203,7 +203,7 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   const level = measured && rawPressure != null ? Math.round(rawPressure * 100 / 65535) : null;
   const response = jam ? 'Jam reported' : idle || rawPressure == null || selected == null ? 'Unavailable' : level != null ? `${level}%` : 'Controller code';
   text(view.pressureState, jam ? '!' : level == null ? '—' : '');
-  style(view.pressureState, `font-medium ${jam ? 'text-red-400' : 'text-white'}`);
+  style(view.pressureState, `w-3 shrink-0 text-center font-medium ${jam ? 'text-red-400' : 'text-bambu-gray'}`);
   view.pressureTrack.style.opacity = level == null ? '0.35' : '1';
   view.pressureFill.style.width = `${level ?? 0}%`;
   view.pressure.setAttribute('aria-label', `Pressure response: ${response}${live ? '' : ', last reported'}`);
