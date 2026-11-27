@@ -3,11 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, Clock3, RadioTower, RefreshCw } from 'lucide-react';
 import { bmcuMonitorsApi } from '../api/bmcuMonitors';
 import { MonitorCard } from '../components/bmcu/MonitorCard';
-import { formatBMCUAge, formatBMCUDateTime, bmcuTimestamp } from '../components/bmcu/bmcuTime';
 import { LoaderTimeline } from '../components/bmcu/LoaderTimeline';
 import { GcodeWindow } from '../components/bmcu/GcodeWindow';
 import { SlotStateGrid } from '../components/bmcu/SlotStateGrid';
-import { StreamDiagnostics } from '../components/bmcu/StreamDiagnostics';
 import { BMCUDeviceEvents } from '../components/BMCULinkSettings';
 import { Button } from '../components/Button';
 import { useBMCULiveStream } from '../hooks/useBMCULiveStream';
@@ -133,18 +131,7 @@ export function BMCULinkPage() {
             <aside className="space-y-2" aria-label="Monitors">
               <h2 className="mb-3 text-sm font-semibold text-bambu-gray-light">Monitors</h2>
               {monitors.data?.map((item) => (
-                <MonitorCard key={item.deviceId} monitor={item.deviceId === selectedId && detail.data ? detail.data : item} active={item.deviceId === selectedId} outdated={item.deviceId === selectedId ? monitorOutdated : listOutdated} onSelect={setSelection}>
-                  {item.deviceId === selectedId && <div className="space-y-3 pt-3">
-                    <section aria-label="Monitor status">
-                      <h3 className="text-sm font-semibold text-white">Monitor status</h3>
-                      <dl className="mt-2 grid grid-cols-2 gap-3 text-xs">
-                        <div><dt className="text-bambu-gray">Last device report</dt><dd className="mt-1 text-white" title={monitor.lastSeenAt ? formatBMCUDateTime(monitor.lastSeenAt) : undefined}>{monitor.lastSeenAt ? formatBMCUAge((now - bmcuTimestamp(monitor.lastSeenAt)) / 1000) : 'Never seen'}</dd></div>
-                        <div><dt className="text-bambu-gray">Last status check (JST)</dt><dd className="mt-1 text-white">{formatBMCUDateTime(monitorQuery.dataUpdatedAt)}</dd></div>
-                      </dl>
-                    </section>
-                    <StreamDiagnostics data={stream.data} outdated={streamOutdated} error={stream.error} />
-                  </div>}
-                </MonitorCard>
+                <MonitorCard key={item.deviceId} monitor={item.deviceId === selectedId && detail.data ? detail.data : item} active={item.deviceId === selectedId} outdated={item.deviceId === selectedId ? monitorOutdated : listOutdated} onSelect={setSelection} stream={stream.data} streamOutdated={streamOutdated} streamError={stream.error} checkedAt={monitorQuery.dataUpdatedAt} now={now} />
               ))}
             </aside>
             <div className="min-w-0 space-y-5">
