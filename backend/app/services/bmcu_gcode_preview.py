@@ -178,8 +178,9 @@ def _parse_lines(source, deadline: float) -> PlannedLayers:
             if not all(math.isfinite(v) for v in args.values()):
                 raise PreviewUnavailable("Non-finite G-code coordinate")
             if family == "T":
-                if 0 <= number <= 15:
-                    tool = number
+                # High values are firmware sentinels, not physical slots.
+                # Until the next real tool is reported, do not reuse the old one.
+                tool = number if 0 <= number <= 15 else -1
             elif family == "M" and number in (82, 83):
                 relative_e = number == 83
             elif family == "G" and number in (90, 91):

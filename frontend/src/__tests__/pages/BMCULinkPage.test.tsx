@@ -99,9 +99,13 @@ describe('BMCULinkPage', () => {
 
   it('only loads planned G-code for an explicitly selected printer', async () => {
     vi.mocked(api.getPrinters).mockResolvedValue([{ id: 1, name: 'My printer' } as Printer]);
+    const context = { canvas: { width: 640, height: 280 }, clearRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn() };
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+    const bytes = new Uint8Array(new Float32Array([0, 0, 1, 1, -1]).buffer);
+    const encoded = btoa(String.fromCharCode(...bytes));
     vi.mocked(api.getBMCUGcodeWindow).mockResolvedValue({
       archiveId: 1, jobName: 'Test job', plate: 1, reportedLayer: 3, totalLayers: 10, progress: 20,
-      firstLayer: 1, lastLayer: 2, layers: ['', ''], layerFreshness: 'unknown',
+      firstLayer: 1, lastLayer: 2, layers: [encoded, ''], layerFreshness: 'unknown',
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
@@ -111,6 +115,10 @@ describe('BMCULinkPage', () => {
     expect(await screen.findByText('Layers 1–2')).toBeTruthy();
     expect(api.getBMCUGcodeWindow).toHaveBeenCalledWith(1, expect.any(AbortSignal));
     expect(screen.getByText(/Layer and progress report freshness is unknown/)).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Planned extrusion paths, layers 1 to 2' })).toBeTruthy();
+    expect(screen.getByText('Tool unknown')).toBeTruthy();
+    expect(context.stroke).toHaveBeenCalled();
+    canvas.mockRestore();
   });
 
   it('marks an aging loader snapshot as stale between updates', () => {

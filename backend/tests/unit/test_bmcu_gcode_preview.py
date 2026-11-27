@@ -334,3 +334,9 @@ G1 X3 E1
     _, result = parse_plate(path, 1)
     assert len(result.layers) == 1
     assert result.truncated_reason == "Conditional extrusion is not supported"
+
+
+def test_tool_sentinel_does_not_reuse_previous_filament(tmp_path):
+    path = archive(tmp_path, {"Metadata/plate_1.gcode": "G1 X0 Y0\nM83\n;LAYER_CHANGE\nT255\nG1 X1 E1\nT0\nG1 X2 E1\n"})
+    _, result = parse_plate(path, 1)
+    assert list(result.layers[0]) == [0, 0, 1, 0, -1, 1, 0, 2, 0, 0]

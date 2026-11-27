@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, type BMCUGcodeWindow } from '../../api/client';
 import { Card, CardContent, CardHeader } from '../Card';
 
-const toolColor = (tool: number) => `hsl(${(Math.abs(tool) * 137.508 + 145) % 360} 75% 65%)`;
+const toolColor = (tool: number) => tool < 0 ? '#94a3b8' : `hsl(${(tool * 137.508 + 145) % 360} 75% 65%)`;
 
 function ToolpathCanvas({ data }: { data: BMCUGcodeWindow }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -59,7 +59,7 @@ function ToolpathCanvas({ data }: { data: BMCUGcodeWindow }) {
   return <>
     <canvas ref={canvas} width={640} height={280} className="w-full rounded-lg bg-bambu-dark/60" role="img" aria-label={`Planned extrusion paths, layers ${data.firstLayer} to ${data.lastLayer}`} />
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bambu-gray-light" aria-label="Planned logical tools">
-      {tools.map((tool) => <span key={tool} className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: toolColor(tool) }} />Tool {tool}</span>)}
+      {tools.map((tool) => <span key={tool} className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: toolColor(tool) }} />{tool < 0 ? 'Tool unknown' : `Tool ${tool}`}</span>)}
     </div>
   </>;
 }
