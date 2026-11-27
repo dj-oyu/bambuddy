@@ -122,7 +122,6 @@ jobs:
   backend-tests:
     name: Backend Tests (shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    needs: backend-lint
     strategy:
       # Don't cancel sibling shards if one fails — we want every shard's
       # failure list, not just the first one, so a single PR push shows
@@ -190,7 +189,6 @@ jobs:
     # install (see scripts/check_postgres_upgrade.py).
     name: PostgreSQL Upgrade Check
     runs-on: ubuntu-latest
-    needs: backend-lint
     services:
       postgres:
         # The version the docker-compose example and the wiki use.
@@ -373,7 +371,6 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
-    needs: [frontend-lint, frontend-typecheck]
     steps:
       - uses: actions/checkout@v6
 
@@ -396,7 +393,6 @@ jobs:
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
-    needs: [frontend-tests]
     steps:
       - uses: actions/checkout@v6
 
@@ -479,7 +475,6 @@ jobs:
     runs-on: ubuntu-latest
     # The integration suite alone takes well over 20 minutes on a runner.
     timeout-minutes: 40
-    needs: [backend-tests, frontend-build]
     steps:
       - uses: actions/checkout@v6
 
