@@ -90,12 +90,12 @@ def test_link_wire_header_and_trailer_sizes_match_the_document() -> None:
 
 
 def test_hello_reports_ams_number_only_when_variant_is_present() -> None:
-    legacy = struct.pack('<BHBBI', 3, 42, 1, 2, 1000)
+    legacy = struct.pack("<BHBBI", 3, 42, 1, 2, 1000)
     assert decode_semantic(decode_wire_frame(_wire(1, legacy))).ams_index is None
     for number in range(4):
-        extended = legacy + struct.pack('<HI', 0x9601 | (number << 4), 0x12345678)
+        extended = legacy + struct.pack("<HI", 0x9601 | (number << 4), 0x12345678)
         assert decode_semantic(decode_wire_frame(_wire(1, extended))).ams_index == number
-    assert decode_semantic(decode_wire_frame(_wire(1, legacy + b'\0'))) is None
+    assert decode_semantic(decode_wire_frame(_wire(1, legacy + b"\0"))) is None
 
 
 @pytest.mark.parametrize("field", [f["name"] for f in STRUCTURES["status_payload"]["fields"]])

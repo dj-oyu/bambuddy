@@ -120,7 +120,7 @@ export function BMCULinkPage() {
             <div className="min-w-0 space-y-5">
               <div className="grid items-start gap-5 2xl:grid-cols-2">
                 {detail.data ? (
-                  <SlotStateGrid deviceId={selectedId} liveConnected={liveConnected} links={detail.data.links} elapsedSeconds={Math.max(0, now - detail.dataUpdatedAt) / 1000} outdated={monitorOutdated} filamentUnits={!filamentStatus.isError && filamentStatus.data?.connected ? filamentStatus.data.ams : undefined} />
+                  <SlotStateGrid deviceId={selectedId} liveConnected={liveConnected} links={detail.data.links} elapsedSeconds={Math.max(0, now - detail.dataUpdatedAt) / 1000} outdated={monitorOutdated} filamentUnits={!filamentStatus.isError && filamentStatus.data?.connected ? filamentStatus.data.ams ?? undefined : undefined} />
                 ) : detail.isLoading ? <p className="text-sm text-bambu-gray">Loading loader state…</p> : <div />}
                 <GcodeWindow now={now} />
               </div>
