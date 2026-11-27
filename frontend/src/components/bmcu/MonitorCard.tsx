@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Activity, AlertTriangle, Cable, ChevronRight, Clock3, Database, Radio } from 'lucide-react';
 import type { BMCUMonitorSummary, MonitorHealth } from '../../api/bmcuMonitors';
 import { Card, CardContent } from '../Card';
@@ -21,15 +21,16 @@ export function BMCUHealthBadge({ health, outdated = false }: { health: MonitorH
 }
 
 export const MonitorCard = memo(function MonitorCard({
-  monitor, active, outdated, onSelect,
+  monitor, active, outdated, onSelect, children,
 }: {
   monitor: BMCUMonitorSummary;
   active: boolean;
   outdated: boolean;
   onSelect: (deviceId: string) => void;
+  children?: ReactNode;
 }) {
-  return <button type="button" aria-pressed={active} onClick={() => onSelect(monitor.deviceId)} className="w-full rounded-xl text-left">
-    <Card className={`transition-colors ${active ? 'border-bambu-green/60 bg-bambu-green/5' : 'hover:border-bambu-gray-dark'}`}>
+  return <Card className={`transition-colors ${active ? 'border-bambu-green/60 bg-bambu-green/5' : 'hover:border-bambu-gray-dark'}`}>
+    <button type="button" aria-pressed={active} onClick={() => onSelect(monitor.deviceId)} className="w-full rounded-xl text-left">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0"><div className="flex items-center gap-2"><Radio className="h-4 w-4 text-bambu-green" /><h2 className="truncate font-semibold text-white">{monitor.displayName || monitor.deviceId}</h2></div><p className="mt-1 truncate text-xs text-bambu-gray">{monitor.deviceId} · {monitor.firmware}</p></div>
@@ -46,6 +47,7 @@ export const MonitorCard = memo(function MonitorCard({
         </div>
         <div className="mt-3 flex items-center gap-1.5 text-[11px] text-bambu-gray"><Clock3 className="h-3 w-3" />{monitor.lastSeenAt ? formatBMCUDateTime(monitor.lastSeenAt) : 'Never seen'}</div>
       </CardContent>
-    </Card>
-  </button>;
+    </button>
+    {active && children && <div className="border-t border-bambu-dark-tertiary px-4 pb-4">{children}</div>}
+  </Card>;
 });

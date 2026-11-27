@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BMCULinkPage } from '../../pages/BMCULinkPage';
 import { bmcuLinkApi } from '../../api/client';
@@ -65,8 +65,10 @@ describe('BMCULinkPage', () => {
     expect(await screen.findByText('Pico loader')).toBeTruthy();
     await waitFor(() => expect(bmcuMonitorsApi.timeline).toHaveBeenCalled());
     expect(screen.getByText('Loader state')).toBeTruthy();
-    expect(screen.getByText('Monitor status')).toBeTruthy();
-    expect(await screen.findByText('192.0.2.10')).toBeTruthy();
+    const monitorCard = screen.getByRole('button', { name: /Pico loader/ }).parentElement!;
+    expect(within(monitorCard).getByText('Monitor status')).toBeTruthy();
+    expect(within(monitorCard).getByText('UDP stream')).toBeTruthy();
+    expect(await within(monitorCard).findByText('192.0.2.10')).toBeTruthy();
     expect(screen.getByText('Missing sequences detected')).toBeTruthy();
     expect(screen.getByText('Loader timeline')).toBeTruthy();
     expect(screen.getByText('control error')).toBeTruthy();
