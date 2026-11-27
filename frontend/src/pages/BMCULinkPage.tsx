@@ -1,40 +1,20 @@
-import { memo, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, Clock3, RadioTower, RefreshCw } from 'lucide-react';
 import { bmcuMonitorsApi } from '../api/bmcuMonitors';
 import { MonitorCard } from '../components/bmcu/MonitorCard';
-import { LoaderTimeline } from '../components/bmcu/LoaderTimeline';
+import { LoaderHistory } from '../components/bmcu/LoaderHistory';
 import { GcodeWindow } from '../components/bmcu/GcodeWindow';
 import { SlotStateGrid } from '../components/bmcu/SlotStateGrid';
-import { BMCUDeviceEvents } from '../components/BMCULinkSettings';
 import { Button } from '../components/Button';
 import { useBMCULiveStream } from '../hooks/useBMCULiveStream';
 
-const ranges = ['1h', '6h', '24h', '7d'] as const;
-type Range = typeof ranges[number];
-const rangeMs: Record<Range, number> = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '7d': 604800000 };
 const liveIntervalMs = 3000;
 const updateTimeoutMs = 3 * liveIntervalMs;
 const historyIntervalMs = 30000;
-const emptyPoints: [] = [];
-const HistoryTimeline = memo(LoaderTimeline);
-const DeviceEvents = memo(function DeviceEvents({ deviceId }: { deviceId: string }) {
-  return <BMCUDeviceEvents device={{ device_id: deviceId }} />;
-});
-
-function rollingWindow(range: Range) {
-  const now = Date.now();
-  return {
-    from: new Date(now - rangeMs[range]).toISOString(),
-    to: new Date(now).toISOString(),
-    resolution: range === '7d' ? '15m' : range === '24h' ? '5m' : '1m',
-  };
-}
-
 export function BMCULinkPage() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<string | null>(null);
-  const [range, setRange] = useState<Range>('6h');
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -60,13 +40,6 @@ export function BMCULinkPage() {
     enabled: !!selectedId,
     refetchInterval: liveConnected ? false : liveIntervalMs,
   });
-  const timeline = useQuery({
-    queryKey: ['bmcu-monitor-timeline', selectedId, range],
-    queryFn: () => bmcuMonitorsApi.timeline(selectedId!, rollingWindow(range)),
-    enabled: !!selectedId,
-    refetchInterval: historyIntervalMs,
-  });
-
   const monitor = detail.data ?? selectedMonitor;
   const monitorQuery = detail.data ? detail : monitors;
   const listOutdated = monitors.isError || now - monitors.dataUpdatedAt > 3 * historyIntervalMs;
@@ -76,17 +49,16 @@ export function BMCULinkPage() {
   const streamOutdated = stream.isError || (
     now - stream.dataUpdatedAt > updateTimeoutMs && !(liveConnected && stream.data && stream.data.health !== 'online')
   );
-  const refreshing = monitors.isFetching || detail.isFetching || stream.isFetching || timeline.isFetching;
+  const refreshing = monitors.isFetching || detail.isFetching || stream.isFetching;
   const liveError = monitors.error || detail.error;
-  const historyError = timeline.error;
 
   function refresh() {
     void monitors.refetch();
     if (selectedId) {
       void detail.refetch();
       void stream.refetch();
-      void timeline.refetch();
-      void queryClient.invalidateQueries({ queryKey: ['bmcu-link-events', selectedId] });
+      void queryClient.invalidateQueries({ queryKey: ['bmcu-history', selectedId] });
+      void queryClient.invalidateQueries({ queryKey: ['bmcu-history-observations', selectedId] });
     }
   }
 
@@ -141,27 +113,7 @@ export function BMCULinkPage() {
                 ) : detail.isLoading ? <p className="text-sm text-bambu-gray">Loading loader state…</p> : <div />}
                 <GcodeWindow now={now} />
               </div>
-              <section aria-label="History" className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bambu-dark-tertiary pt-4">
-                  <h2 className="text-base font-semibold text-white">History</h2>
-                  <div className="flex gap-0.5 rounded-lg border border-bambu-dark-tertiary bg-bambu-dark-secondary p-1" aria-label="History range" role="group">
-                    {ranges.map((item) => (
-                      <button key={item} type="button" aria-pressed={range === item} onClick={() => setRange(item)}
-                        className={`rounded-md px-3 py-1 text-xs font-medium ${range === item ? 'bg-bambu-green/20 text-bambu-green' : 'text-bambu-gray-light hover:bg-bambu-dark-tertiary'}`}>
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {historyError && <p role="alert" className="text-sm text-amber-400">History could not be refreshed. {historyError.message}</p>}
-                <HistoryTimeline points={timeline.data?.points ?? emptyPoints} />
-              </section>
-              {selectedId && (
-                <section className="rounded-xl border border-bambu-dark-tertiary bg-bambu-dark-secondary p-4">
-                  <p className="mb-2 text-xs text-bambu-gray">Event history refreshes every 15s.</p>
-                  <DeviceEvents key={selectedId} deviceId={selectedId} />
-                </section>
-              )}
+              {selectedId && <LoaderHistory key={selectedId} deviceId={selectedId} links={detail.data?.links ?? []} />}
             </div>
           </div>
         )}

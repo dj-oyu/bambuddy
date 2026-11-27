@@ -9966,7 +9966,10 @@ export interface BMCULinkEvent {
   received_at_us: number;
   server_received_at: string;
   transaction_id: number | null;
-  data: Record<string, unknown>;
+  link_id?: string | null;
+  transport_sequence?: number | string;
+  pico_boot_session?: string;
+  data: Record<string, unknown> | string;
 }
 
 export interface BMCULinkDevicesResponse {
@@ -10037,11 +10040,13 @@ export const bmcuLinkApi = {
   getDevice: (deviceId: string) =>
     request<BMCULinkDevice>(`/bmcu-link/devices/${deviceId}`),
 
-  getEvents: (deviceId: string, params?: { kind?: string; limit?: number; offset?: number }) => {
+  getEvents: (deviceId: string, params?: { kind?: string; limit?: number; offset?: number; fromTime?: string; toTime?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.kind) searchParams.set('kind', params.kind);
     if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
     if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
+    if (params?.fromTime) searchParams.set('from_time', params.fromTime);
+    if (params?.toTime) searchParams.set('to_time', params.toTime);
     const query = searchParams.toString();
     return request<BMCULinkEvent[]>(`/bmcu-link/devices/${deviceId}/events${query ? `?${query}` : ''}`);
   },

@@ -52,7 +52,15 @@ describe('BMCULinkPage', () => {
     vi.mocked(bmcuLinkApi.getEvents).mockResolvedValue([{
       id: -1, device_id: fixture.detail.deviceId, kind: 'event', kind_id: 3,
       protocol: 1, received_at_us: 1000, server_received_at: new Date().toISOString(),
-      transaction_id: null, data: { event_name: 'printer_transaction', severity: 3 },
+      transaction_id: null, link_id: 'bmcu-0', data: { event_name: 'printer_transaction', severity: 3, payload: 'first' },
+    }, {
+      id: -2, device_id: fixture.detail.deviceId, kind: 'event', kind_id: 3,
+      protocol: 1, received_at_us: 999, server_received_at: new Date().toISOString(),
+      transaction_id: null, link_id: 'bmcu-0', data: { event_name: 'printer_transaction', severity: 3, payload: 'second' },
+    }, {
+      id: -3, device_id: fixture.detail.deviceId, kind: 'event', kind_id: 3,
+      protocol: 1, received_at_us: 998, server_received_at: new Date().toISOString(),
+      transaction_id: null, link_id: 'bmcu-1', data: { event_name: 'state_change', severity: 1, field: 4, slot: 1, previous_value: 0, value: 2 },
     }]);
     vi.mocked(bmcuMonitorsApi.list).mockResolvedValue(fixture.list as BMCUMonitorSummary[]);
     vi.mocked(bmcuMonitorsApi.get).mockResolvedValue(fixture.detail as BMCUMonitorDetail);
@@ -60,7 +68,7 @@ describe('BMCULinkPage', () => {
       deviceId: fixture.detail.deviceId, health: 'online', sourceAddress: '192.0.2.10',
       queueDepth: 2, counters: { datagrams_received: 120, records_persisted: 450, gaps_detected: 4 },
     });
-    vi.mocked(bmcuMonitorsApi.timeline).mockResolvedValue(fixture.timeline as BMCUTimelineResponse);
+    vi.mocked(bmcuMonitorsApi.timeline).mockResolvedValue({ ...fixture.timeline, points: [{ ...fixture.timeline.points[1], at: new Date().toISOString() }] } as BMCUTimelineResponse);
   });
 
   it('renders monitor, loader state, and integrated timeline', async () => {
@@ -68,7 +76,7 @@ describe('BMCULinkPage', () => {
     render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
 
     expect(await screen.findByText('Pico loader')).toBeTruthy();
-    await waitFor(() => expect(bmcuMonitorsApi.timeline).toHaveBeenCalled());
+    await waitFor(() => expect(bmcuLinkApi.getEvents).toHaveBeenCalled());
     expect(screen.getByText('Loader state')).toBeTruthy();
     const monitorCard = screen.getByRole('button', { name: /Pico loader/ }).parentElement!;
     expect(within(monitorCard).queryByText('Monitor status')).toBeNull();
@@ -77,12 +85,18 @@ describe('BMCULinkPage', () => {
     expect(await within(monitorCard).findByText('192.0.2.10')).toBeTruthy();
     fireEvent.click(within(monitorCard).getByText('Connection details'));
     expect(within(monitorCard).getByText('Missing sequences detected')).toBeTruthy();
-    expect(screen.getByText('Loader timeline')).toBeTruthy();
-    expect(screen.getByText('control error')).toBeTruthy();
+    expect(screen.getByText('History')).toBeTruthy();
+    expect(screen.queryByText('Loader timeline')).toBeNull();
     expect(screen.queryByText('Pico hardware')).toBeNull();
     expect(bmcuMonitorsApi.metrics).not.toHaveBeenCalled();
-    expect(await screen.findByText('printer_transaction')).toBeTruthy();
-    expect(bmcuLinkApi.getEvents).toHaveBeenCalledWith(fixture.detail.deviceId, { kind: undefined, limit: 50, offset: 0 });
+    expect(await screen.findByText('printer transaction')).toBeTruthy();
+    expect(screen.getByText('×2')).toBeTruthy();
+    expect(screen.getByText('motion · slot 2: idle → in use')).toBeTruthy();
+    expect(await screen.findByText('control error')).toBeTruthy();
+    expect(bmcuLinkApi.getEvents).toHaveBeenCalledWith(fixture.detail.deviceId, expect.objectContaining({ limit: 101, offset: 0, fromTime: expect.any(String), toTime: expect.any(String) }));
+    fireEvent.click(screen.getByText('printer transaction'));
+    expect(screen.getByText(/"payload": "first"/)).toBeTruthy();
+    expect(screen.getByText(/"payload": "second"/)).toBeTruthy();
   });
 
   it('shows diagnostics inside the selected monitor card when switching devices', async () => {

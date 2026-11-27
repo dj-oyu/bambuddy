@@ -684,6 +684,28 @@ async def test_settings_events_include_bmcu_events_without_pico_logs(bmcu_db):
     assert [row["kind"] for row in all_rows] == ["pico_log", "event"]
     assert len({row["id"] for row in all_rows}) == 2
     assert await bmcu_link.events("pico-bmcu-bridge", kind=None, limit=1, offset=1, db=bmcu_db, _=None) == all_rows[1:]
+    window_rows = await bmcu_link.events(
+        "pico-bmcu-bridge",
+        kind=None,
+        limit=50,
+        offset=0,
+        db=bmcu_db,
+        _=None,
+        from_time=datetime(2026, 8, 3, 12, tzinfo=UTC),
+        to_time=datetime(2026, 8, 5, tzinfo=UTC),
+    )
+    assert window_rows == all_rows[:1]
+    older_rows = await bmcu_link.events(
+        "pico-bmcu-bridge",
+        kind=None,
+        limit=50,
+        offset=0,
+        db=bmcu_db,
+        _=None,
+        from_time=datetime(2026, 8, 2, tzinfo=UTC),
+        to_time=datetime(2026, 8, 3, 12, tzinfo=UTC),
+    )
+    assert older_rows == all_rows[1:]
     for kind, expected in (("event", all_rows[1:]), ("pico_log", all_rows[:1]), ("wifi", all_rows[:1]), ("status", [])):
         assert await bmcu_link.events("pico-bmcu-bridge", kind=kind, limit=50, offset=0, db=bmcu_db, _=None) == expected
 

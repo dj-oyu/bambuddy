@@ -221,6 +221,8 @@ async def events(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db, scope="function"),
     _: User | None = ReadAccess,
+    from_time: datetime | None = None,
+    to_time: datetime | None = None,
 ):
     # Page across both streams before loading payloads. BMCU EVENTs are stored
     # as binary records, separately from the bridge's optional PICO_LOG stream.
@@ -238,6 +240,16 @@ async def events(
         BMCUBinaryLog.recorded_at.label("at"),
         literal("pico_log").label("kind"),
     ).where(BMCUBinaryLog.device_id == device_id)
+    start = from_time.astimezone(UTC).replace(tzinfo=None) if from_time and from_time.tzinfo else from_time
+    end = to_time.astimezone(UTC).replace(tzinfo=None) if to_time and to_time.tzinfo else to_time
+    if start is not None:
+        event_query = event_query.where(BMCUBinaryRecord.server_received_at >= start)
+        log_query = log_query.where(BMCUBinaryLog.recorded_at >= start)
+    if end is not None:
+        event_query = event_query.where(BMCUBinaryRecord.server_received_at <= end)
+        log_query = log_query.where(BMCUBinaryLog.recorded_at <= end)
+    if start is not None and end is not None and start > end:
+        raise HTTPException(400, "Invalid history window")
     if kind == "event":
         stream = event_query.subquery()
     elif kind == "pico_log":
