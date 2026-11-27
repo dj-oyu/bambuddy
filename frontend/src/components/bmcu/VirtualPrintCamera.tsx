@@ -187,10 +187,6 @@ export function VirtualPrintCamera({ gcodeUrl, reportedLayer, toolColor }: Props
   const error = failure || (value && 'error' in value && value.error) || (mismatch && 'Reported layer does not match this plate’s G-code.');
   return <>
     <div ref={mount} role="img" aria-label={`Print plan through layer ${reportedLayer}. A rainbow shows the full planned path for this layer. Earlier layers use filament colors.`} hidden={!data || !!error} className="h-80 w-full overflow-hidden rounded-lg bg-bambu-dark/60" />
-    {data && !error && reportedLayer > 0 && <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-bambu-gray-light">
-      <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-6 rounded-full" style={{ background: 'linear-gradient(90deg, #ff8686, #ffff70, #75ffad, #71daff, #c187ff)' }} />Layer {reportedLayer} · preview</span>
-      {reportedLayer > 1 && <span>Earlier layers · filament colors</span>}
-    </div>}
     {(error || !data || reportedLayer === 0) && <p role="status" className="text-xs text-bambu-gray-light">{error || (!data ? 'Loading the sliced plate…' : 'Waiting for the first layer.')}</p>}
   </>;
 }
