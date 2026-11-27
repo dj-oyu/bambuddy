@@ -5,6 +5,7 @@ import { bmcuMonitorsApi } from '../api/bmcuMonitors';
 import { MonitorCard } from '../components/bmcu/MonitorCard';
 import { formatBMCUAge, formatBMCUDateTime, bmcuTimestamp } from '../components/bmcu/bmcuTime';
 import { LoaderTimeline } from '../components/bmcu/LoaderTimeline';
+import { GcodeWindow } from '../components/bmcu/GcodeWindow';
 import { SlotStateGrid } from '../components/bmcu/SlotStateGrid';
 import { StreamDiagnostics } from '../components/bmcu/StreamDiagnostics';
 import { BMCUDeviceEvents } from '../components/BMCULinkSettings';
@@ -147,9 +148,12 @@ export function BMCULinkPage() {
               ))}
             </aside>
             <div className="min-w-0 space-y-5">
-              {detail.data ? (
-                <SlotStateGrid deviceId={selectedId} liveConnected={liveConnected} links={detail.data.links} elapsedSeconds={Math.max(0, now - detail.dataUpdatedAt) / 1000} outdated={monitorOutdated} />
-              ) : detail.isLoading && <p className="text-sm text-bambu-gray">Loading loader state…</p>}
+              <div className="grid items-start gap-5 2xl:grid-cols-2">
+                {detail.data ? (
+                  <SlotStateGrid deviceId={selectedId} liveConnected={liveConnected} links={detail.data.links} elapsedSeconds={Math.max(0, now - detail.dataUpdatedAt) / 1000} outdated={monitorOutdated} />
+                ) : detail.isLoading ? <p className="text-sm text-bambu-gray">Loading loader state…</p> : <div />}
+                <GcodeWindow now={now} />
+              </div>
               <section aria-label="History" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bambu-dark-tertiary pt-4">
                   <h2 className="text-base font-semibold text-white">History</h2>

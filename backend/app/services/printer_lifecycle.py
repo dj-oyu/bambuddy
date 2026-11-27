@@ -48,6 +48,8 @@ TERMINAL_GCODE_STATES = frozenset({"IDLE", "FINISH", "FAILED"})
 # PAUSE is active on purpose — a paused print is still loaded on the bed
 # (#1890: cutting power to a paused print ruins it).
 ACTIVE_PRINT_STATES = frozenset({"RUNNING", "PAUSE", "PREPARE", "SLICING"})
+# A preview needs a reported layer of an established print, not preparation.
+PRINTING_OR_PAUSED_STATES = frozenset({"RUNNING", "PAUSE"})
 # PrinterState construction defaults before the first push_status lands
 # (#1679) — never evidence of anything.
 UNKNOWN_GCODE_STATES = frozenset({"", "UNKNOWN"})

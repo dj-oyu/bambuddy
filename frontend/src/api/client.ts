@@ -700,6 +700,21 @@ export interface UsbCamera {
   formats?: string[];
 }
 
+export interface BMCUGcodeWindow {
+  archiveId: number;
+  jobName: string | null;
+  plate: number;
+  reportedLayer: number;
+  totalLayers: number | null;
+  progress: number | null;
+  firstLayer: number;
+  lastLayer: number;
+  /** Base64 little-endian float32 x0, y0, x1, y1, logical-tool records. */
+  layers: string[];
+  layerFreshness: 'unknown';
+  truncatedReason?: string | null;
+}
+
 export interface PrinterStatus {
   id: number;
   name: string;
@@ -5598,6 +5613,8 @@ export const api = {
       body: JSON.stringify({ printer_ids: printerIds, location }),
     }),
   getPrinterStatus: (id: number) => printerStatusBatch(id),
+  getBMCUGcodeWindow: (id: number, signal?: AbortSignal) =>
+    request<BMCUGcodeWindow>(`/printers/${id}/bmcu-gcode-window`, { signal }),
   refreshPrinterStatus: (id: number) =>
     request<{ status: string }>(`/printers/${id}/refresh-status`, {
       method: 'POST',
