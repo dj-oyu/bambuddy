@@ -171,10 +171,13 @@ describe('BMCULinkPage', () => {
     expect(screen.getByRole('img', { name: 'Buffer position 51%, Near neutral; 50% is neutral' })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Pressure response: 2%' })).toBeTruthy();
     expect(screen.queryByText(/Selected slot:/)).toBeNull();
-    const marker = screen.getByRole('img', { name: 'Buffer position 51%, Near neutral; 50% is neutral' }).querySelector('rect');
+    const buffer = screen.getByRole('img', { name: 'Buffer position 51%, Near neutral; 50% is neutral' });
+    expect(buffer.textContent).toBe('Buffer position');
+    const marker = buffer.querySelector('rect');
     const middle = Number(marker?.getAttribute('x'));
     rerender(<SlotStateGrid links={[{ ...link, pullPercent: 80, pressure: Math.floor(30 * 65535 / 50) }]} />);
     expect(Number(marker?.getAttribute('x'))).toBeGreaterThan(middle);
+    expect(buffer.textContent).toBe('Buffer position');
     expect(screen.getByRole('img', { name: 'Pressure response: 60%' })).toBeTruthy();
     rerender(<SlotStateGrid links={[{ ...link, pressure: 0xffff }]} />);
     expect(screen.getByRole('img', { name: 'Pressure response: Unavailable' })).toBeTruthy();
@@ -182,5 +185,6 @@ describe('BMCULinkPage', () => {
     expect(screen.getByRole('img', { name: 'Pressure response: Jam reported' })).toBeTruthy();
     rerender(<SlotStateGrid links={[{ ...link, pressure: 0x4700 }]} />);
     expect(screen.getByRole('img', { name: 'Pressure response: Controller code' })).toBeTruthy();
+    expect(buffer.textContent).toBe('Buffer position');
   });
 });

@@ -17,14 +17,12 @@ type LoaderNodes = {
   flowPaths: SVGPathElement[];
   flowLabel: HTMLDivElement;
   buffer: HTMLDivElement;
-  bufferState: HTMLSpanElement;
   bufferMarker: SVGRectElement;
   bufferSpring: SVGPathElement;
   pressure: HTMLDivElement;
   pressureState: HTMLSpanElement;
   pressureFill: HTMLDivElement;
   pressureTrack: HTMLDivElement;
-  pressureCaption: HTMLDivElement;
   diagnostics: HTMLDivElement;
   warning: HTMLDivElement;
   filament: HTMLSpanElement;
@@ -104,12 +102,11 @@ function buildLoader(): LoaderNodes {
   routing.append(...flowPaths);
   const flowLabel = node('div', 'mx-auto w-fit max-w-full rounded border border-[#566166] bg-[#252e31] px-3 py-1 text-center text-[11px] font-medium text-bambu-gray-light shadow-sm');
   deck.append(slots, routing, flowLabel);
-  const gauges = node('div', 'mt-4 grid gap-3 sm:grid-cols-2');
+  const gauges = node('div', 'mt-4 grid gap-3');
+  gauges.style.gridTemplateColumns = 'repeat(auto-fit, minmax(min(100%, 9rem), 1fr))';
   const buffer = node('div', 'rounded-lg border border-bambu-dark-tertiary bg-bambu-dark/35 p-3');
   buffer.setAttribute('role', 'img');
-  const bufferHeading = node('div', 'flex items-center justify-between gap-2 text-xs');
-  const bufferState = node('span', 'font-medium text-white');
-  bufferHeading.append(node('span', 'text-bambu-gray-light', 'Buffer position'), bufferState);
+  const bufferHeading = node('div', 'whitespace-nowrap text-xs text-bambu-gray-light', 'Buffer position');
   const gauge = svgNode('svg', { viewBox: '0 0 200 36', class: 'mt-2 h-9 w-full', 'aria-hidden': 'true' });
   gauge.append(svgNode('path', { d: 'M5 8 H195 L191 28 H9 Z', fill: '#182024', stroke: '#455257' }),
     svgNode('path', { d: 'M10 18 H190', stroke: '#627279', 'stroke-width': '4', 'stroke-linecap': 'round' }),
@@ -121,19 +118,17 @@ function buildLoader(): LoaderNodes {
   const bufferSpring = svgNode('path', { d: '', fill: 'none', stroke: '#6ee7b7', 'stroke-width': '2', 'stroke-linejoin': 'round' });
   const bufferMarker = svgNode('rect', { x: '96', y: '8', width: '8', height: '20', rx: '3', fill: '#6ee7b7', stroke: '#163d32', 'stroke-width': '2' });
   gauge.append(bufferSpring, bufferMarker);
-  const scale = node('div', 'flex justify-between text-[10px] text-bambu-gray');
-  scale.append(node('span', '', 'Pulled'), node('span', '', 'Neutral'), node('span', '', 'Pressed'));
-  buffer.append(bufferHeading, gauge, scale);
+  buffer.append(bufferHeading, gauge);
   const pressure = node('div', 'rounded-lg border border-bambu-dark-tertiary bg-bambu-dark/35 p-3');
   pressure.setAttribute('role', 'img');
-  const pressureHeading = node('div', 'flex items-center justify-between gap-2 text-xs');
-  const pressureState = node('span', 'font-medium text-white');
+  const pressureHeading = node('div', 'flex items-center justify-between gap-1 whitespace-nowrap text-xs');
+  const pressureState = node('span', 'w-3 shrink-0 text-center font-medium');
+  pressureState.setAttribute('aria-hidden', 'true');
   pressureHeading.append(node('span', 'text-bambu-gray-light', 'Pressure response'), pressureState);
   const pressureTrack = node('div', 'mt-4 h-2 overflow-hidden rounded-full bg-slate-600/70');
   const pressureFill = node('div', 'h-full rounded-full bg-emerald-400 motion-safe:transition-[width] motion-safe:duration-300');
   pressureTrack.append(pressureFill);
-  const pressureCaption = node('div', 'mt-2 text-[10px] text-bambu-gray', 'Relative response · not force');
-  pressure.append(pressureHeading, pressureTrack, pressureCaption);
+  pressure.append(pressureHeading, pressureTrack);
   gauges.append(buffer, pressure);
   const warning = node('div', 'mt-3 rounded bg-amber-500/10 px-2 py-1.5 text-xs text-amber-300');
   const details = node('details', 'mt-3 text-xs text-bambu-gray');
@@ -145,7 +140,7 @@ function buildLoader(): LoaderNodes {
   footer.append(filament, faults);
   details.append(summary, diagnostics, footer);
   root.append(heading, deck, gauges, warning, details);
-  return { root, name, badge, slots, slotNodes, slotStates, filamentIndicators, flowPaths, flowLabel, buffer, bufferState, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, pressureCaption, diagnostics, warning, filament, faults };
+  return { root, name, badge, slots, slotNodes, slotStates, filamentIndicators, flowPaths, flowLabel, buffer, bufferMarker, bufferSpring, pressure, pressureState, pressureFill, pressureTrack, diagnostics, warning, filament, faults };
 }
 
 function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean) {
@@ -186,7 +181,6 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   });
   const pull = selected != null && link.pullPercent != null && Number.isFinite(link.pullPercent) && link.pullPercent >= 0 && link.pullPercent <= 100 ? link.pullPercent : null;
   const position = pull == null ? 'Unavailable' : pull < 49 ? 'Pulled' : pull > 51 ? 'Pressed' : 'Near neutral';
-  text(view.bufferState, position);
   const x = pull == null ? 100 : 10 + pull * 1.8;
   view.bufferMarker.setAttribute('x', String(x - 4));
   const step = Math.max(0, x - 16) / 8;
@@ -208,10 +202,9 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   const measured = rawPressure != null && expected != null && !idle && !jam && !protocolCode && Math.abs(rawPressure - expected) <= 1;
   const level = measured && rawPressure != null ? Math.round(rawPressure * 100 / 65535) : null;
   const response = jam ? 'Jam reported' : idle || rawPressure == null || selected == null ? 'Unavailable' : level != null ? `${level}%` : 'Controller code';
-  text(view.pressureState, response);
+  text(view.pressureState, jam ? '!' : level == null ? '—' : '');
   style(view.pressureState, `font-medium ${jam ? 'text-red-400' : 'text-white'}`);
-  view.pressureTrack.hidden = level == null;
-  view.pressureCaption.hidden = level == null;
+  view.pressureTrack.style.opacity = level == null ? '0.35' : '1';
   view.pressureFill.style.width = `${level ?? 0}%`;
   view.pressure.setAttribute('aria-label', `Pressure response: ${response}${live ? '' : ', last reported'}`);
   view.pressure.title = level != null ? 'Relative response encoded from buffer position; not a force measurement' : jam ? 'BMCU reported the jam code' : 'The pressure field is unavailable or contains a controller code';
