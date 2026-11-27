@@ -71,10 +71,12 @@ describe('BMCULinkPage', () => {
     await waitFor(() => expect(bmcuMonitorsApi.timeline).toHaveBeenCalled());
     expect(screen.getByText('Loader state')).toBeTruthy();
     const monitorCard = screen.getByRole('button', { name: /Pico loader/ }).parentElement!;
-    expect(within(monitorCard).getByText('Monitor status')).toBeTruthy();
-    expect(within(monitorCard).getByText('UDP stream')).toBeTruthy();
+    expect(within(monitorCard).queryByText('Monitor status')).toBeNull();
+    expect(within(monitorCard).queryByText('UDP stream')).toBeNull();
+    expect(within(monitorCard).getByText('UDP online')).toBeTruthy();
     expect(await within(monitorCard).findByText('192.0.2.10')).toBeTruthy();
-    expect(screen.getByText('Missing sequences detected')).toBeTruthy();
+    fireEvent.click(within(monitorCard).getByText('Connection details'));
+    expect(within(monitorCard).getByText('Missing sequences detected')).toBeTruthy();
     expect(screen.getByText('Loader timeline')).toBeTruthy();
     expect(screen.getByText('control error')).toBeTruthy();
     expect(screen.queryByText('Pico hardware')).toBeNull();
