@@ -93,6 +93,61 @@ G1 X0 Y10 E1.5
     expect(absolute.travelCount).toBeGreaterThan(0);
   });
 
+  it('preserves physical coordinates across relative moves and G92 origin changes', () => {
+    const result = parseGcodeToolpath(`
+M83
+G90
+G1 X10 Y20 Z0.2
+; CHANGE_LAYER
+G91
+G1 X2 Y-1 E1
+G1 X1
+G90
+G92 X0 Y0 Z0 E0
+G1 X2 Y3 Z0.1 E1
+`, { markedLayersOnly: true });
+    const paths = result.layers[0].paths;
+    expect(result.segmentCount).toBe(2);
+    expect(result.travelCount).toBe(1);
+    expect(Array.from(paths.slice(0, 7))).toEqual([10, 20, expect.closeTo(0.2), ToolpathType.wall, 12, 19, expect.closeTo(0.2)]);
+    expect(Array.from(paths.slice(8, 15))).toEqual([12, 19, expect.closeTo(0.2), ToolpathType.travel, 13, 19, expect.closeTo(0.2)]);
+    expect(Array.from(paths.slice(16, 23))).toEqual([13, 19, expect.closeTo(0.2), ToolpathType.wall, 15, 22, expect.closeTo(0.3)]);
+  });
+
+  it('tracks the extrusion coordinate when switching from M83 to M82', () => {
+    const result = parseGcodeToolpath(`
+G1 X0 Y0 Z0.2
+; CHANGE_LAYER
+M83
+G1 X1 E1
+G1 X2 E1
+M82
+G1 X3 E2
+G1 X4 E3
+`, { markedLayersOnly: true });
+    expect(result.segmentCount).toBe(3);
+    expect(result.travelCount).toBe(1);
+    expect(result.layers[0].paths[2 * 8 + 3]).toBe(ToolpathType.travel);
+  });
+
+  it('interpolates the height of a relative helical arc from its starting Z', () => {
+    const result = parseGcodeToolpath(`
+M83
+G90
+G1 X1 Y0 Z0.2
+; CHANGE_LAYER
+G91
+G3 X-1 Y1 Z1 I-1 J0 E1
+`, { markedLayersOnly: true });
+    const paths = result.layers[0].paths;
+    expect(result.segmentCount).toBeGreaterThan(2);
+    const zStep = 1 / result.segmentCount;
+    for (let i = 0; i < result.segmentCount; i += 1) {
+      expect(paths[i * 8 + 2]).toBeCloseTo(0.2 + zStep * i);
+      expect(paths[i * 8 + 6]).toBeCloseTo(0.2 + zStep * (i + 1));
+    }
+  });
+
   it('keeps geometry for an unrecognised feature name', () => {
     // A type we do not know must never drop the move -- a hole in the preview
     // is far worse than a wrongly coloured segment.

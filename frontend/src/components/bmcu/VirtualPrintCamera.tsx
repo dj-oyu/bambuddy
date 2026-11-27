@@ -51,12 +51,10 @@ function createView(host: HTMLDivElement, data: SegmentData, onLost: () => void)
     // The vendored shader exposes both the segment layer and the upper range
     // uniform. Changing the live layer only updates a uniform and draw count.
     const material = handle.mesh.material as THREE.RawShaderMaterial;
-    material.vertexShader = material.vertexShader.replace(/void main\s*\(/, 'void toolpathMain(') + `
-void main() {
-  toolpathMain();
-  if (int(seg_layer_u) < layer_hi - 19) color *= 0.60;
-}
-`;
+    material.vertexShader = material.vertexShader.replace(
+      'vec3 color_base = decode_color(hwa_color.w);',
+      'vec3 color_base = seg_layer == layer_hi ? vec3(0.25, 0.90, 0.96) : decode_color(hwa_color.w) * 0.70;',
+    );
     handle.mesh.rotation.x = -Math.PI / 2;
     handle.mesh.visible = false;
     scene.add(handle.mesh);
@@ -135,20 +133,22 @@ export function VirtualPrintCamera({ gcodeUrl, reportedLayer, toolColor }: Props
     view.current.draw();
   }, [data, paletteKey]);
 
-  const completed = Math.max(0, Math.floor(reportedLayer) - 1);
-  const mismatch = data && (!Number.isFinite(completed) || completed > data.layerCount);
+  const mismatch = !!data && (!Number.isInteger(reportedLayer) || reportedLayer < 0 || reportedLayer > data.layerCount);
   useEffect(() => {
-    if (!view.current || !data || mismatch) return;
+    if (!view.current || !data) return;
     const { handle, draw } = view.current;
-    handle.mesh.visible = completed > 0;
-    handle.setVisibleLayers(completed);
-
+    handle.mesh.visible = !mismatch && reportedLayer > 0;
+    if (handle.mesh.visible) handle.setVisibleLayers(reportedLayer);
     draw();
-  }, [completed, data, mismatch]);
+  }, [reportedLayer, data, mismatch]);
 
-  const error = failure || (value && 'error' in value && value.error) || (mismatch && 'Reported layer exceeds this plate’s G-code.');
+  const error = failure || (value && 'error' in value && value.error) || (mismatch && 'Reported layer does not match this plate’s G-code.');
   return <>
-    <div ref={mount} role="img" aria-label="Planned extrusion through completed layers" hidden={!data || !!error} className="h-80 w-full overflow-hidden rounded-lg bg-bambu-dark/60" />
-    {(error || !data || completed === 0) && <p role="status" className="text-xs text-bambu-gray-light">{error || (!data ? 'Loading the sliced plate…' : 'Waiting for the first completed layer.')}</p>}
+    <div ref={mount} role="img" aria-label={`Print plan through layer ${reportedLayer}. The current layer’s planned path is highlighted in cyan.`} hidden={!data || !!error} className="h-80 w-full overflow-hidden rounded-lg bg-bambu-dark/60" />
+    {data && !error && reportedLayer > 0 && <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-bambu-gray-light">
+      <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1 w-4 rounded-full bg-cyan-300" />Layer {reportedLayer} · full planned path</span>
+      {reportedLayer > 1 && <span>Earlier layers · filament colors</span>}
+    </div>}
+    {(error || !data || reportedLayer === 0) && <p role="status" className="text-xs text-bambu-gray-light">{error || (!data ? 'Loading the sliced plate…' : 'Waiting for the first layer.')}</p>}
   </>;
 }

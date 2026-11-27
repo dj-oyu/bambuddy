@@ -52,6 +52,15 @@ async def test_virtual_camera_context_uses_verified_run_and_unique_plate(tmp_pat
     context = await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock(), True)
     assert (context["archiveId"], context["plate"], context["reportedLayer"]) == (5, 2, 12)
     parser.assert_not_awaited()
+    state.layer_num = 1
+    state.mc_print_sub_stage = 0
+    state.stg_cur = 0
+    first = await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock(), True)
+    assert first["reportedLayer"] == 1
+    state.mc_print_sub_stage = 14
+    with pytest.raises(HTTPException, match="Waiting for the first print layer"):
+        await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock(), True)
+    state.layer_num = 12
     archive(tmp_path, {"Metadata/plate_1.gcode": "", "Metadata/plate_2.gcode": ""})
     with pytest.raises(HTTPException, match="Current plate is unknown"):
         await printers.get_bmcu_gcode_window(1, object(), None, (None, True), object(), AsyncMock(), True)

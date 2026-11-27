@@ -757,8 +757,15 @@ async def get_bmcu_gcode_window(
         raise HTTPException(409, "Printer telemetry is stale")
     if getattr(state, "skipped_objects", None):
         raise HTTPException(409, "Object skips are not supported in this preview")
-    if not state.layer_num or state.layer_num < 2:
+    if not state.layer_num or state.layer_num < 1 or (state.layer_num == 1 and not metadata_only):
         raise HTTPException(409, "No earlier reported layer is available")
+    # Layer 1 is useful to the live viewer, but Bambu firmware may advance
+    # its counter during calibration before any object extrusion has begun.
+    if state.layer_num == 1 and (
+        getattr(state, "mc_print_sub_stage", None) not in (None, 0)
+        or getattr(state, "stg_cur", None) not in (None, 0, -1, 255)
+    ):
+        raise HTTPException(409, "Waiting for the first print layer")
     archive = await running_print_archive(db, printer_id, state, printing_only=True, by_name=False)
     if archive is None:
         raise HTTPException(409, "The running print cannot be securely matched to an archive")
