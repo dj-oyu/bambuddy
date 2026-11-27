@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BMCULinkPage } from '../../pages/BMCULinkPage';
 import { bmcuLinkApi } from '../../api/client';
@@ -65,8 +65,10 @@ describe('BMCULinkPage', () => {
     expect(await screen.findByText('Pico loader')).toBeTruthy();
     await waitFor(() => expect(bmcuMonitorsApi.timeline).toHaveBeenCalled());
     expect(screen.getByText('Loader state')).toBeTruthy();
-    expect(screen.getByText('Monitor status')).toBeTruthy();
-    expect(await screen.findByText('192.0.2.10')).toBeTruthy();
+    const monitorCard = screen.getByRole('button', { name: /Pico loader/ }).parentElement!;
+    expect(within(monitorCard).getByText('Monitor status')).toBeTruthy();
+    expect(within(monitorCard).getByText('UDP stream')).toBeTruthy();
+    expect(await within(monitorCard).findByText('192.0.2.10')).toBeTruthy();
     expect(screen.getByText('Missing sequences detected')).toBeTruthy();
     expect(screen.getByText('Loader timeline')).toBeTruthy();
     expect(screen.getByText('control error')).toBeTruthy();
@@ -74,6 +76,24 @@ describe('BMCULinkPage', () => {
     expect(bmcuMonitorsApi.metrics).not.toHaveBeenCalled();
     expect(await screen.findByText('printer_transaction')).toBeTruthy();
     expect(bmcuLinkApi.getEvents).toHaveBeenCalledWith(fixture.detail.deviceId, { kind: undefined, limit: 50, offset: 0 });
+  });
+
+  it('shows diagnostics inside the selected monitor card when switching devices', async () => {
+    const first = fixture.list[0] as BMCUMonitorSummary;
+    const second = { ...first, deviceId: 'second-pico', displayName: 'Second Pico' };
+    vi.mocked(bmcuMonitorsApi.list).mockResolvedValue([first, second]);
+    vi.mocked(bmcuMonitorsApi.get).mockImplementation(async (id) => ({ ...fixture.detail, deviceId: id } as BMCUMonitorDetail));
+    vi.mocked(bmcuMonitorsApi.streamDiagnostics).mockImplementation(async (id) => ({
+      deviceId: id, health: 'online', sourceAddress: id === 'second-pico' ? '192.0.2.20' : '192.0.2.10',
+      queueDepth: 0, counters: {},
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><BMCULinkPage /></QueryClientProvider>);
+    await screen.findByText('192.0.2.10');
+    const secondButton = screen.getByRole('button', { name: /Second Pico/ });
+    fireEvent.click(secondButton);
+    expect(await within(secondButton.parentElement!).findByText('192.0.2.20')).toBeTruthy();
+    expect(screen.queryByText('192.0.2.10')).toBeNull();
   });
 
   it('marks an aging loader snapshot as stale between updates', () => {

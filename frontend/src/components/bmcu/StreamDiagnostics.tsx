@@ -1,7 +1,6 @@
 import { Radio } from 'lucide-react';
 import { memo } from 'react';
 import type { BMCUStreamDiagnostics } from '../../api/bmcuMonitors';
-import { Card, CardContent } from '../Card';
 import { BMCUHealthBadge } from './MonitorCard';
 
 const ingestCounters = [
@@ -23,8 +22,7 @@ export const StreamDiagnostics = memo(function StreamDiagnostics({
   const hasCounters = data?.counters.datagrams_received != null;
 
   return (
-    <Card className="h-full">
-      <CardContent className="space-y-4 p-4">
+    <section aria-label="UDP stream" className="space-y-3 border-t border-bambu-dark-tertiary pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-semibold text-white">
             <Radio className="h-4 w-4 text-bambu-gray" />
@@ -56,7 +54,6 @@ export const StreamDiagnostics = memo(function StreamDiagnostics({
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </section>
   );
 });
