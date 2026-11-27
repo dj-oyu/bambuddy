@@ -4,7 +4,6 @@ import { Activity, Cable, Clock3, RadioTower, RefreshCw } from 'lucide-react';
 import { bmcuMonitorsApi } from '../api/bmcuMonitors';
 import { BMCUHealthBadge, MonitorCard } from '../components/bmcu/MonitorCard';
 import { formatBMCUAge, formatBMCUDateTime, bmcuTimestamp } from '../components/bmcu/bmcuTime';
-import { HardwareMetrics } from '../components/bmcu/HardwareMetrics';
 import { LoaderTimeline } from '../components/bmcu/LoaderTimeline';
 import { SlotStateGrid } from '../components/bmcu/SlotStateGrid';
 import { StreamDiagnostics } from '../components/bmcu/StreamDiagnostics';
@@ -21,7 +20,6 @@ const updateTimeoutMs = 3 * liveIntervalMs;
 const historyIntervalMs = 30000;
 const emptyPoints: [] = [];
 const HistoryTimeline = memo(LoaderTimeline);
-const HistoryMetrics = memo(HardwareMetrics);
 const DeviceEvents = memo(function DeviceEvents({ deviceId }: { deviceId: string }) {
   return <BMCUDeviceEvents device={{ device_id: deviceId }} />;
 });
@@ -70,12 +68,6 @@ export function BMCULinkPage() {
     enabled: !!selectedId,
     refetchInterval: historyIntervalMs,
   });
-  const metrics = useQuery({
-    queryKey: ['bmcu-monitor-metrics', selectedId, range],
-    queryFn: () => bmcuMonitorsApi.metrics(selectedId!, rollingWindow(range)),
-    enabled: !!selectedId,
-    refetchInterval: historyIntervalMs,
-  });
 
   const monitor = detail.data ?? selectedMonitor;
   const monitorQuery = detail.data ? detail : monitors;
@@ -86,9 +78,9 @@ export function BMCULinkPage() {
   const streamOutdated = stream.isError || (
     now - stream.dataUpdatedAt > updateTimeoutMs && !(liveConnected && stream.data && stream.data.health !== 'online')
   );
-  const refreshing = monitors.isFetching || detail.isFetching || stream.isFetching || timeline.isFetching || metrics.isFetching;
+  const refreshing = monitors.isFetching || detail.isFetching || stream.isFetching || timeline.isFetching;
   const liveError = monitors.error || detail.error;
-  const historyError = timeline.error || metrics.error;
+  const historyError = timeline.error;
 
   function refresh() {
     void monitors.refetch();
@@ -96,7 +88,6 @@ export function BMCULinkPage() {
       void detail.refetch();
       void stream.refetch();
       void timeline.refetch();
-      void metrics.refetch();
       void queryClient.invalidateQueries({ queryKey: ['bmcu-link-events', selectedId] });
     }
   }
@@ -194,7 +185,6 @@ export function BMCULinkPage() {
                 </div>
                 {historyError && <p role="alert" className="text-sm text-amber-400">History could not be refreshed. {historyError.message}</p>}
                 <HistoryTimeline points={timeline.data?.points ?? emptyPoints} />
-                <HistoryMetrics points={metrics.data ?? emptyPoints} />
               </section>
               {selectedId && (
                 <section className="rounded-xl border border-bambu-dark-tertiary bg-bambu-dark-secondary p-4">
