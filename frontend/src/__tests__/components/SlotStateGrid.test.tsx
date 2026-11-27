@@ -122,4 +122,14 @@ describe('SlotStateGrid', () => {
 
     expect(screen.getByText('0, 2, 0, 0')).toBeTruthy();
   });
+  it('distinguishes selected, empty, unknown and stale filament reports', () => {
+    const { rerender } = render(<SlotStateGrid links={[link(0, 'bmcu-a', { currentSlot: 0, activeMask: 1 })]} />);
+    expect(screen.getByText('Selected slot: 1')).toBeTruthy();
+    expect(screen.getByLabelText('Slot 1: selected, filament present')).toBeTruthy();
+    expect(screen.getByLabelText('Slot 2: filament empty')).toBeTruthy();
+    rerender(<SlotStateGrid links={[link(0, 'bmcu-a', { state: 'stale', currentSlot: 0, activeMask: null, statusAgeS: 60 })]} />);
+    expect(screen.getByText('Last selected slot: 1')).toBeTruthy();
+    expect(screen.getByLabelText('Slot 1: last selected, filament unknown, last reported')).toBeTruthy();
+  });
+
 });

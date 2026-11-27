@@ -11,8 +11,10 @@ type LoaderNodes = {
   name: HTMLSpanElement;
   badge: HTMLSpanElement;
   age: HTMLParagraphElement;
+  selection: HTMLParagraphElement;
   slots: HTMLDivElement;
   slotNodes: HTMLDivElement[];
+  slotStates: HTMLSpanElement[];
   values: HTMLDivElement;
   motion: HTMLSpanElement;
   pull: HTMLSpanElement;
@@ -32,16 +34,21 @@ const text = (element: HTMLElement, value: string) => { if (element.textContent 
 const style = (element: HTMLElement, value: string) => { if (element.className !== value) element.className = value; };
 
 function buildLoader(): LoaderNodes {
-  const root = node('div', 'rounded-lg border border-bambu-dark-tertiary bg-bambu-dark/40 p-4');
+  const root = node('div', 'rounded-xl border border-bambu-dark-tertiary bg-bambu-dark/40 p-4 sm:p-5');
   const heading = node('div', 'flex flex-wrap items-center justify-between gap-2');
   const name = node('span', 'font-medium text-white');
   const badge = node('span');
   heading.append(name, badge);
   const age = node('p', 'mt-2 text-xs text-bambu-gray');
+  const selection = node('p', 'mt-4 text-sm font-medium text-bambu-gray-light');
   const slots = node('div');
+  const slotStates: HTMLSpanElement[] = [];
   const slotNodes = [0, 1, 2, 3].map((slot) => {
     const item = node('div');
-    item.append(node('div', 'text-[10px] uppercase', 'Slot'), node('div', 'font-semibold', String(slot + 1)));
+    const label = node('div', 'flex items-center justify-between text-[10px] font-medium uppercase tracking-wide', 'Slot');
+    const state = node('span', 'mt-2 block text-[11px]');
+    item.append(label, node('div', 'mt-2 text-xl font-semibold tabular-nums', String(slot + 1)), state);
+    slotStates.push(state);
     slots.append(item);
     return item;
   });
@@ -61,8 +68,8 @@ function buildLoader(): LoaderNodes {
   const filament = node('span');
   const faults = node('span');
   footer.append(filament, faults);
-  root.append(heading, age, slots, values, warning, footer);
-  return { root, name, badge, age, slots, slotNodes, values, motion, pull, pressure, warning, filament, faults };
+  root.append(heading, age, selection, slots, values, warning, footer);
+  return { root, name, badge, age, selection, slots, slotNodes, slotStates, values, motion, pull, pressure, warning, filament, faults };
 }
 
 function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds: number, outdated: boolean) {
@@ -74,9 +81,15 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   style(view.badge, `inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${live ? 'bg-emerald-500/10 text-emerald-400' : known ? 'bg-amber-500/10 text-amber-400' : 'bg-bambu-dark-tertiary text-bambu-gray-light'}`);
   view.age.hidden = ageSeconds == null;
   text(view.age, ageSeconds == null ? '' : `Last STATUS ${formatBMCUAge(ageSeconds)}`);
-  style(view.slots, `mt-4 grid grid-cols-4 gap-2 ${live ? '' : 'opacity-50'}`);
+  const selected = Number.isInteger(link.currentSlot) && link.currentSlot != null && link.currentSlot >= 0 && link.currentSlot < 4 ? link.currentSlot : null;
+  text(view.selection, !known ? 'Selected slot: unknown' : link.currentSlot == null ? (live ? 'No slot selected' : 'Last reported: no slot selected') : selected == null ? 'Selected slot: unknown' : `${live ? 'Selected slot' : 'Last selected slot'}: ${selected + 1}`);
+  style(view.slots, `mt-3 grid grid-cols-4 gap-2 ${live ? '' : 'opacity-70'}`);
   view.slotNodes.forEach((slot, index) => {
-    style(slot, `rounded-md border px-2 py-3 text-center ${live && link.currentSlot === index ? 'border-bambu-green bg-bambu-green/15 text-white' : link.currentSlot === index ? 'border-amber-500/40 text-bambu-gray-light' : 'border-bambu-dark-tertiary text-bambu-gray'}`);
+    const isSelected = selected === index;
+    const present = link.activeMask == null ? null : (link.activeMask & (1 << index)) !== 0;
+    text(view.slotStates[index], present == null ? 'Unknown' : present ? 'Present' : 'Empty');
+    slot.setAttribute('aria-label', `Slot ${index + 1}: ${isSelected ? (live ? 'selected, ' : 'last selected, ') : ''}filament ${present == null ? 'unknown' : present ? 'present' : 'empty'}${live ? '' : ', last reported'}`);
+    style(slot, `min-w-0 rounded-lg border px-2 py-3 text-left ${live && isSelected ? 'border-bambu-green bg-bambu-green/15 text-white' : isSelected ? 'border-amber-500/40 bg-amber-500/5 text-bambu-gray-light' : 'border-bambu-dark-tertiary bg-bambu-dark/30 text-bambu-gray-light'}`);
   });
   style(view.values, `mt-4 grid grid-cols-3 gap-2 text-xs ${live ? '' : 'opacity-50'}`);
   text(view.motion, link.motion == null ? '—' : link.motion.join(', '));
@@ -134,5 +147,5 @@ export function SlotStateGrid({ links, elapsedSeconds = 0, outdated = false, dev
     });
   }, [deviceId, renderLinks]);
 
-  return <Card><CardHeader><h2 className="font-semibold text-white">Loader state</h2></CardHeader><CardContent><div ref={container} className="grid gap-3 sm:grid-cols-2" /></CardContent></Card>;
+  return <Card><CardHeader><h2 className="font-semibold text-white">Loader state</h2><p className="mt-1 text-xs text-bambu-gray">Selected slot and filament presence reported by each BMCU</p></CardHeader><CardContent><div ref={container} className="grid gap-3 sm:grid-cols-2" /></CardContent></Card>;
 }
