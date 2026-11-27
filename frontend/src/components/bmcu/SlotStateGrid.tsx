@@ -106,8 +106,10 @@ function buildLoader(): LoaderNodes {
   const pressureState = node('span', 'w-3 shrink-0 text-center font-medium');
   pressureState.setAttribute('aria-hidden', 'true');
   pressureHeading.append(node('span', 'text-bambu-gray-light', 'Pressure response'), pressureState);
-  const pressureTrack = node('div', 'mt-4 h-2 overflow-hidden rounded-full bg-slate-600/70');
-  const pressureFill = node('div', 'h-full rounded-full bg-emerald-400 motion-safe:transition-[width] motion-safe:duration-300');
+  const pressureTrack = node('div', 'relative mt-4 h-2 overflow-hidden');
+  pressureTrack.style.background = 'repeating-linear-gradient(to right, rgba(71, 85, 105, .7) 0 4%, transparent 4% 5%)';
+  const pressureFill = node('div', 'absolute inset-0 motion-safe:transition-[clip-path] motion-safe:duration-300');
+  pressureFill.style.maskImage = 'repeating-linear-gradient(to right, #000 0 4%, transparent 4% 5%)';
   pressureTrack.append(pressureFill);
   pressure.append(pressureHeading, pressureTrack);
   gauges.append(buffer, pressure);
@@ -193,10 +195,16 @@ function updateLoader(view: LoaderNodes, link: BMCULinkSnapshot, elapsedSeconds:
   const response = jam ? 'Jam reported' : idle || rawPressure == null || selected == null ? 'Unavailable' : level != null ? `${level}%` : 'Controller code';
   text(view.pressureState, jam ? '!' : level == null ? '—' : '');
   style(view.pressureState, `w-3 shrink-0 text-center font-medium ${jam ? 'text-red-400' : 'text-bambu-gray'}`);
-  view.pressureTrack.style.opacity = level == null ? '0.35' : '1';
-  view.pressureFill.style.width = `${level ?? 0}%`;
+  view.pressureTrack.style.opacity = level == null && !jam ? '0.35' : '1';
+  // Expand the common 0–4% range; 8% (outside the observed usual range)
+  // reaches 80% of the meter. This is a visual scale, not a jam threshold.
+  const meter = jam ? 100 : level == null ? 0 : level <= 8
+    ? 80 * Math.sqrt(level / 8)
+    : 80 + 20 * Math.min((level - 8) / 92, 1);
+  view.pressureFill.style.clipPath = `inset(0 ${100 - meter}% 0 0)`;
+  view.pressureFill.style.background = jam ? '#f87171' : 'linear-gradient(to right, #34d399 0%, #34d399 60%, #fbbf24 70%, #f87171 80%, #ef4444 100%)';
   view.pressure.setAttribute('aria-label', `Pressure response: ${response}${live ? '' : ', last reported'}`);
-  view.pressure.title = level != null ? 'Relative response encoded from buffer position; not a force measurement' : jam ? 'BMCU reported the jam code' : 'The pressure field is unavailable or contains a controller code';
+  view.pressure.title = level != null ? 'Relative response encoded from buffer position; expanded visual scale, not a force measurement or a jam threshold' : jam ? 'BMCU reported the jam code' : 'The pressure field is unavailable or contains a controller code';
   view.pressure.style.opacity = live ? '1' : '0.6';
   text(view.diagnostics, `Motion ${link.motion?.join(', ') ?? '—'} · Pull ${pull == null ? '—' : `${pull}%`} · Pressure ${rawPressure == null ? '—' : `0x${rawPressure.toString(16).toUpperCase().padStart(4, '0')}`}`);
   view.warning.hidden = live;
