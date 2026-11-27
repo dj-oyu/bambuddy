@@ -34,7 +34,29 @@ function createView(host: HTMLDivElement, data: SegmentData, onLost: () => void)
     draw();
   };
   const observer = new ResizeObserver(resize);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let onScreen = false;
+  let animation: number | undefined;
+  const phase = { value: 0 };
+  const syncAnimation = () => {
+    window.clearInterval(animation);
+    animation = undefined;
+    if (onScreen && !document.hidden && !reducedMotion.matches && handle?.mesh.visible) {
+      animation = window.setInterval(() => {
+        phase.value = (phase.value + 1 / 240) % 1;
+        draw();
+      }, 125);
+    }
+  };
+  const visibility = new IntersectionObserver(([entry]) => {
+    onScreen = entry.isIntersecting;
+    syncAnimation();
+  });
   const dispose = () => {
+    window.clearInterval(animation);
+    visibility.disconnect();
+    reducedMotion.removeEventListener('change', syncAnimation);
+    document.removeEventListener('visibilitychange', syncAnimation);
     observer.disconnect();
     canvas.removeEventListener('webglcontextlost', onLost);
     controls.removeEventListener('change', draw);
@@ -51,9 +73,25 @@ function createView(host: HTMLDivElement, data: SegmentData, onLost: () => void)
     // The vendored shader exposes both the segment layer and the upper range
     // uniform. Changing the live layer only updates a uniform and draw count.
     const material = handle.mesh.material as THREE.RawShaderMaterial;
-    material.vertexShader = material.vertexShader.replace(
+    // Color in model coordinates so orbiting the camera preserves the pattern.
+    // Phase cycles across the whole layer independently of extrusion order.
+    material.uniforms.plan_phase = phase;
+    material.uniforms.plan_min = { value: min[0] + min[1] };
+    material.uniforms.plan_span = { value: Math.max(1, max[0] - min[0] + max[1] - min[1]) };
+    material.vertexShader = material.vertexShader.replace('uniform int layer_hi;', `
+      uniform float plan_phase;
+      uniform float plan_min;
+      uniform float plan_span;
+      uniform int layer_hi;`).replace(
+      'float half_width = 0.5 * height_width_angle.y;',
+      'float half_width = (seg_layer == layer_hi ? 0.20 : 0.50) * height_width_angle.y;',
+    ).replace(
       'vec3 color_base = decode_color(hwa_color.w);',
-      'vec3 color_base = seg_layer == layer_hi ? vec3(0.25, 0.90, 0.96) : decode_color(hwa_color.w) * 0.70;',
+      `vec3 color_base = decode_color(hwa_color.w);
+       if (seg_layer == layer_hi) {
+         float band = (endpoint_pos.x + endpoint_pos.y - plan_min) / plan_span + plan_phase;
+         color_base = 0.63 + 0.37 * cos(6.2831853 * (band + vec3(0.0, 0.667, 0.333)));
+       }`,
     );
     handle.mesh.rotation.x = -Math.PI / 2;
     handle.mesh.visible = false;
@@ -70,7 +108,10 @@ function createView(host: HTMLDivElement, data: SegmentData, onLost: () => void)
     controls.addEventListener('change', draw);
     canvas.addEventListener('webglcontextlost', onLost);
     observer.observe(host);
-    return { handle, draw, dispose };
+    visibility.observe(host);
+    reducedMotion.addEventListener('change', syncAnimation);
+    document.addEventListener('visibilitychange', syncAnimation);
+    return { handle, draw, dispose, syncAnimation };
   } catch (error) {
     dispose();
     throw error;
@@ -136,17 +177,18 @@ export function VirtualPrintCamera({ gcodeUrl, reportedLayer, toolColor }: Props
   const mismatch = !!data && (!Number.isInteger(reportedLayer) || reportedLayer < 0 || reportedLayer > data.layerCount);
   useEffect(() => {
     if (!view.current || !data) return;
-    const { handle, draw } = view.current;
+    const { handle, draw, syncAnimation } = view.current;
     handle.mesh.visible = !mismatch && reportedLayer > 0;
     if (handle.mesh.visible) handle.setVisibleLayers(reportedLayer);
+    syncAnimation();
     draw();
   }, [reportedLayer, data, mismatch]);
 
   const error = failure || (value && 'error' in value && value.error) || (mismatch && 'Reported layer does not match this plate’s G-code.');
   return <>
-    <div ref={mount} role="img" aria-label={`Print plan through layer ${reportedLayer}. The current layer’s planned path is highlighted in cyan.`} hidden={!data || !!error} className="h-80 w-full overflow-hidden rounded-lg bg-bambu-dark/60" />
+    <div ref={mount} role="img" aria-label={`Print plan through layer ${reportedLayer}. A rainbow shows the full planned path for this layer. Earlier layers use filament colors.`} hidden={!data || !!error} className="h-80 w-full overflow-hidden rounded-lg bg-bambu-dark/60" />
     {data && !error && reportedLayer > 0 && <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-bambu-gray-light">
-      <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1 w-4 rounded-full bg-cyan-300" />Layer {reportedLayer} · full planned path</span>
+      <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-6 rounded-full" style={{ background: 'linear-gradient(90deg, #ff8686, #ffff70, #75ffad, #71daff, #c187ff)' }} />Layer {reportedLayer} · preview</span>
       {reportedLayer > 1 && <span>Earlier layers · filament colors</span>}
     </div>}
     {(error || !data || reportedLayer === 0) && <p role="status" className="text-xs text-bambu-gray-light">{error || (!data ? 'Loading the sliced plate…' : 'Waiting for the first layer.')}</p>}
