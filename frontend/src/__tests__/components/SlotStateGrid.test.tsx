@@ -106,7 +106,7 @@ describe('SlotStateGrid', () => {
     render(<SlotStateGrid links={[link(1, 'bmcu-b', { state: 'no_data' })]} />);
 
     expect(screen.getByText('filament —')).toBeTruthy();
-    expect(screen.getByText('faults —')).toBeTruthy();
+    expect(screen.getByText('CRC / frame errors: unknown')).toBeTruthy();
     expect(screen.queryByText(/0x00/)).toBeNull();
   });
 
@@ -114,7 +114,7 @@ describe('SlotStateGrid', () => {
     render(<SlotStateGrid links={[link(0, 'bmcu-a', { activeMask: 0, faultCount: 0, statusAgeS: 1 })]} />);
 
     expect(screen.getByText(/filament 0x00/)).toBeTruthy();
-    expect(screen.getByText(/0 faults/)).toBeTruthy();
+    expect(screen.getByText('CRC / frame errors: 0 (total)')).toBeTruthy();
   });
 
   it('renders the four motion values instead of a stringified tuple', () => {
